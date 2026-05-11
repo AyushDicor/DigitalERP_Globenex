@@ -133,6 +133,7 @@ import '../../response/subcategory_brand_response.dart';
 import '../../response/task_dropdown_response.dart';
 import '../../response/create_task_response.dart';
 import '../../response/save_followup_response.dart';
+import '../../screen/ui/home/mrn_module/mrn_response/mrn_models.dart';
 
 class Api {
   final ApiMethods _apiMethods = ApiMethods();
@@ -4702,6 +4703,32 @@ class Api {
       }
     } else {
       return DownloadSalarySleepRes(status: 500, message: 'No internet');
+    }
+  }
+
+  Future<MrnDropdownResponse> getMrnDropdownList(Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getMrnDropdownList,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return MrnDropdownResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print(e);
+          return MrnDropdownResponse(status: 500, message: e.toString());
+        }
+      } else {
+        return MrnDropdownResponse(status: 500, message: 'Something went wrong');
+      }
+    } else {
+      return MrnDropdownResponse(status: 500, message: 'No Internet');
     }
   }
 }

@@ -17,33 +17,38 @@ class MrnEntryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<MrnController>(
       init: MrnController(),
-      builder: (ctrl) => Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              //  App bar 
-              _appBar(ctrl),
-
-              //  Step progress bar 
-              MrnStepBar(current: ctrl.currentStep),
-              const Divider(height: 1, color: newBorderColor),
-
-              //  Page view (4 steps) 
-              Expanded(
-                child: PageView(
-                  controller: ctrl.pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: const [
-                    MrnSourceScreen(),
-                    MrnItemsScreen(),
-                    MrnScanScreen(),
-                    MrnReviewScreen(),
-                  ],
+      builder: (ctrl) => PopScope(
+        canPop: false, // ✅ intercept phone back button
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (ctrl.currentStep > 0) {
+            ctrl.prevStep(); // ✅ go to previous step
+          } else {
+            Get.back(); // ✅ exit MRN entry
+          }
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _appBar(ctrl),
+                MrnStepBar(current: ctrl.currentStep),
+                const Divider(height: 1, color: newBorderColor),
+                Expanded(
+                  child: PageView(
+                    controller: ctrl.pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: const [
+                      MrnSourceScreen(),
+                      MrnItemsScreen(),
+                      MrnReviewScreen(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

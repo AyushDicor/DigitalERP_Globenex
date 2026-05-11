@@ -1,8 +1,8 @@
-//  Shared widgets used across MRN screens 
+// Shared widgets used across MRN screens
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 
-//  Section heading 
+// ── Section heading ──────────────────────────────────────────────────────────
 class MrnSectionHead extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -25,7 +25,7 @@ class MrnSectionHead extends StatelessWidget {
   }
 }
 
-//  White card wrapper 
+// ── White card wrapper ────────────────────────────────────────────────────────
 class MrnCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -51,7 +51,7 @@ class MrnCard extends StatelessWidget {
   }
 }
 
-//  Labelled input field 
+// ── Labelled input field ──────────────────────────────────────────────────────
 class MrnField extends StatelessWidget {
   final String label;
   final TextEditingController? controller;
@@ -61,6 +61,7 @@ class MrnField extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final Widget? suffix;
+  final ValueChanged<String>? onChanged;
 
   const MrnField({
     super.key,
@@ -72,6 +73,7 @@ class MrnField extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.suffix,
+    this.onChanged,
   });
 
   @override
@@ -86,6 +88,7 @@ class MrnField extends StatelessWidget {
         keyboardType: keyboard,
         readOnly: readOnly,
         onTap: onTap,
+        onChanged: onChanged,
         minLines: minLines,
         maxLines: minLines > 1 ? minLines + 2 : 1,
         style: const TextStyle(fontSize: 13, color: newTextPrimary),
@@ -96,7 +99,7 @@ class MrnField extends StatelessWidget {
           filled: true,
           fillColor: newSurfaceColor,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+          const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: newBorderColor)),
@@ -112,7 +115,7 @@ class MrnField extends StatelessWidget {
   }
 }
 
-//  Dropdown field 
+// ── Simple Dropdown field ──────────────────────────────────────────────────────
 class MrnDropdown extends StatelessWidget {
   final String label;
   final String? value;
@@ -151,8 +154,7 @@ class MrnDropdown extends StatelessWidget {
             dropdownColor: Colors.white,
             borderRadius: BorderRadius.circular(12),
             items: items
-                .map((s) =>
-                    DropdownMenuItem(value: s, child: Text(s)))
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: onChanged,
           ),
@@ -162,7 +164,258 @@ class MrnDropdown extends StatelessWidget {
   }
 }
 
-//  Step progress bar 
+// ── Searchable Dropdown ───────────────────────────────────────────────────────
+/// Generic searchable dropdown that opens a bottom sheet with a search field.
+/// T must be the model type; provide [itemLabel] to extract display text.
+/// Shows a loading shimmer when [isLoading] is true.
+class MrnSearchableDropdown<T> extends StatelessWidget {
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onChanged;
+  final String hint;
+  final bool isLoading;
+
+  const MrnSearchableDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+    this.hint = 'Search…',
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = value != null ? itemLabel(value as T) : null;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: const TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: newTextPrimary)),
+      const SizedBox(height: 5),
+      GestureDetector(
+        onTap: isLoading ? null : () => _openSheet(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+          decoration: BoxDecoration(
+            color: newSurfaceColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: newBorderColor),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: isLoading
+                  ? _shimmer()
+                  : Text(
+                displayText ?? hint,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: displayText != null
+                        ? newTextPrimary
+                        : newTextHint),
+              ),
+            ),
+            if (isLoading)
+              const SizedBox(
+                width: 14, height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 1.5, color: newTextSecondary),
+              )
+            else
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: newTextSecondary, size: 20),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _shimmer() {
+    return Container(
+      height: 13, width: 120,
+      decoration: BoxDecoration(
+        color: newBorderColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  void _openSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => _SearchSheet<T>(
+        title: label,
+        items: items,
+        selected: value,
+        itemLabel: itemLabel,
+        onSelected: (picked) {
+          Navigator.pop(context);
+          onChanged(picked);
+        },
+      ),
+    );
+  }
+}
+
+/// Bottom sheet with search field + scrollable list
+class _SearchSheet<T> extends StatefulWidget {
+  final String title;
+  final List<T> items;
+  final T? selected;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onSelected;
+
+  const _SearchSheet({
+    required this.title,
+    required this.items,
+    required this.selected,
+    required this.itemLabel,
+    required this.onSelected,
+  });
+
+  @override
+  State<_SearchSheet<T>> createState() => _SearchSheetState<T>();
+}
+
+class _SearchSheetState<T> extends State<_SearchSheet<T>> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  List<T> _filtered = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.items;
+    _searchCtrl.addListener(_onSearch);
+  }
+
+  void _onSearch() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? widget.items
+          : widget.items
+          .where((i) => widget.itemLabel(i).toLowerCase().contains(q))
+          .toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: Column(children: [
+          // Handle
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                  color: newBorderColor,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(widget.title,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w800,
+                    color: newTextPrimary)),
+          ),
+          const SizedBox(height: 10),
+
+          // Search field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: TextFormField(
+              controller: _searchCtrl,
+              autofocus: true,
+              style: const TextStyle(fontSize: 13, color: newTextPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search…',
+                hintStyle: const TextStyle(color: newTextHint, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    size: 18, color: newTextSecondary),
+                filled: true,
+                fillColor: newSurfaceColor,
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: newBorderColor)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: newBorderColor)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: newBlueColor, width: 1.5)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: newBorderColor),
+
+          // List
+          Expanded(
+            child: _filtered.isEmpty
+                ? const Center(
+                child: Text('No results found',
+                    style: TextStyle(
+                        fontSize: 13, color: newTextSecondary)))
+                : ListView.separated(
+              itemCount: _filtered.length,
+              separatorBuilder: (_, __) =>
+              const Divider(height: 1, color: newBorderColor),
+              itemBuilder: (_, i) {
+                final item = _filtered[i];
+                final isSelected = item == widget.selected;
+                return ListTile(
+                  dense: true,
+                  title: Text(widget.itemLabel(item),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? newBlueColor
+                              : newTextPrimary)),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_rounded,
+                      size: 16, color: newBlueColor)
+                      : null,
+                  onTap: () => widget.onSelected(item),
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Step progress bar ──────────────────────────────────────────────────────────
 class MrnStepBar extends StatelessWidget {
   final int current; // 0-based
 
@@ -178,7 +431,6 @@ class MrnStepBar extends StatelessWidget {
       child: Row(
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
-            // Connector line
             final stepIdx = i ~/ 2;
             return Expanded(
               child: Container(
@@ -201,18 +453,18 @@ class MrnStepBar extends StatelessWidget {
                   color: isDone
                       ? newGreenColor
                       : isActive
-                          ? newBlueColor
-                          : newBorderColor,
+                      ? newBlueColor
+                      : newBorderColor,
                 ),
                 alignment: Alignment.center,
                 child: isDone
                     ? const Icon(Icons.check_rounded,
-                        size: 14, color: Colors.white)
+                    size: 14, color: Colors.white)
                     : Text('${stepIdx + 1}',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: isActive ? Colors.white : newTextSecondary)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: isActive ? Colors.white : newTextSecondary)),
               ),
               const SizedBox(height: 3),
               Text(steps[stepIdx],
@@ -228,7 +480,7 @@ class MrnStepBar extends StatelessWidget {
   }
 }
 
-//  Status badge 
+// ── Status badge ───────────────────────────────────────────────────────────────
 class MrnBadge extends StatelessWidget {
   final String label;
   final Color bg;
@@ -255,7 +507,7 @@ class MrnBadge extends StatelessWidget {
   }
 }
 
-//  Qty control row 
+// ── Qty control row ────────────────────────────────────────────────────────────
 class MrnQtyControl extends StatelessWidget {
   final double qty;
   final VoidCallback onIncrease;
@@ -297,11 +549,11 @@ class MrnQtyControl extends StatelessWidget {
           color: filled ? newBlueColor : Colors.transparent,
           borderRadius: filled
               ? const BorderRadius.only(
-                  topRight: Radius.circular(7),
-                  bottomRight: Radius.circular(7))
+              topRight: Radius.circular(7),
+              bottomRight: Radius.circular(7))
               : const BorderRadius.only(
-                  topLeft: Radius.circular(7),
-                  bottomLeft: Radius.circular(7)),
+              topLeft: Radius.circular(7),
+              bottomLeft: Radius.circular(7)),
         ),
         child: Icon(icon, size: 14,
             color: filled ? Colors.white : newBlueColor),
@@ -310,7 +562,7 @@ class MrnQtyControl extends StatelessWidget {
   }
 }
 
-//  Blue full-width submit button 
+// ── Blue full-width submit button ──────────────────────────────────────────────
 class MrnPrimaryBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -343,18 +595,18 @@ class MrnPrimaryBtn extends StatelessWidget {
         ),
         child: isLoading
             ? const SizedBox(
-                width: 22, height: 22,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5))
+            width: 22, height: 22,
+            child: CircularProgressIndicator(
+                color: Colors.white, strokeWidth: 2.5))
             : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18),
-                  const SizedBox(width: 8),
-                ],
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w800)),
-              ]),
+          if (icon != null) ...[
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+          ],
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w800)),
+        ]),
       ),
     );
   }

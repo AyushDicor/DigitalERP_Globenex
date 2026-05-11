@@ -980,6 +980,8 @@ import 'package:digitalerp/utils/app_profile_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'app_routes/app_routes.dart';
+
 class HomeViewNew extends StatefulWidget {
   const HomeViewNew({Key? key}) : super(key: key);
 
@@ -1260,12 +1262,19 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
     return GestureDetector(
       onTap: () {
         Get.back(); // close sheet
+
+        // ✅ Intercept known menu IDs before the child==1 check
+        final route = _getDirectRoute(data.menuid);
+        if (route != null) {
+          Get.toNamed(route);
+          return;
+        }
+
         if (data.child == 1) {
-          // Parent node → MenuDefaultScreen auto-opens first child + FAB
-          Get.to(MenuDefaultScreen(
-                menuID: data.menuid!,
-                title: data.menuname ?? 'Menu',
-              ));
+          Get.to(() => MenuDefaultScreen(
+            menuID: data.menuid!,
+            title: data.menuname ?? 'Menu',
+          ));
         } else {
           Get.toNamed(HomeViewNewController.getRouteNameById(data.menuid));
         }
@@ -1320,5 +1329,16 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  String? _getDirectRoute(int? menuId) {
+    const directRoutes = {
+      2384: AppRoutes.approvalHub,
+      2385: AppRoutes.taskManagement,
+      2754: AppRoutes.mrnScreen,
+      2701: AppRoutes.reimbursement,
+      2586: AppRoutes.paymentRequestListScreen,
+    };
+    return menuId != null ? directRoutes[menuId] : null;
   }
 }

@@ -107,6 +107,7 @@ final Map<int, Widget Function()> menuRouteMap = {
   2412: () => PrintReportView(reportType: ReportType.balanceSheet),
   2413: () => PrintReportView(reportType: ReportType.profitAndLoss),
   2414: () => PrintReportView(reportType: ReportType.trialBalance),
+  2384: () => ApprovalHubDashboard(),
   // 2756: () => TaskFollowupScreen(taskId: ''),
 };
 

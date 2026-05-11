@@ -108,13 +108,21 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           const MrnSectionHead('Add Item'),
 
           // Item Name / Code (searchable)
+          // In _MrnDirectItemFormState, update the item onChanged:
           _SearchableField(
             label: 'Item Name / Code *',
             value: _selectedItem,
             items: ctrl.directItemList,
             isLoading: ctrl.isLoadingDirectItems,
             hint: 'Search item name or code…',
-            onChanged: (v) => setState(() => _selectedItem = v),
+            onChanged: (v) async {          // ← replace this whole onChanged
+              setState(() => _selectedItem = v);
+              if (v != null) {
+                setState(() => _selectedMake = null);
+                await ctrl.fetchMakes(dependentId: int.tryParse(v.id) ?? 0);
+                setState(() {});
+              }
+            },
             hasError: _selectedItem == null,
           ),
           const SizedBox(height: 10),

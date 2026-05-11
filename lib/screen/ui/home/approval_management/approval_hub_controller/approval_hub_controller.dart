@@ -230,7 +230,13 @@ extension ApprovalActionX on ApprovalAction {
 //  Controller
 
 class ApprovalHubController extends AppBaseController {
-  final HomeController homeController = Get.find<HomeController>();
+  HomeController get homeController {
+    try {
+      return Get.find<HomeController>();
+    } catch (_) {
+      return Get.put(HomeController());
+    }
+  }
 
   // Known category styles (seed map — for styling only, NOT for API calls)
   static const Map<String, Map<String, dynamic>> _knownStyles = {
@@ -547,7 +553,9 @@ class ApprovalHubController extends AppBaseController {
   Future<void> _loadDashboard() async {
     setBusy(true);
     try {
+      print('📊 Loading dashboard...');
       final allItems = await _fetchAllApprovals();
+      print('📊 Fetched ${allItems.length} items');
 
       final discoveredKeys = allItems
           .map((a) => a.approvalTypeCode ?? a.approvalType)
@@ -590,10 +598,15 @@ class ApprovalHubController extends AppBaseController {
       }
 
       await Future.wait([getStatusList()]);
+      print('📊 Status list loaded: ${statusList.length}');
       _recalcStats();
-    } catch (e) {
+      print('📊 Stats: pending=$totalPending');
+    } catch (e, stack) {
+      print('❌ Dashboard error: $e');
+      print('❌ Stack: $stack');          // ← add stack trace
       ShowMessage.showSnackBar('Approval Hub', '$e');
     } finally {
+      print('📊 Finally block reached');
       setBusy(false);
       update();
     }

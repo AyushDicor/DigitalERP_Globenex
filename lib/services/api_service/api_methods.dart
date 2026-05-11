@@ -277,4 +277,7 @@ class ApiMethods {
   /// Salary Sleep
 
   String downloadSalarySleep = "Downloadsalaryslip/showsalarylist";
+
+  ///MRN module
+  String getMrnDropdownList = 'Getmrndropdownlist';
 }

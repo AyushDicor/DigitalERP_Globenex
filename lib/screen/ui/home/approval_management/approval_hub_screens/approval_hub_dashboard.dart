@@ -15,6 +15,11 @@ class ApprovalHubDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<ApprovalHubController>(
       init: ApprovalHubController(),
+      initState: (_) {
+        if (!Get.isRegistered<ApprovalHubController>()) {
+          Get.put(ApprovalHubController());
+        }
+      },
       builder: (ctrl) => Scaffold(
         backgroundColor: newSurfaceColor,
         body: Column(children: [
@@ -49,7 +54,7 @@ class ApprovalHubDashboard extends StatelessWidget {
                   ),
           ),
         ]),
-        floatingActionButton: MenuFab(parentMenuId: 2384),
+      //   floatingActionButton: MenuFab(parentMenuId: 2384),
       ),
     );
   }

@@ -365,8 +365,8 @@ class AppPages {
       page: () => const HomeViewNew(),
     ),
     GetPage(
-      name: AppRoutes.approvalList,
-      page: () => ApprovalHubDashboard(),
+      name: AppRoutes.approvalHub,
+      page: () => const ApprovalHubDashboard(),
     ),
     GetPage(
       name: AppRoutes.taskManagement,

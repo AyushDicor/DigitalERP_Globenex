@@ -684,7 +684,7 @@ class DashboardView extends StatelessWidget {
           ),
           if (hasApproval)
             GestureDetector(
-              onTap: () => Get.to(const ApprovalHubDashboard()),
+              onTap: () => Get.to(() => const ApprovalHubDashboard()),
               child: Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Container(

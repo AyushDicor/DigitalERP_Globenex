@@ -405,7 +405,7 @@ class HomeViewNewController extends AppBaseController {
     if (menuId == 2381) return AppRoutes.imageView;
     if (menuId == 2382) return AppRoutes.accountModule;
     if (menuId == 2383) return AppRoutes.misModule;
-    if (menuId == 2384) return AppRoutes.approvalList;
+    if (menuId == 2384) return AppRoutes.approvalHub;
     if (menuId == 2385) return AppRoutes.taskManagement;
     if (menuId == 2386) return AppRoutes.documentDownload;
     if (menuId == 2387) return AppRoutes.orderFollowup;
