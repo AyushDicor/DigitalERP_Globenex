@@ -82,17 +82,31 @@ class MrnReviewScreen extends StatelessWidget {
           _InfoTile('Source',       ctrl.sourceLabel(ctrl.selectedSource)),
         ]),
 
-        if (ctrl.selectedSource == MrnSourceType.purchaseOrder ||
-            ctrl.selectedSource == MrnSourceType.grn) ...[
+        if (ctrl.selectedSource == MrnSourceType.purchaseOrder) ...[
           const SizedBox(height: 8),
           _infoGrid([
-            _InfoTile('Linked POs',
-              ctrl.poList.where((p) => p.isSelected).map((p) => p.poNumber).join(', ').isEmpty
-                  ? '—'
-                  : ctrl.poList.where((p) => p.isSelected).map((p) => p.poNumber).join(', '),
+            _InfoTile(
+              'Linked PO',
+              // Use orderno for display (e.g. "GP09/0030/PO/26-27")
+              // Fall back to orderid int if orderno is empty
+              ctrl.processingPo != null
+                  ? (ctrl.processingPo!.orderno.isNotEmpty
+                  ? ctrl.processingPo!.orderno
+                  : '#${ctrl.processingPo!.orderid}')
+                  : '—',
               full: true,
+              mono: true,
             ),
           ]),
+
+          // Also show party name from the PO if partyNameCtrl is empty
+          if (ctrl.processingPo?.partyname.isNotEmpty == true &&
+              ctrl.partyNameCtrl.text.isEmpty) ...[
+            const SizedBox(height: 8),
+            _infoGrid([
+              _InfoTile('Party', ctrl.processingPo!.partyname, full: true),
+            ]),
+          ],
         ],
       ]),
     );
@@ -174,10 +188,10 @@ class MrnReviewScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _attachmentSummary(ctrl),
 
-          if (ctrl.shippingAddress != null || ctrl.billingAddress != null) ...[
-            const SizedBox(height: 10),
-            _addressRow(ctrl),
-          ],
+          // if (ctrl.shippingAddress != null || ctrl.billingAddress != null) ...[
+          //   const SizedBox(height: 10),
+          //   _addressRow(ctrl),
+          // ],
         ],
       ]),
     );
@@ -346,13 +360,32 @@ class MrnReviewScreen extends StatelessWidget {
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: newTextPrimary)),
-              Text(_fmt(ctrl.grandTotal),
+              Text(_fmt(ctrl.grandTotalRounded),
                   style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                       color: newBlueColor)),
+              if (ctrl.roundOff != 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Round Off',
+                          style: TextStyle(fontSize: 12, color: newTextSecondary)),
+                      Text(
+                        '${ctrl.roundOff >= 0 ? '+' : ''}${ctrl.roundOff.toStringAsFixed(2)}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ctrl.roundOff >= 0 ? newGreenColor : newRedColor),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
+
         ),
       ]),
     );
@@ -444,8 +477,8 @@ class MrnReviewScreen extends StatelessWidget {
           Expanded(
             flex: 2,
             child: MrnPrimaryBtn(
-              label: 'Submit MRN',
-              icon: Icons.check_rounded,
+              label: ctrl.isBusy ? 'Uploading & Saving…' : 'Submit MRN',
+              icon: ctrl.isBusy ? Icons.cloud_upload_outlined : Icons.check_rounded,
               color: newGreenColor,
               isLoading: ctrl.isBusy,
               onTap: () => ctrl.submitMRN(),
@@ -522,22 +555,22 @@ class MrnReviewScreen extends StatelessWidget {
     return '₹$buf,$last3.$decimal';
   }
 
-  Widget _addressRow(MrnController ctrl) {
-    return _infoGrid([
-      if (ctrl.shippingAddress != null)
-        _InfoTile(
-          'Shipping Address',
-          ctrl.shippingAddress!.formatted,
-          full: ctrl.billingAddress == null,
-        ),
-      if (ctrl.billingAddress != null)
-        _InfoTile(
-          'Billing Address',
-          ctrl.billingAddress!.formatted,
-          full: ctrl.shippingAddress == null,
-        ),
-    ]);
-  }
+  // Widget _addressRow(MrnController ctrl) {
+  //   return _infoGrid([
+  //     if (ctrl.shippingAddress != null)
+  //       _InfoTile(
+  //         'Shipping Address',
+  //         ctrl.shippingAddress!.formatted,
+  //         full: ctrl.billingAddress == null,
+  //       ),
+  //     if (ctrl.billingAddress != null)
+  //       _InfoTile(
+  //         'Billing Address',
+  //         ctrl.billingAddress!.formatted,
+  //         full: ctrl.shippingAddress == null,
+  //       ),
+  //   ]);
+  // }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

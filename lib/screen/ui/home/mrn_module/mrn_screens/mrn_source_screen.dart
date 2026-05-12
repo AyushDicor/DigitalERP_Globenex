@@ -73,14 +73,8 @@ class MrnSourceScreen extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _sourceChip(ctrl, MrnSourceType.directPurchase,
-                          '🛒', 'Direct', 'Manual entry',
+                          '🛒', 'Direct Purchase', 'Manual entry',
                           newOrangeLightColor),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _sourceChip(ctrl, MrnSourceType.grn,
-                          '📦', 'GRN', 'Goods Receipt Note',
-                          newGreenLightColor),
                     ),
                   ]),
                 ]),
@@ -132,33 +126,33 @@ class MrnSourceScreen extends StatelessWidget {
                   const SizedBox(height: 10),
 
 // Addresses (read-only, from backend)
-                  if (ctrl.isLoadingAddresses)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: CircularProgressIndicator(strokeWidth: 1.5, color: newBlueColor),
-                      ),
-                    )
-                  else ...[
-                    if (ctrl.shippingAddress != null)
-                      _addressTile(
-                        icon: Icons.local_shipping_outlined,
-                        label: 'Shipping Address',
-                        address: ctrl.shippingAddress!,
-                        color: newBlueColor,
-                        bg: newBlueLightColor,
-                      ),
-                    if (ctrl.shippingAddress != null && ctrl.billingAddress != null)
-                      const SizedBox(height: 10),
-                    if (ctrl.billingAddress != null)
-                      _addressTile(
-                        icon: Icons.receipt_long_outlined,
-                        label: 'Billing Address',
-                        address: ctrl.billingAddress!,
-                        color: newGreenColor,
-                        bg: newGreenLightColor,
-                      ),
-                  ],
+//                   if (ctrl.isLoadingAddresses)
+//                     const Center(
+//                       child: Padding(
+//                         padding: EdgeInsets.symmetric(vertical: 10),
+//                         child: CircularProgressIndicator(strokeWidth: 1.5, color: newBlueColor),
+//                       ),
+//                     )
+//                   else ...[
+//                     if (ctrl.shippingAddress != null)
+//                       _addressTile(
+//                         icon: Icons.local_shipping_outlined,
+//                         label: 'Shipping Address',
+//                         address: ctrl.shippingAddress!,
+//                         color: newBlueColor,
+//                         bg: newBlueLightColor,
+//                       ),
+//                     if (ctrl.shippingAddress != null && ctrl.billingAddress != null)
+//                       const SizedBox(height: 10),
+//                     if (ctrl.billingAddress != null)
+//                       _addressTile(
+//                         icon: Icons.receipt_long_outlined,
+//                         label: 'Billing Address',
+//                         address: ctrl.billingAddress!,
+//                         color: newGreenColor,
+//                         bg: newGreenLightColor,
+//                       ),
+//                   ],
 
                   // Bill No + Bill Date
                   Row(children: [
@@ -287,12 +281,26 @@ class MrnSourceScreen extends StatelessWidget {
                     label: 'Paid Type',
                     value: ctrl.selectedPaidType,
                     items: ctrl.paidTypeList,
-                    isLoading: ctrl.isLoadingPaidType,
+                    isLoading: false,
                     itemLabel: (o) => o.label,
                     onChanged: ctrl.setPaidType,
-                    hint: 'Search paid type…',
+                    hint: 'Select paid type…',
                   ),
                   const SizedBox(height: 10),
+
+// Paid By — only shown when Employee is selected
+                  if (ctrl.selectedPaidType?.id == 'Employee') ...[
+                    MrnSearchableDropdown<MrnDropdownOption>(
+                      label: 'Paid By',
+                      value: ctrl.selectedPaidBy,
+                      items: ctrl.paidByList,
+                      isLoading: ctrl.isLoadingPaidBy,
+                      itemLabel: (o) => o.label,
+                      onChanged: ctrl.setPaidBy,
+                      hint: 'Search employee…',
+                    ),
+                    const SizedBox(height: 10),
+                  ],
 
                   // QC Required (Yes / No only)
                   MrnDropdown(
@@ -337,9 +345,56 @@ class MrnSourceScreen extends StatelessWidget {
                     onChanged: ctrl.setWorkOrder,
                     hint: 'Search work order…',
                   ),
+
+                  const SizedBox(height: 10),
+
+// Lot No + GRN No row
+                  Row(children: [
+                    Expanded(
+                      child: MrnField(
+                        label: 'Lot No.',
+                        controller: ctrl.lotNoCtrl,
+                        hint: 'Enter lot number',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: MrnField(
+                        label: 'GRN No.',
+                        controller: ctrl.grnNoCtrl,
+                        hint: 'Enter GRN number',
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+
+// GRN Date + Gate Entry No row
+                  Row(children: [
+                    Expanded(
+                      child: MrnField(
+                        label: 'GRN Date',
+                        controller: ctrl.grnDateCtrl,
+                        readOnly: true,
+                        hint: 'DD/MM/YYYY',
+                        onTap: () => ctrl.pickGrnDate(context),
+                        suffix: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(Icons.calendar_today_outlined,
+                              size: 16, color: newTextSecondary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: MrnField(
+                        label: 'Gate Entry No.',
+                        controller: ctrl.gateEntryNoCtrl,
+                        hint: 'Enter gate entry no.',
+                      ),
+                    ),
+                  ]),
                 ]),
               ),
-
             ]),
           ),
         ),

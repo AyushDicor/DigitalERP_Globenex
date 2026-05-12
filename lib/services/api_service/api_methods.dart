@@ -280,4 +280,8 @@ class ApiMethods {
 
   ///MRN module
   String getMrnDropdownList = 'Getmrndropdownlist';
+  String getPendingPo      = 'getpendingpo';
+  String processPendingPoList = 'processpendingpolist';
+  String saveMrnEntry = 'savemrnentry';
+//  static const String getPendingPoItems = 'getpendingpo';
 }

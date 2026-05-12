@@ -33,35 +33,64 @@ class MrnItemsScreen extends StatelessWidget {
                   if (ctrl.selectedSource == MrnSourceType.directPurchase)
                     const MrnDirectItemForm(),
 
-                  // ── PO / GRN — show PO selector ───────────────────────
-                  if (ctrl.selectedSource == MrnSourceType.purchaseOrder ||
-                      ctrl.selectedSource == MrnSourceType.grn)
+                  if (ctrl.selectedSource == MrnSourceType.purchaseOrder)
                     MrnCard(
+                      padding: EdgeInsets.zero,
                       child: Column(children: [
-                        MrnSectionHead(
-                          ctrl.selectedSource == MrnSourceType.grn
-                              ? 'Select GRN'
-                              : 'Select Purchase Orders',
-                          trailing: ctrl.isLoadingPO
-                              ? const SizedBox(
-                              width: 14, height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 1.5, color: newBlueColor))
-                              : null,
+                        // ── Card header ──────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                          child: MrnSectionHead('Select Purchase Order',
+                            trailing: ctrl.isLoadingPO
+                                ? const SizedBox(
+                                width: 14, height: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: newBlueColor))
+                                : GestureDetector(
+                              onTap: () => ctrl.fetchPendingPoList(),
+                              child: const Icon(
+                                  Icons.refresh_rounded,
+                                  size: 18,
+                                  color: newBlueColor),
+                            ),
+                          ),
                         ),
+
+                        // ── PO list ──────────────────────────────────────
                         if (ctrl.isLoadingPO)
-                          _poShimmer()
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                            child: _poShimmer(),
+                          )
                         else if (ctrl.poList.isEmpty)
-                          _emptyState('No open POs found',
-                              Icons.receipt_long_outlined)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                            child: _emptyState(
+                                'No pending POs found',
+                                Icons.receipt_long_outlined),
+                          )
                         else
-                          ...ctrl.poList.map((po) => _poTile(ctrl, po)),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                            child: Column(
+                              children: ctrl.poList
+                                  .map((po) => _poTile(ctrl, po))
+                                  .toList(),
+                            ),
+                          ),
+
+                        // ── Process button (shown when a PO is selected) ─
+                        if (ctrl.processingPo != null && !ctrl.isLoadingPO)
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                            child: _ProcessButton(ctrl: ctrl),
+                          ),
                       ]),
                     ),
 
                   // ── PO / GRN items list ────────────────────────────────
-                  if ((ctrl.selectedSource == MrnSourceType.purchaseOrder ||
-                      ctrl.selectedSource == MrnSourceType.grn) &&
+                  if (ctrl.selectedSource == MrnSourceType.purchaseOrder &&
                       (ctrl.itemLines.isNotEmpty || ctrl.isLoadingItems))
                     MrnCard(
                       padding: EdgeInsets.zero,
@@ -119,9 +148,9 @@ class MrnItemsScreen extends StatelessWidget {
   }
 
   // ── PO tile ────────────────────────────────────────────────────────────────
-  Widget _poTile(MrnController ctrl, MrnPOItem po) {
+  Widget _poTile(MrnController ctrl, PendingPoItem po) {
     return GestureDetector(
-      onTap: () => ctrl.togglePO(po),
+      onTap: () => ctrl.togglePOSelection(po),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 8),
@@ -135,47 +164,104 @@ class MrnItemsScreen extends StatelessWidget {
           ),
         ),
         child: Row(children: [
-          // Checkbox
+          // ── Radio circle ─────────────────────────────────────────────────
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            width: 22, height: 22,
+            width: 20, height: 20,
             decoration: BoxDecoration(
+              shape: BoxShape.circle,
               color: po.isSelected ? newBlueColor : Colors.white,
-              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                   color: po.isSelected ? newBlueColor : newBorderColor,
-                  width: 1.5),
+                  width: 2),
             ),
             alignment: Alignment.center,
             child: po.isSelected
-                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                ? Container(
+                width: 8, height: 8,
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle))
                 : null,
           ),
           const SizedBox(width: 12),
-          // PO info
+
+          // ── PO info ───────────────────────────────────────────────────────
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(po.poNumber,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800,
-                      color: newTextPrimary, letterSpacing: .2)),
-              const SizedBox(height: 2),
-              Text('${po.date}  ·  ${po.itemCategory}',
-                  style: const TextStyle(fontSize: 11, color: newTextSecondary)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // PO number (orderno)
+                  Text(po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: newTextPrimary,
+                          letterSpacing: .2)),
+                  const SizedBox(height: 3),
+
+                  // Party name
+                  if (po.partyname.isNotEmpty)
+                    Text(po.partyname,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: newTextPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+
+                  const SizedBox(height: 3),
+
+                  // Date + qty pill row
+                  Row(children: [
+                    if (po.orderdate.isNotEmpty) ...[
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 10, color: newTextSecondary),
+                      const SizedBox(width: 3),
+                      Text(po.orderdate,
+                          style: const TextStyle(
+                              fontSize: 10, color: newTextSecondary)),
+                      const SizedBox(width: 8),
+                    ],
+                    if (po.totalqty > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: newSurfaceColor,
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(color: newBorderColor)),
+                        child: Text('${po.totalqty} item${po.totalqty == 1 ? '' : 's'}',
+                            style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: newTextSecondary)),
+                      ),
+                  ]),
+                ]),
           ),
-          // Amount + badge
+
+          const SizedBox(width: 8),
+
+          // ── Amount column ─────────────────────────────────────────────────
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(_inr(po.amount),
+            // Grand total (incl GST)
+            Text('₹${MrnUtils.inr(po.grandtotal)}',
                 style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: newBlueColor)),
-            const SizedBox(height: 4),
-            MrnBadge.status(po.status),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: newTextPrimary)),
+            const SizedBox(height: 2),
+            // Subtotal label
+            Text('₹${MrnUtils.inr(po.totalamount)} + GST',
+                style: const TextStyle(
+                    fontSize: 9, color: newTextSecondary)),
           ]),
         ]),
       ),
     );
   }
+
+
 
   // ── Totals footer ──────────────────────────────────────────────────────────
   Widget _totalsFooter(MrnController ctrl) {
@@ -185,9 +271,9 @@ class MrnItemsScreen extends StatelessWidget {
           color: newSurfaceColor,
           border: Border(top: BorderSide(color: newBorderColor))),
       child: Column(children: [
-        _totalRow('Subtotal', _inr(ctrl.subtotal)),
+        _totalRow('Subtotal', MrnUtils.inr(ctrl.subtotal)),
         const SizedBox(height: 6),
-        _totalRow('Total GST', _inr(ctrl.totalGst)),
+        _totalRow('Total GST', MrnUtils.inr(ctrl.totalGst)),
         const Divider(height: 16, color: newBorderColor),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -196,7 +282,7 @@ class MrnItemsScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w800,
                     color: newTextPrimary)),
-            Text(_inr(ctrl.grandTotal),
+            Text(MrnUtils.inr(ctrl.grandTotal),
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w800,
                     color: newBlueColor)),
@@ -233,7 +319,12 @@ class MrnItemsScreen extends StatelessWidget {
           icon: Icons.arrow_forward_rounded,
           onTap: () {
             if (ctrl.itemLines.isEmpty) {
-              ShowMessage.showSnackBar('No Items', 'Please select at least one PO');
+              ShowMessage.showSnackBar(
+                'No Items',
+                ctrl.selectedSource == MrnSourceType.purchaseOrder
+                    ? 'Please select and process a PO'
+                    : 'Please add at least one item',
+              );
               return;
             }
             if (ctrl.itemLines.any((i) => i.receiveNowQty <= 0)) {
@@ -291,26 +382,134 @@ class MrnItemsScreen extends StatelessWidget {
             fontSize: 10, fontWeight: FontWeight.w700, color: newBlueColor)),
   );
 
+  // ── REMOVE this entire broken _inr ────────────────────────────────────────
+  // ✅ Fixed Indian number formatter
   static String _inr(double v) {
     if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
     if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
-    if (v >= 1000) {
-      final parts = v.toStringAsFixed(2).split('.');
-      final s = parts[0];
-      final buf = StringBuffer();
-      final len = s.length;
-      for (int i = 0; i < len; i++) {
-        if (i > 0) {
-          final rem = len - i;
-          if (rem == 3 || (rem < 3 && (len - rem - (len > 3 ? 3 : 0)) % 2 == 0)) {
-            buf.write(',');
-          }
-        }
-        buf.write(s[i]);
-      }
-      return '₹${buf.toString()}.${parts[1]}';
+
+    final parts = v.toStringAsFixed(2).split('.');
+    final whole = parts[0];
+    final decimal = parts[1];
+
+    if (whole.length <= 3) return '₹$whole.$decimal';
+
+    // Indian format: last 3 digits, then groups of 2 from right
+    final last3 = whole.substring(whole.length - 3);
+    final rest = whole.substring(0, whole.length - 3);
+    final buf = StringBuffer();
+    for (int i = 0; i < rest.length; i++) {
+      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
+      buf.write(rest[i]);
     }
-    return '₹${v.toStringAsFixed(2)}';
+    return '₹$buf,$last3.$decimal';
+  }
+}
+
+class _ProcessButton extends StatelessWidget {
+  final MrnController ctrl;
+  const _ProcessButton({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final po = ctrl.processingPo!;
+    return Container(
+      decoration: BoxDecoration(
+        color: newBlueLightColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: newBlueColor.withValues(alpha: 0.4)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(children: [
+        // ── Selected PO summary ─────────────────────────────────────────────
+        Row(children: [
+          const Icon(Icons.receipt_long_rounded, size: 16, color: newBlueColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: newBlueColor),
+                  ),
+                  if (po.partyname.isNotEmpty)
+                    Text(po.partyname,
+                        style: const TextStyle(
+                            fontSize: 11, color: newTextSecondary)),
+                  if (po.orderdate.isNotEmpty)
+                    Text(po.orderdate,
+                        style: const TextStyle(
+                            fontSize: 10, color: newTextSecondary)),
+                ]),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('₹${MrnUtils.inr(po.grandtotal)}',
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor)),
+            Text('${po.totalqty} item${po.totalqty == 1 ? '' : 's'}',
+                style: const TextStyle(
+                    fontSize: 10, color: newTextSecondary)),
+          ]),
+        ]),
+
+        const SizedBox(height: 10),
+
+        // ── Process button ──────────────────────────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: ElevatedButton.icon(
+            onPressed: ctrl.isLoadingItems
+                ? null
+                : () => ctrl.processSelectedPO(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: newBlueColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: ctrl.isLoadingItems
+                ? const SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.play_arrow_rounded, size: 20),
+            label: Text(
+              ctrl.isLoadingItems ? 'Loading Items…' : 'Process PO',
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  static String _inr(double v) {
+    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
+
+    final parts = v.toStringAsFixed(2).split('.');
+    final whole = parts[0];
+    final decimal = parts[1];
+
+    if (whole.length <= 3) return '₹$whole.$decimal';
+
+    final last3 = whole.substring(whole.length - 3);
+    final rest = whole.substring(0, whole.length - 3);
+    final buf = StringBuffer();
+    for (int i = 0; i < rest.length; i++) {
+      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
+      buf.write(rest[i]);
+    }
+    return '₹$buf,$last3.$decimal';
   }
 }
 
@@ -476,8 +675,8 @@ class _ItemCard extends StatelessWidget {
             _finRow('Discount',
                 '${item.discountPercent.toStringAsFixed(1)}%  (₹${item.discountAmount.toStringAsFixed(2)})'),
             _finRow('Amount', '₹${item.amount.toStringAsFixed(2)}'),
-            _finRow('GST ${item.gstPercent.toInt()}%',
-                '₹${item.gstAmount.toStringAsFixed(2)}'),
+            _finRow('GST %', '${item.gstPercent.toStringAsFixed(1)}%'),
+            _finRow('GST Amount', '₹${item.gstAmount.toStringAsFixed(2)}'),
             _finRowTotal('Total Amount', '₹${item.totalAmount.toStringAsFixed(2)}'),
           ]),
         ),

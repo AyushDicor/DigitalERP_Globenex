@@ -4731,4 +4731,84 @@ class Api {
       return MrnDropdownResponse(status: 500, message: 'No Internet');
     }
   }
+
+
+  Future<GetPendingPoResponse> getPendingPoList(
+      GetPendingPoRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getPendingPo,
+        body: request.toJsonString(),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return getPendingPoResponseFromJson(res);
+        } catch (e) {
+          if (kDebugMode) print('getPendingPoList parse error: $e');
+          return GetPendingPoResponse(status: 500, message: e.toString());
+        }
+      } else {
+        return GetPendingPoResponse(
+            status: 500, message: 'Something went wrong');
+      }
+    } else {
+      return GetPendingPoResponse(status: 500, message: 'No Internet');
+    }
+  }
+
+  Future<ProcessPendingPoResponse> processPoItems(
+      ProcessPendingPoRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.processPendingPoList, // ✅ add this to _apiMethods
+        body: jsonEncode(request.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return ProcessPendingPoResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('processPoItems parse error: $e');
+          return ProcessPendingPoResponse(status: 500, message: e.toString());
+        }
+      } else {
+        return ProcessPendingPoResponse(
+            status: 500, message: 'Something went wrong');
+      }
+    } else {
+      return ProcessPendingPoResponse(status: 500, message: 'No Internet');
+    }
+  }
+
+  Future<MrnSubmitResponse> saveMrnEntry(Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.saveMrnEntry, // add: 'api/savemrnentry'
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return MrnSubmitResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          return MrnSubmitResponse(status: 500, message: e.toString());
+        }
+      }
+      return MrnSubmitResponse(status: 500, message: 'Something went wrong');
+    }
+    return MrnSubmitResponse(status: 500, message: 'No Internet');
+  }
+
 }

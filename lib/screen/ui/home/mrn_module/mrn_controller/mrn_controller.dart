@@ -1,12 +1,16 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/utils/app_constant.dart';
 import 'package:digitalerp/utils/show_message.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../repo/reimbursement_repo.dart';
 import '../../home_controller.dart';
 import '../mrn_response/mrn_models.dart';
 
@@ -27,6 +31,7 @@ class MrnController extends AppBaseController {
 
   // ── Source selection ───────────────────────────────────────────────────────
   MrnSourceType selectedSource = MrnSourceType.purchaseOrder;
+
 
   // ── Party ──────────────────────────────────────────────────────────────────
   final TextEditingController partyNameCtrl = TextEditingController();
@@ -78,7 +83,13 @@ class MrnController extends AppBaseController {
   final TextEditingController reasonNACtrl = TextEditingController();
 
   // ── Additional fields ──────────────────────────────────────────────────────
-  List<MrnDropdownOption> paidTypeList = [];
+  List<MrnDropdownOption> paidTypeList = [
+    MrnDropdownOption(id: 'Employee', label: 'Employee'),
+    MrnDropdownOption(id: 'Company', label: 'Company'),
+  ];
+  List<MrnDropdownOption> paidByList = [];
+  MrnDropdownOption? selectedPaidBy;
+  bool isLoadingPaidBy = false;
   MrnDropdownOption? selectedPaidType;
   bool isLoadingPaidType = false;
 
@@ -97,12 +108,19 @@ class MrnController extends AppBaseController {
   MrnDropdownOption? selectedWorkOrder;
   bool isLoadingWorkOrder = false;
 
+  // Add these fields to MrnController:
+  final TextEditingController lotNoCtrl = TextEditingController();
+  final TextEditingController grnNoCtrl = TextEditingController();
+  final TextEditingController grnDateCtrl = TextEditingController();
+  final TextEditingController gateEntryNoCtrl = TextEditingController();
+
   // ── Step 2: PO list & Items ────────────────────────────────────────────────
-  List<MrnPOItem> poList = [];
+  List<PendingPoItem> poList = [];
   bool isLoadingPO = false;
   List<MrnItemLine> itemLines = [];
   bool isLoadingItems = false;
   String? expandedPoNumber;
+  PendingPoItem? processingPo;
 
   // ── Direct entry dropdowns ─────────────────────────────────────────────────
   List<MrnDropdownOption> directItemList = [];
@@ -121,6 +139,12 @@ class MrnController extends AppBaseController {
   double get subtotal => itemLines.fold(0, (s, i) => s + i.amount);
   double get totalGst => itemLines.fold(0, (s, i) => s + i.gstAmount);
   double get grandTotal => subtotal + totalGst;
+  double get roundOff {
+    final exact = grandTotal;
+    final rounded = exact.roundToDouble();
+    return double.parse((rounded - exact).toStringAsFixed(2));
+  }
+  double get grandTotalRounded => grandTotal + roundOff;
 
   final ImagePicker picker = ImagePicker();
 
@@ -131,6 +155,7 @@ class MrnController extends AppBaseController {
     mrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     billDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     challanDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    grnDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     mrnNumber = _generateMrnNumber();
     _setLoggedInUser();
     _fetchAllDropdowns();
@@ -147,6 +172,10 @@ class MrnController extends AppBaseController {
     challanNoCtrl.dispose();
     reasonNACtrl.dispose();
     reviewRemarksCtrl.dispose();
+    lotNoCtrl.dispose();
+    grnNoCtrl.dispose();
+    grnDateCtrl.dispose();
+    gateEntryNoCtrl.dispose();
     super.onClose();
   }
 
@@ -156,6 +185,12 @@ class MrnController extends AppBaseController {
     currentStep = step;
     pageController.animateToPage(step,
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+
+    // ✅ Only PO source needs refresh
+    if (step == 1 && selectedSource == MrnSourceType.purchaseOrder) {
+      fetchPendingPoList();
+    }
+
     update();
   }
 
@@ -167,8 +202,10 @@ class MrnController extends AppBaseController {
     selectedSource = src;
     itemLines.clear();
     poList.clear();
-    if (src == MrnSourceType.purchaseOrder || src == MrnSourceType.grn) {
-      _loadPOList();
+    processingPo = null;
+    // ✅ Only PO needs the list fetch now
+    if (src == MrnSourceType.purchaseOrder) {
+      fetchPendingPoList();
     }
     update();
   }
@@ -185,7 +222,6 @@ class MrnController extends AppBaseController {
     update();
   }
   void setGodown(MrnDropdownOption? v) { selectedGodown = v; update(); }
-  void setPaidType(MrnDropdownOption? v) { selectedPaidType = v; update(); }
   void setQcRequired(String v) { selectedQcRequired = v; update(); }
   void setCustomerPo(MrnDropdownOption? v) { selectedCustomerPo = v; update(); }
   void setJobType(MrnDropdownOption? v) { selectedJobType = v; update(); }
@@ -210,6 +246,50 @@ class MrnController extends AppBaseController {
     }).join(', ');
   }
 
+  // ── Financial year string (e.g. "2026-27") ────────────────────────────────
+  // ✅ FIXED — e.g. May 2026 → "2026-27"
+  String get currentYearId {
+    final now = DateTime.now();
+    final fyStart = now.month >= 4 ? now.year : now.year - 1;
+    final fyEnd = fyStart + 1;
+    // Last 2 digits of fyEnd
+    final fyEndShort = fyEnd.toString().substring(2);
+    return '$fyStart-$fyEndShort'; // "2026-27"
+  }
+  void setPaidType(MrnDropdownOption? v) {
+    selectedPaidType = v;
+    selectedPaidBy = null; // reset paid by on type change
+    if (v?.id == 'Employee') {
+      fetchPaidByEmployees();
+    } else {
+      paidByList = [];
+    }
+    update();
+  }
+
+  void setPaidBy(MrnDropdownOption? v) {
+    selectedPaidBy = v;
+    update();
+  }
+
+
+  Future<void> fetchPaidByEmployees() async {
+    isLoadingPaidBy = true;
+    update();
+    try {
+      final res = await api.getMrnDropdownList(_mrnDropdownBody('employee'));
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        paidByList = res.data!;
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Paid By', '$e');
+    } finally {
+      isLoadingPaidBy = false;
+      update();
+    }
+  }
+
+
   // ── Date pickers ───────────────────────────────────────────────────────────
   Future<void> _pickDate(BuildContext ctx, TextEditingController ctrl) async {
     final picked = await showDatePicker(
@@ -232,15 +312,16 @@ class MrnController extends AppBaseController {
   Future<void> pickMrnDate(BuildContext ctx) => _pickDate(ctx, mrnDateCtrl);
   Future<void> pickBillDate(BuildContext ctx) => _pickDate(ctx, billDateCtrl);
   Future<void> pickChallanDate(BuildContext ctx) => _pickDate(ctx, challanDateCtrl);
+  Future<void> pickGrnDate(BuildContext ctx) => _pickDate(ctx, grnDateCtrl);
 
   // ── Attachments ────────────────────────────────────────────────────────────
   Future<void> pickBillFromCamera() async => _pickImageCamera(MrnAttachmentType.bill);
   Future<void> pickBillFromGallery() async => _pickImageGallery(MrnAttachmentType.bill);
-  Future<void> pickBillFile() async => _pickFileMock(MrnAttachmentType.bill);
-
+  Future<void> pickBillFile() async => _pickRealFile(MrnAttachmentType.bill);
+  Future<void> pickChallanFile() async => _pickRealFile(MrnAttachmentType.challan);
   Future<void> pickChallanFromCamera() async => _pickImageCamera(MrnAttachmentType.challan);
   Future<void> pickChallanFromGallery() async => _pickImageGallery(MrnAttachmentType.challan);
-  Future<void> pickChallanFile() async => _pickFileMock(MrnAttachmentType.challan);
+
 
   void removeBillAttachment(String id) {
     billAttachments.removeWhere((d) => d.id == id);
@@ -252,33 +333,81 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  Future<void> _pickImageCamera(MrnAttachmentType type) async {
+  Future<void> _pickRealFile(MrnAttachmentType type) async {
     try {
-      final xfile = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
-      if (xfile != null) _addAttachment(xfile.path, 'image', 'Camera', type);
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowMultiple: true,
+      );
+      if (result != null) {
+        for (final pf in result.files) {
+          if (pf.path != null) {
+            final file = File(pf.path!);
+            final bytes = await file.length();
+            _addAttachment(
+              pf.path!,
+              pf.extension?.toLowerCase() == 'pdf' ? 'pdf' : 'image',
+              'File',
+              type,
+              overrideName: pf.name,
+              overrideSize: _formatBytes(bytes),
+            );
+          }
+        }
+      }
     } catch (e) {
-      ShowMessage.showSnackBar('Camera', 'Could not open camera: $e');
+      ShowMessage.showSnackBar('File', 'Could not pick file: $e');
     }
   }
 
+// ── Also fix gallery to support multiple images ────────────────────────────
   Future<void> _pickImageGallery(MrnAttachmentType type) async {
     try {
       final xfiles = await picker.pickMultiImage(imageQuality: 75);
       for (final f in xfiles) {
-        _addAttachment(f.path, 'image', 'Gallery', type);
+        final file = File(f.path);
+        final bytes = await file.length();
+        _addAttachment(
+          f.path,
+          'image',
+          'Gallery',
+          type,
+          overrideSize: _formatBytes(bytes),
+        );
       }
     } catch (e) {
       ShowMessage.showSnackBar('Gallery', 'Could not open gallery: $e');
     }
   }
 
-  Future<void> _pickFileMock(MrnAttachmentType type) async {
-    final label = type == MrnAttachmentType.bill
-        ? 'Bill_${billNoCtrl.text.isEmpty ? "file" : billNoCtrl.text}'
-        : 'Challan_${challanNoCtrl.text.isEmpty ? "file" : challanNoCtrl.text}';
-    _addAttachment('', 'pdf', 'File', type,
-        overrideName: '$label.pdf', overrideSize: '1.2 MB');
+// ── Replace _fileSize with _formatBytes ────────────────────────────────────
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
+
+
+  Future<void> _pickImageCamera(MrnAttachmentType type) async {
+    try {
+      final xfile = await picker.pickImage(
+          source: ImageSource.camera, imageQuality: 75);
+      if (xfile != null) {
+        final bytes = await File(xfile.path).length();
+        _addAttachment(
+          xfile.path,
+          'image',
+          'Camera',
+          type,
+          overrideSize: _formatBytes(bytes),
+        );
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Camera', 'Could not open camera: $e');
+    }
+  }
+
 
   void _addAttachment(String path, String type, String source,
       MrnAttachmentType attachmentType,
@@ -303,36 +432,54 @@ class MrnController extends AppBaseController {
   }
 
   // ── Step 2: PO selection ───────────────────────────────────────────────────
-  Future<void> togglePO(MrnPOItem po) async {
-    po.isSelected = !po.isSelected;
-    update();
-    if (po.isSelected) {
-      await _loadItemsForPO(po.poNumber);
-    } else {
-      itemLines.removeWhere((i) => i.orderNo == po.poNumber);
-      update();
-    }
-  }
-
-  Future<void> _loadItemsForPO(String poNumber) async {
-    isLoadingItems = true;
-    update();
-    try {
-      // TODO: Replace with real API call using poNumber
-      await Future.delayed(const Duration(milliseconds: 600));
-      final loaded = _dummyItemsForPO(poNumber);
-      for (final item in loaded) {
-        if (!itemLines.any((i) => i.itemId == item.itemId)) {
-          itemLines.add(item);
-        }
-      }
-    } catch (e) {
-      ShowMessage.showSnackBar('Error', 'Failed to load items: $e');
-    } finally {
-      isLoadingItems = false;
-      update();
-    }
-  }
+  // Future<void> togglePO(MrnPOItem po) async {
+  //   po.isSelected = !po.isSelected;
+  //   update();
+  //   if (po.isSelected) {
+  //     await _loadItemsForPO(po.poNumber);
+  //   } else {
+  //     itemLines.removeWhere((i) => i.orderNo == po.poNumber);
+  //     update();
+  //   }
+  // }
+  // Future<void> _loadItemsForPO(String poNumber) async {
+  //   // Find the matching PO from the list
+  //   final po = poList.firstWhereOrNull((p) => p.orderid.toString() == poNumber || p.orderno == poNumber);
+  //   if (po == null) return;
+  //
+  //   isLoadingItems = true;
+  //   update();
+  //   try {
+  //     final req = GetPendingPoRequest(
+  //       compid:   homeController.currentUserData?.compId ?? 0,
+  //       branchid: homeController.currentUserData?.branchId ?? 0,
+  //       userid:   homeController.currentUserData?.userid ?? 0,
+  //       partyid:  int.tryParse(selectedParty?.id ?? '0') ?? 0,
+  //       siteid:   int.tryParse(selectedSite?.id  ?? '0') ?? 0,
+  //       orderid:  po.orderid.toString(),
+  //       stockid:  po.stockid,
+  //     );
+  //     final res = await api.getPendingPoItems(req);
+  //     if ((res.status == 200 || res.success == true) &&
+  //         res.data != null && res.data!.isNotEmpty) {
+  //       final loaded = res.data!
+  //           .map((raw) => raw.toItemLine(poNumber: po.orderid.toString()))
+  //           .toList();
+  //       for (final item in loaded) {
+  //         if (!itemLines.any((i) => i.itemId == item.itemId)) {
+  //           itemLines.add(item);
+  //         }
+  //       }
+  //     } else {
+  //       ShowMessage.showSnackBar('Items', res.message ?? 'No items found for this PO');
+  //     }
+  //   } catch (e) {
+  //     ShowMessage.showSnackBar('Error', 'Failed to load items: $e');
+  //   } finally {
+  //     isLoadingItems = false;
+  //     update();
+  //   }
+  // }
 
   // ── Item interactions ──────────────────────────────────────────────────────
   void toggleItemExpanded(MrnItemLine item) {
@@ -431,31 +578,194 @@ class MrnController extends AppBaseController {
     update();
   }
 
+  void togglePOSelection(PendingPoItem po) {
+    for (final p in poList) {
+      p.isSelected = false;
+    }
+    po.isSelected = true;
+    processingPo = po;
+    // Clear any previously loaded items when user changes PO selection
+    itemLines.clear();
+    update();
+  }
+
+
+
+  // ── File upload helper ─────────────────────────────────────────────────────
+  Future<String> _uploadAttachments(List<MrnDocument> docs) async {
+    if (docs.isEmpty) return '';
+
+    final List<String> uploadedNames = [];
+
+    for (final doc in docs) {
+      // Skip mock/dummy files (no real path)
+      if (doc.filePath.isEmpty) continue;
+
+      try {
+        final res = await ReimbursementRepo.uploadReimbursementFile(doc.filePath);
+
+        if (res.status == true && res.statusCode == 200) {
+          final jsonData = res.data as Map<String, dynamic>?;
+          // ✅ Same extraction pattern as PaymentRequestController
+          final filename = jsonData?['data']?['filename'] as String?
+              ?? jsonData?['filename'] as String?
+              ?? '';
+
+          if (filename.isNotEmpty) {
+            uploadedNames.add(filename);
+          } else {
+            if (kDebugMode) print('MRN upload: filename empty for ${doc.fileName}');
+          }
+        } else {
+          ShowMessage.showSnackBar(
+              'Upload Failed', 'Could not upload ${doc.fileName}');
+        }
+      } catch (e) {
+        if (kDebugMode) print('MRN upload error for ${doc.fileName}: $e');
+        ShowMessage.showSnackBar('Upload Error', '${doc.fileName}: $e');
+      }
+    }
+
+    // ✅ Multiple files → comma separated (same as payment request)
+    return uploadedNames.join(',');
+  }
+
+
+
   // ── Submit ─────────────────────────────────────────────────────────────────
   Future<void> submitMRN() async {
+    // Validations
     if (partyNameCtrl.text.trim().isEmpty) {
-      ShowMessage.showSnackBar('Validation', 'Please enter party name');
-      return;
+      ShowMessage.showSnackBar('Validation', 'Please select a party'); return;
     }
     if (selectedSite == null) {
-      ShowMessage.showSnackBar('Validation', 'Please select a site');
-      return;
+      ShowMessage.showSnackBar('Validation', 'Please select a site'); return;
     }
     if (itemLines.isEmpty) {
-      ShowMessage.showSnackBar('Validation', 'Please add at least one item');
-      return;
+      ShowMessage.showSnackBar('Validation', 'Please add at least one item'); return;
     }
     if (itemLines.any((i) => i.receiveNowQty <= 0)) {
-      ShowMessage.showSnackBar(
-          'Validation', 'All items must have received qty > 0');
-      return;
+      ShowMessage.showSnackBar('Validation', 'All items must have qty > 0'); return;
     }
+
     setBusy(true);
     try {
-      // TODO: Replace with actual submit API call
-      await Future.delayed(const Duration(seconds: 1));
-      ShowMessage.showSnackBar('Success', 'MRN $mrnNumber submitted successfully');
-      Get.back();
+
+      // ── Step 1: Upload bill attachments ───────────────────────────────
+      final billFileStr = await _uploadAttachments(billAttachments);
+
+      // ── Step 2: Upload challan attachments ────────────────────────────
+      final challanFileStr = await _uploadAttachments(challanAttachments);
+      // ── Parse dates to ISO ──────────────────────────────────────────────
+      DateTime parseDate(String d) {
+        try { return DateFormat('dd/MM/yyyy').parse(d); }
+        catch (_) { return DateTime.now(); }
+      }
+
+      // ── Build items list ────────────────────────────────────────────────
+      final items = itemLines.map((i) => {
+        'itemname':        i.itemName,
+        'itemid':          int.tryParse(i.itemId) ?? 0,
+        'rate':            i.rate,
+        'quantity':        i.receiveNowQty,
+        'amount':          i.amount,
+        'gstpercent':      i.gstPercent,
+        'gstamount':       i.gstAmount,
+        'discountpercent': i.discountPercent,
+        'discountamount':  i.discountAmount,
+        'specification':   i.remarks,
+        'make':            i.make,
+        'makeid':          i.makeId,
+        'unitid':          i.unitId,
+        'godownid':        int.tryParse(
+            i.selectedGodownId ?? selectedGodown?.id ?? '0'
+        ) ?? 0,
+        'poid':            processingPo?.orderid ?? 0,
+        'transid':         i.transId,
+        'stockqty':        i.receiveNowQty,
+        'sgst':            0,
+        'sgstamt':         0,
+        'cgst':            0,
+        'cgstamt':         0,
+        'igst':            0,
+        'igstamt':         0,
+        'batchno':         i.batchNo,
+        'expirydate':      '',
+        'manufacturedate': '',
+        'uniqueid':        i.uniqueId,
+      }).toList();
+
+      // ── Build request body ────────────────────────────────────────────
+      final body = {
+        'stockid':          0,
+        'type':             selectedSource == MrnSourceType.purchaseOrder ? 'PO' : 'Direct',
+        'pono':             processingPo?.orderno ?? '',
+        'seriesid':         int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
+        'receiptdate':      parseDate(mrnDateCtrl.text).toIso8601String(),
+        'partyname':        partyNameCtrl.text.trim(),
+        'partyid':          int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        'billno':           billNoCtrl.text.trim(),
+        'godownid':         int.tryParse(selectedGodown?.id ?? '0') ?? 0,
+        'receivedby':       receivedByName,
+        'totalweight':      0,
+        'description':      reviewRemarksCtrl.text.trim(),
+        'lotno':            lotNoCtrl.text.trim(),
+        'grnno':            grnNoCtrl.text.trim(),
+        'grndate':          parseDate(grnDateCtrl.text).toIso8601String(),
+        'totalamount':      subtotal,
+        'totalquantity':    itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
+        'poid':             processingPo?.orderid ?? 0,
+        'qcstatus':         selectedQcRequired,
+        'compid':           homeController.currentUserData?.compId   ?? 0,
+        'branchid':         homeController.currentUserData?.branchId ?? 0,
+        'userid':           homeController.currentUserData?.userid   ?? 0,
+        'yearid':           currentYearId,
+        'ledgertrans':      '',
+        'grandtotal':       grandTotalRounded,
+        'roundoff':         roundOff,
+        'menuid':           0,
+        'totaltax':         totalGst,
+        'updateinvoiceid':  0,
+        'freightmode':      '',
+        'freightmodeid':    0,
+        'billdate':         parseDate(billDateCtrl.text).toIso8601String(),
+        'othervaluetaxxml': '',
+        'mrntype':          '',
+        'gateentryNo':      gateEntryNoCtrl.text.trim(),
+        'billfile':         billFileStr,
+        'filetypeId':       billAttachments.isNotEmpty ? 1 : 0,
+        'dcno':             challanNoCtrl.text.trim(),
+        'dcdate':           parseDate(challanDateCtrl.text).toIso8601String(),
+        'dcfile':           challanFileStr,
+        'reason':           reasonNACtrl.text.trim(),
+        'siteid':           int.tryParse(selectedSite?.id ?? '0') ?? 0,
+        'paidbyid':         int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
+        'paidby':           selectedPaidBy?.label ?? '',
+        'paidtype':         selectedPaidType?.label ?? '',
+        'customerpoid':     int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
+        'jobtypeid':        int.tryParse(selectedJobType?.id ?? '0') ?? 0,
+        'mrnitems':         items,
+      };
+
+// ── Pretty-print log matching exact API schema ────────────────────
+      if (kDebugMode) {
+        const encoder = JsonEncoder.withIndent('  ');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('📦 MRN SUBMIT PAYLOAD');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print(encoder.convert(body));
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
+
+      final res = await api.saveMrnEntry(body);
+      if (res.status == 200 || res.success == true) {
+        ShowMessage.showSnackBar('Success',
+            res.message ?? 'MRN saved successfully');
+        Get.back();
+      } else {
+        ShowMessage.showSnackBar('Error',
+            res.message ?? 'Failed to save MRN');
+      }
     } catch (e) {
       ShowMessage.showSnackBar('Error', '$e');
     } finally {
@@ -466,10 +776,8 @@ class MrnController extends AppBaseController {
   // ── Source label ───────────────────────────────────────────────────────────
   String sourceLabel(MrnSourceType s) {
     switch (s) {
-      case MrnSourceType.purchaseOrder: return 'Purchase Order';
+      case MrnSourceType.purchaseOrder:  return 'Purchase Order';
       case MrnSourceType.directPurchase: return 'Direct Purchase';
-      case MrnSourceType.grn: return 'GRN';
-      default: return '';
     }
   }
 
@@ -495,7 +803,7 @@ class MrnController extends AppBaseController {
       fetchSeriesTypes(),
       fetchSites(),
       fetchGodowns(),
-      fetchPaidTypes(),
+    //  fetchPaidTypes(),
       fetchCustomerPOs(),
       fetchJobTypes(),
       fetchWorkOrders(),
@@ -553,17 +861,6 @@ class MrnController extends AppBaseController {
     } finally { isLoadingGodown = false; update(); }
   }
 
-  Future<void> fetchPaidTypes() async {
-    isLoadingPaidType = true; update();
-    try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('employee'));
-      if ((res.status == 200 || res.success == true) && res.data != null) {
-        paidTypeList = res.data!;
-      }
-    } catch (e) {
-      ShowMessage.showSnackBar('PaidType', '$e');
-    } finally { isLoadingPaidType = false; update(); }
-  }
 
   Future<void> fetchCustomerPOs() async {
     isLoadingCustomerPo = true; update();
@@ -688,48 +985,33 @@ class MrnController extends AppBaseController {
   }
 
   Future<void> _loadPOList() async {
-    if (selectedSource != MrnSourceType.purchaseOrder &&
-        selectedSource != MrnSourceType.grn) return;
-    isLoadingPO = true; update();
+    if (selectedSource != MrnSourceType.purchaseOrder) return;
+    isLoadingPO = true;
+    update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('documentlist'));
+      // Using the real getPendingPoList API (stockid=0 = PO list)
+      final req = GetPendingPoRequest(
+        compid:   homeController.currentUserData?.compId ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        userid:   homeController.currentUserData?.userid ?? 0,
+        partyid:  int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        siteid:   int.tryParse(selectedSite?.id  ?? '0') ?? 0,
+        orderid:  '',
+        stockid:  0,
+      );
+      final res = await api.getPendingPoList(req);
       if ((res.status == 200 || res.success == true) && res.data != null) {
-        poList = res.data!
-            .map((o) => MrnPOItem(
-          poNumber: o.id.toString(),
-          date: '',
-          itemCategory: '',
-          amount: 0,
-          status: 'Open',
-        ))
-            .toList();
+        poList = res.data!; // List<PendingPoItem> ✅
+      } else {
+        poList = [];
       }
     } catch (e) {
+      poList = [];
       ShowMessage.showSnackBar('PO List', '$e');
     } finally {
-      isLoadingPO = false; update();
+      isLoadingPO = false;
+      update();
     }
-  }
-
-  // ── Dummy items for PO (remove once real item API is ready) ───────────────
-  List<MrnItemLine> _dummyItemsForPO(String poNumber) {
-    final map = {
-      'PO-2026-0117': [
-        MrnItemLine(itemId: 'ITM-0041', itemName: 'SS Pipe CI-115 (3.15×350MM)', itemCode: 'ITM-0041', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 100, previouslyReceivedQty: 40, rate: 1999, discountPercent: 0, gstPercent: 18, receiveNowQty: 60),
-        MrnItemLine(itemId: 'ITM-0055', itemName: 'SS Square Pipe 40×40MM', itemCode: 'ITM-0055', unit: 'Mtr', source: 'PO', orderNo: poNumber, poQty: 200, previouslyReceivedQty: 80, rate: 750, discountPercent: 0, gstPercent: 18, receiveNowQty: 120),
-        MrnItemLine(itemId: 'ITM-0061', itemName: '25 mm Elbow', itemCode: 'ITM-0061', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 42, previouslyReceivedQty: 0, rate: 85, discountPercent: 0, gstPercent: 18, receiveNowQty: 42),
-        MrnItemLine(itemId: 'ITM-0062', itemName: '32 mm Elbow', itemCode: 'ITM-0062', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 36, previouslyReceivedQty: 0, rate: 136, discountPercent: 0, gstPercent: 18, receiveNowQty: 36),
-      ],
-      'PO-2026-0098': [
-        MrnItemLine(itemId: 'ITM-0102', itemName: 'Safety Goggles CI-115', itemCode: 'ITM-0102', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 25, previouslyReceivedQty: 0, rate: 1200, discountPercent: 0, gstPercent: 18, receiveNowQty: 25),
-        MrnItemLine(itemId: 'ITM-0103', itemName: 'Safety Helmet Red', itemCode: 'ITM-0103', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 50, previouslyReceivedQty: 10, rate: 380, discountPercent: 0, gstPercent: 18, receiveNowQty: 40),
-      ],
-      'PO-2026-0074': [
-        MrnItemLine(itemId: 'ITM-0088', itemName: 'Open Spanner CI-115', itemCode: 'ITM-0088', unit: 'Nos', source: 'PO', orderNo: poNumber, poQty: 50, previouslyReceivedQty: 0, rate: 850, discountPercent: 0, gstPercent: 18, receiveNowQty: 50),
-        MrnItemLine(itemId: 'ITM-0199', itemName: 'Drill Bit Set HSS 10pc', itemCode: 'ITM-0199', unit: 'Set', source: 'PO', orderNo: poNumber, poQty: 20, previouslyReceivedQty: 5, rate: 450, discountPercent: 0, gstPercent: 18, receiveNowQty: 15),
-      ],
-    };
-    return map[poNumber] ?? [];
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -753,4 +1035,82 @@ class MrnController extends AppBaseController {
       return '—';
     }
   }
+
+  Future<void> fetchPendingPoList() async {
+    isLoadingPO = true;
+    poList.clear();
+    processingPo = null;
+    update();
+    try {
+      final req = GetPendingPoRequest(
+        compid:   homeController.currentUserData?.compId ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        userid:   homeController.currentUserData?.userid ?? 0,
+        partyid:  int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        siteid:   int.tryParse(selectedSite?.id  ?? '0') ?? 0,
+        orderid:  '',
+        stockid:  0, // 0 = PO list, not items
+      );
+      final res = await api.getPendingPoList(req);
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        poList = res.data!;
+      } else {
+        poList = [];
+        ShowMessage.showSnackBar(
+            'PO List', res.message ?? 'No pending POs found');
+      }
+    } catch (e) {
+      poList = [];
+      ShowMessage.showSnackBar('PO List', '$e');
+    } finally {
+      isLoadingPO = false;
+      update();
+    }
+  }
+
+  Future<void> processSelectedPO() async {
+    if (processingPo == null) {
+      ShowMessage.showSnackBar('Select PO', 'Please select a PO first');
+      return;
+    }
+    isLoadingItems = true;
+    itemLines.clear();
+    update();
+    try {
+      final req = ProcessPendingPoRequest(
+        type:     1,
+        compid:   homeController.currentUserData?.compId   ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        userid:   homeController.currentUserData?.userid   ?? 0,
+        partyid:  int.tryParse(selectedParty?.id ?? '0')   ?? 0,
+        siteid:   int.tryParse(selectedSite?.id  ?? '0')   ?? 0,
+        orderid:  processingPo!.orderid.toString(), // ✅ "27658"
+        stockid:  0,
+      );
+
+      final res = await api.processPoItems(req);
+
+      if ((res.status == 200 || res.success == true) &&
+          res.data != null &&
+          res.data!.isNotEmpty) {
+        itemLines = res.data!
+            .map((item) => item.toItemLine(
+          poNumber: processingPo!.orderno.isNotEmpty
+              ? processingPo!.orderno
+              : processingPo!.orderid.toString(),
+        ))
+            .toList();
+      } else {
+        ShowMessage.showSnackBar(
+            'No Items', res.message ?? 'No pending items found for this PO');
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Items', '$e');
+    } finally {
+      isLoadingItems = false;
+      update();
+    }
+  }
+
+
 }

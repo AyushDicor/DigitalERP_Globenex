@@ -38,18 +38,20 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   double get _gstAmt    => _amount * _gstPct / 100;
   double get _totalAmt  => _amount + _gstAmt;
 
+  MrnDropdownOption? get _effectiveGodown =>
+      _selectedGodown ?? Get.find<MrnController>().selectedGodown;
+
   bool get _isValid =>
       _selectedItem != null &&
           _selectedUnit != null &&
           _selectedMake != null &&
-          _selectedGodown != null &&
+          _effectiveGodown != null &&  // ✅ uses fallback
           _qty > 0 &&
           _rate > 0 &&
           _gstPct >= 0;
 
   void _addItem(MrnController ctrl) {
     if (!_isValid) {
-      // Highlight missing fields
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -60,13 +62,16 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
       return;
     }
 
+    // ✅ Use effective godown (not just _selectedGodown)
+    final godown = _effectiveGodown!;
+
     ctrl.addDirectItem(
       itemName:    _selectedItem!.label,
       itemCode:    _selectedItem!.id,
       unit:        _selectedUnit!.label,
       make:        _selectedMake!.label,
-      godownId:    _selectedGodown!.id,
-      godownLabel: _selectedGodown!.label,
+      godownId:    godown.id,      // ✅ fixed
+      godownLabel: godown.label,   // ✅ fixed
       qty:         _qty,
       rate:        _rate,
       gstPct:      _gstPct,
@@ -76,9 +81,9 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
 
     // Reset form
     setState(() {
-      _selectedItem  = null;
-      _selectedUnit  = null;
-      _selectedMake  = null;
+      _selectedItem   = null;
+      _selectedUnit   = null;
+      _selectedMake   = null;
       _selectedGodown = null;
       _qtyCtrl.clear();
       _rateCtrl.clear();
@@ -248,8 +253,10 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
       ),
 
       // ── Added items list ──────────────────────────────────────────────────
-      if (ctrl.itemLines.isNotEmpty)
-        MrnCard(
+      GetBuilder<MrnController>(
+        builder: (ctrl) => ctrl.itemLines.isEmpty
+            ? const SizedBox.shrink()
+            : MrnCard(
           padding: EdgeInsets.zero,
           child: Column(children: [
             Padding(
@@ -276,13 +283,13 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
               itemCount: ctrl.itemLines.length,
               separatorBuilder: (_, __) =>
               const Divider(height: 1, color: newBorderColor),
-              itemBuilder: (_, i) =>
-                  _DirectItemRow(item: ctrl.itemLines[i], ctrl: ctrl, index: i),
+              itemBuilder: (_, i) => _DirectItemRow(
+                  item: ctrl.itemLines[i], ctrl: ctrl, index: i),
             ),
-            // Totals footer
             _DirectTotalsFooter(ctrl: ctrl),
           ]),
         ),
+      ),
     ]);
   }
 }

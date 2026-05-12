@@ -417,64 +417,73 @@ class _SearchSheetState<T> extends State<_SearchSheet<T>> {
 
 // ── Step progress bar ──────────────────────────────────────────────────────────
 class MrnStepBar extends StatelessWidget {
-  final int current; // 0-based
+  final int current; // 0=Source, 1=Items, 2=Review
 
   const MrnStepBar({super.key, required this.current});
 
-  static const steps = ['Source', 'Items', 'Scan', 'Review'];
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: List.generate(steps.length * 2 - 1, (i) {
-          if (i.isOdd) {
-            final stepIdx = i ~/ 2;
-            return Expanded(
-              child: Container(
-                height: 2,
-                color: stepIdx < current ? newGreenColor : newBorderColor,
-              ),
-            );
-          }
-          final stepIdx = i ~/ 2;
-          final isDone = stepIdx < current;
-          final isActive = stepIdx == current;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 26, height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDone
-                      ? newGreenColor
-                      : isActive
-                      ? newBlueColor
-                      : newBorderColor,
-                ),
-                alignment: Alignment.center,
-                child: isDone
-                    ? const Icon(Icons.check_rounded,
-                    size: 14, color: Colors.white)
-                    : Text('${stepIdx + 1}',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isActive ? Colors.white : newTextSecondary)),
-              ),
-              const SizedBox(height: 3),
-              Text(steps[stepIdx],
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: isActive ? newBlueColor : newTextSecondary)),
-            ],
-          );
-        }),
+      child: Row(children: [
+        _step(0, 'Source'),
+        _line(0),
+        _step(1, 'Items'),
+        _line(1),
+        _step(2, 'Review'),
+      ]),
+    );
+  }
+
+  Widget _step(int index, String label) {
+    final isDone = current > index;
+    final isActive = current == index;
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isDone
+              ? newGreenColor          // ✅ completed = green
+              : isActive
+              ? newBlueColor           // 🔵 active = blue
+              : newBorderColor,        // ○ future = grey
+        ),
+        alignment: Alignment.center,
+        child: isDone
+            ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+            : Text('${index + 1}',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: isActive ? Colors.white : newTextSecondary)),
+      ),
+      const SizedBox(height: 4),
+      Text(label,
+          style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: isDone
+                  ? newGreenColor
+                  : isActive
+                  ? newBlueColor
+                  : newTextSecondary)),
+    ]);
+  }
+
+  Widget _line(int afterIndex) {
+    final isDone = current > afterIndex;
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        height: 2,
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: isDone ? newGreenColor : newBorderColor,
+          borderRadius: BorderRadius.circular(1),
+        ),
       ),
     );
   }
@@ -609,5 +618,28 @@ class MrnPrimaryBtn extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// mrn_utils.dart
+class MrnUtils {
+  static String inr(double v) {
+    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
+
+    final parts = v.toStringAsFixed(2).split('.');
+    final whole = parts[0];
+    final decimal = parts[1];
+
+    if (whole.length <= 3) return '₹$whole.$decimal';
+
+    final last3 = whole.substring(whole.length - 3);
+    final rest = whole.substring(0, whole.length - 3);
+    final buf = StringBuffer();
+    for (int i = 0; i < rest.length; i++) {
+      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
+      buf.write(rest[i]);
+    }
+    return '₹$buf,$last3.$decimal';
   }
 }

@@ -43,6 +43,7 @@ class MrnEntryView extends StatelessWidget {
                     children: const [
                       MrnSourceScreen(),
                       MrnItemsScreen(),
+                      //MrnScanScreen(),
                       MrnReviewScreen(),
                     ],
                   ),
