@@ -1,14 +1,440 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+
 // MRN Models
 
-enum MrnSourceType { purchaseOrder, directPurchase }
+enum MrnSourceType { purchaseOrder, directPurchase, grn }
 
 enum MrnDocType { invoice, indent, deliveryChallan, inspection, other }
 
 enum MrnAttachmentType { bill, challan }
 
-// ── MRN Dropdown API response ──────────────────────────────────────────────────
+// ── MRN List ───────────────────────────────────────────────────────────────
+class MrnListRequest {
+  final String fromdate;
+  final String todate;
+  final int compid;
+  final int branchid;
+  final int userid;
+  final int partyid;
+  final int siteid;
+  final int jobtypeid;
+
+  MrnListRequest({
+    required this.fromdate,
+    required this.todate,
+    required this.compid,
+    required this.branchid,
+    required this.userid,
+    this.partyid = 0,
+    this.siteid = 0,
+    this.jobtypeid = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'fromdate': fromdate,
+        'todate': todate,
+        'compid': compid,
+        'branchid': branchid,
+        'userid': userid,
+        'partyid': partyid,
+        'siteid': siteid,
+        'jobtypeid': jobtypeid,
+      };
+}
+
+// class MrnListResponse {
+//   final bool? success;
+//   final int? status;
+//   final String? message;
+//   final List<MrnListItem> data;
+//
+//   MrnListResponse({this.success, this.status, this.message, this.data = const []});
+//
+//   factory MrnListResponse.fromJson(Map<String, dynamic> json) {
+//     final raw = json['data'];
+//     final items = raw is String ? _parseHtmlTable(raw) : <MrnListItem>[];
+//     return MrnListResponse(
+//       success: json['success'],
+//       status:  json['status'],
+//       message: json['message'],
+//       data:    items,
+//     );
+//   }
+//
+//   // ── Parse the HTML table string into a list of MrnListItem ─────────────
+//   static List<MrnListItem> _parseHtmlTable(String html) {
+//     final items = <MrnListItem>[];
+//     // Extract all <tr> rows inside <tbody>
+//     final tbodyMatch = RegExp(r'<tbody>(.*?)</tbody>', dotAll: true).firstMatch(html);
+//     if (tbodyMatch == null) return items;
+//
+//     final rows = RegExp(r'<tr>(.*?)</tr>', dotAll: true)
+//         .allMatches(tbodyMatch.group(1)!)
+//         .toList();
+//
+//     for (final row in rows) {
+//       final cells = RegExp(r'<td>(.*?)</td>', dotAll: true)
+//           .allMatches(row.group(1)!)
+//           .map((m) => m.group(1)!.trim())
+//           .toList();
+//
+//       // Order: ID, Mrnno, BillNo, mrndate, PartyName, SiteName, JobType, TotalQty, TotalAmt
+//       if (cells.length >= 9) {
+//         items.add(MrnListItem(
+//           id:        int.tryParse(cells[0]) ?? 0,
+//           mrnNo:     cells[1],
+//           billNo:    cells[2],
+//           mrnDate:   cells[3],
+//           partyName: cells[4],
+//           siteName:  cells[5],
+//           jobType:   cells[6],
+//           totalQty:  double.tryParse(cells[7]) ?? 0,
+//           totalAmt:  double.tryParse(cells[8]) ?? 0,
+//         ));
+//       }
+//     }
+//     return items;
+//   }
+// }
+//─────────────────────MRN List ───────────────────────────────────────────────
+class MrnListResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final List<MrnListItem> data;
+  final String rawHtml;
+
+  MrnListResponse({
+    this.success,
+    this.status,
+    this.message,
+    this.data = const [],
+    this.rawHtml = '',           // ✅ add this
+  });
+
+  // ✅ Fixed - data is an HTML string, parse it here
+  factory MrnListResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    List<MrnListItem> items = [];
+    String rawHtml = '';
+
+    if (rawData is String && rawData.isNotEmpty) {
+      rawHtml = rawData;
+      items = MrnListResponse._parseHtmlTable(rawData);
+    } else if (rawData is List) {
+      // fallback if API ever returns JSON array
+      items = rawData.map((e) => MrnListItem.fromJson(e)).toList();
+    }
+
+    return MrnListResponse(
+      status: json['status'],
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      data: items,
+      rawHtml: rawHtml,
+    );
+  }
+
+  static List<MrnListItem> _parseHtmlTable(String html) {
+    final List<MrnListItem> result = [];
+    try {
+      final tbodyMatch = RegExp(
+        r'<tbody>(.*?)</tbody>',
+        dotAll: true,
+      ).firstMatch(html);
+
+      if (kDebugMode) print('tbody found: ${tbodyMatch != null}'); // ✅
+      if (tbodyMatch == null) return result;
+
+      final rowMatches = RegExp(
+        r'<tr>(.*?)</tr>',
+        dotAll: true,
+      ).allMatches(tbodyMatch.group(1)!);
+
+      if (kDebugMode) print('rows found: ${rowMatches.length}'); // ✅
+
+      for (final row in rowMatches) {
+        final cells = RegExp(r'<td>(.*?)</td>', dotAll: true)
+            .allMatches(row.group(1)!)
+            .map((m) => m.group(1)?.trim() ?? '')
+            .toList();
+
+        if (kDebugMode) print('cells: ${cells.length} → $cells'); // ✅
+        if (cells.length < 9) continue;
+
+        result.add(MrnListItem(
+          id: int.tryParse(cells[0]) ?? 0,
+          mrnNo: cells[1],
+          billNo: cells[2],
+          mrnDate: cells[3],
+          partyName: cells[4],
+          siteName: cells[5],
+          jobType: cells[6],
+          totalQty: double.tryParse(cells[7]) ?? 0,
+          totalAmt: double.tryParse(cells[8]) ?? 0,
+        ));
+      }
+    } catch (e) {
+      if (kDebugMode) print('HTML parse error: $e');
+    }
+    if (kDebugMode) print('Parsed ${result.length} MRN items'); // ✅
+    return result;
+  }
+}
+
+class MrnListItem {
+  final int id;
+  final String mrnNo;
+  final String billNo;
+  final String mrnDate;
+  final String partyName;
+  final String siteName;
+  final String jobType;
+  final double totalQty;
+  final double totalAmt;
+
+  MrnListItem({
+    required this.id,
+    required this.mrnNo,
+    required this.billNo,
+    required this.mrnDate,
+    required this.partyName,
+    required this.siteName,
+    required this.jobType,
+    required this.totalQty,
+    required this.totalAmt,
+  });
+
+  // ✅ Add this
+  factory MrnListItem.fromJson(Map<String, dynamic> json) {
+    return MrnListItem(
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      mrnNo: json['mrnno']?.toString() ?? json['mrnNo']?.toString() ?? '',
+      billNo: json['billno']?.toString() ?? json['billNo']?.toString() ?? '',
+      mrnDate: json['mrndate']?.toString() ?? json['mrnDate']?.toString() ?? '',
+      partyName:
+          json['partyname']?.toString() ?? json['partyName']?.toString() ?? '',
+      siteName:
+          json['sitename']?.toString() ?? json['siteName']?.toString() ?? '',
+      jobType: json['jobtype']?.toString() ?? json['jobType']?.toString() ?? '',
+      totalQty: double.tryParse(json['totalqty']?.toString() ?? '0') ?? 0,
+      totalAmt: double.tryParse(json['totalamt']?.toString() ?? '0') ?? 0,
+    );
+  }
+}
+
+// ── MRN Detail Response ────────────────────────────────────────────────────
+class MrnDetailResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final MrnDetailData? data;
+
+  MrnDetailResponse({this.success, this.status, this.message, this.data});
+
+  factory MrnDetailResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['data'];
+    MrnDetailData? data;
+    if (raw is Map<String, dynamic>) {
+      data = MrnDetailData.fromJson(raw);
+    } else if (raw is List && raw.isNotEmpty) {
+      data = MrnDetailData.fromJson(raw.first as Map<String, dynamic>);
+    }
+    return MrnDetailResponse(
+      success: json['success'],
+      status: json['status'],
+      message: json['message'],
+      data: data,
+    );
+  }
+}
+
+class MrnDetailData {
+  final int stockid;
+  final String mrnno;
+  final String type;
+  final String pono;
+  final int seriesid;
+  final String receiptdate;
+  final String partyname;
+  final int partyid;
+  final String billno;
+  final String billdate;
+  final int godownid;
+  final String godownname;
+  final String receivedby;
+  final String dcno; // challan no
+  final String dcdate;
+  final String lotno;
+  final String grnno;
+  final String grndate;
+  final String gateentryno;
+  final String qcstatus;
+  final int siteid;
+  final String sitename;
+  final int paidbyid;
+  final String paidby;
+  final String paidtype;
+  final int jobtypeid;
+  final String description;
+  final List<MrnDetailItem> items;
+
+  MrnDetailData({
+    required this.stockid,
+    this.mrnno = '',
+    this.type = '',
+    this.pono = '',
+    this.seriesid = 0,
+    this.receiptdate = '',
+    this.partyname = '',
+    this.partyid = 0,
+    this.billno = '',
+    this.billdate = '',
+    this.godownid = 0,
+    this.godownname = '',
+    this.receivedby = '',
+    this.dcno = '',
+    this.dcdate = '',
+    this.lotno = '',
+    this.grnno = '',
+    this.grndate = '',
+    this.gateentryno = '',
+    this.qcstatus = '',
+    this.siteid = 0,
+    this.sitename = '',
+    this.paidbyid = 0,
+    this.paidby = '',
+    this.paidtype = '',
+    this.jobtypeid = 0,
+    this.description = '',
+    this.items = const [],
+  });
+
+  factory MrnDetailData.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['mrnitems'] ?? json['items'] ?? [];
+    return MrnDetailData(
+      stockid: _i(json['stockid']),
+      mrnno: json['mrnno']?.toString() ?? '',
+      type: json['type']?.toString() ?? '',
+      pono: json['pono']?.toString() ?? '',
+      seriesid: _i(json['seriesid']),
+      receiptdate: json['receiptdate']?.toString() ?? '',
+      partyname: json['partyname']?.toString() ?? '',
+      partyid: _i(json['partyid']),
+      billno: json['billno']?.toString() ?? '',
+      billdate: json['billdate']?.toString() ?? '',
+      godownid: _i(json['godownid']),
+      godownname: json['godownname']?.toString() ?? '',
+      receivedby: json['receivedby']?.toString() ?? '',
+      dcno: json['dcno']?.toString() ?? '',
+      dcdate: json['dcdate']?.toString() ?? '',
+      lotno: json['lotno']?.toString() ?? '',
+      grnno: json['grnno']?.toString() ?? '',
+      grndate: json['grndate']?.toString() ?? '',
+      gateentryno: json['gateentryNo']?.toString() ?? '',
+      qcstatus: json['qcstatus']?.toString() ?? '',
+      siteid: _i(json['siteid']),
+      sitename: json['sitename']?.toString() ?? '',
+      paidbyid: _i(json['paidbyid']),
+      paidby: json['paidby']?.toString() ?? '',
+      paidtype: json['paidtype']?.toString() ?? '',
+      jobtypeid: _i(json['jobtypeid']),
+      description: json['description']?.toString() ?? '',
+      items: rawItems is List
+          ? rawItems
+              .map((e) => MrnDetailItem.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
+    );
+  }
+
+  static int _i(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
+  }
+}
+
+class MrnDetailItem {
+  final int itemid;
+  final String itemname;
+  final double rate;
+  final double quantity;
+  final double amount;
+  final double gstpercent;
+  final double gstamount;
+  final double discountpercent;
+  final double discountamount;
+  final String specification;
+  final String make;
+  final int makeid;
+  final int unitid;
+  final String unitname;
+  final int godownid;
+  final int transid;
+  final int uniqueid;
+  final String batchno;
+
+  MrnDetailItem({
+    this.itemid = 0,
+    this.itemname = '',
+    this.rate = 0,
+    this.quantity = 0,
+    this.amount = 0,
+    this.gstpercent = 0,
+    this.gstamount = 0,
+    this.discountpercent = 0,
+    this.discountamount = 0,
+    this.specification = '',
+    this.make = '',
+    this.makeid = 0,
+    this.unitid = 0,
+    this.unitname = 'Nos',
+    this.godownid = 0,
+    this.transid = 0,
+    this.uniqueid = 0,
+    this.batchno = '',
+  });
+
+  factory MrnDetailItem.fromJson(Map<String, dynamic> json) => MrnDetailItem(
+        itemid: _i(json['itemid']),
+        itemname: json['itemname']?.toString() ?? '',
+        rate: _d(json['rate']),
+        quantity: _d(json['quantity']),
+        amount: _d(json['amount']),
+        gstpercent: _d(json['gstpercent']),
+        gstamount: _d(json['gstamount']),
+        discountpercent: _d(json['discountpercent']),
+        discountamount: _d(json['discountamount']),
+        specification: json['specification']?.toString() ?? '',
+        make: json['make']?.toString() ?? '',
+        makeid: _i(json['makeid']),
+        unitid: _i(json['unitid']),
+        unitname: json['unitname']?.toString() ?? 'Nos',
+        godownid: _i(json['godownid']),
+        transid: _i(json['transid']),
+        uniqueid: _i(json['uniqueid']),
+        batchno: json['batchno']?.toString() ?? '',
+      );
+
+  static double _d(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  static int _i(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
+  }
+}
+
+// ── MRN Dropdown API response ────────────────────────────────────────────────
 class MrnDropdownResponse {
   final int? status;
   final bool? success;
@@ -296,7 +722,6 @@ class MrnItemLine {
   double get lineTotal => totalAmount;
 }
 
-
 // ── Scanned item ───────────────────────────────────────────────────────────────
 class MrnScannedItem {
   final String barcode;
@@ -364,22 +789,22 @@ class MrnDropdownOption {
 // ── Submit response ────────────────────────────────────────────────────────────
 class MrnSubmitResponse {
   final int? status;
-  final bool? success;   // ✅ add this
+  final bool? success; // ✅ add this
   final String? message;
   final String? mrnNumber;
 
   MrnSubmitResponse({
     this.status,
-    this.success,         // ✅ add this
+    this.success, // ✅ add this
     this.message,
     this.mrnNumber,
   });
 
   factory MrnSubmitResponse.fromJson(Map<String, dynamic> json) {
     return MrnSubmitResponse(
-      status:    json['status'],
-      success:   json['success'],   // ✅ add this
-      message:   json['message'],
+      status: json['status'],
+      success: json['success'], // ✅ add this
+      message: json['message'],
       mrnNumber: json['mrnno'],
     );
   }
@@ -422,7 +847,6 @@ class MrnAddress {
       );
 }
 
-
 // ── Process PO request body ────────────────────────────────────────────────
 class ProcessPendingPoRequest {
   final int type;
@@ -446,15 +870,15 @@ class ProcessPendingPoRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'type':     type,
-    'compid':   compid,
-    'branchid': branchid,
-    'userid':   userid,
-    'partyid':  partyid,
-    'siteid':   siteid,
-    'orderid':  orderid,
-    'stockid':  stockid,
-  };
+        'type': type,
+        'compid': compid,
+        'branchid': branchid,
+        'userid': userid,
+        'partyid': partyid,
+        'siteid': siteid,
+        'orderid': orderid,
+        'stockid': stockid,
+      };
 }
 
 // ── Process PO response item ───────────────────────────────────────────────
@@ -465,7 +889,7 @@ class ProcessPoItem {
   final String itemname;
   final double mrp;
   final double rate;
-  final double quantity;   // ordered qty
+  final double quantity; // ordered qty
   final double amount;
   final double gstpercent;
   final double taxamt;
@@ -480,7 +904,7 @@ class ProcessPoItem {
   final String godownname;
   final String batchno;
   final int transid;
-  final double remqty;     // remaining/balance qty — use as maxReceivable
+  final double remqty; // remaining/balance qty — use as maxReceivable
   final double totalamount;
   final int uniqueid;
 
@@ -513,30 +937,30 @@ class ProcessPoItem {
 
   factory ProcessPoItem.fromJson(Map<String, dynamic> json) {
     return ProcessPoItem(
-      orderid:         _i(json['orderid']),
-      orderno:         json['orderno']?.toString() ?? '',
-      itemid:          _i(json['itemid']),
-      itemname:        json['itemname']?.toString() ?? '',
-      mrp:             _d(json['mrp']),
-      rate:            _d(json['rate']),
-      quantity:        _d(json['quantity']),
-      amount:          _d(json['amount']),
-      gstpercent:      _d(json['gstpercent']),
-      taxamt:          _d(json['taxamt']),
+      orderid: _i(json['orderid']),
+      orderno: json['orderno']?.toString() ?? '',
+      itemid: _i(json['itemid']),
+      itemname: json['itemname']?.toString() ?? '',
+      mrp: _d(json['mrp']),
+      rate: _d(json['rate']),
+      quantity: _d(json['quantity']),
+      amount: _d(json['amount']),
+      gstpercent: _d(json['gstpercent']),
+      taxamt: _d(json['taxamt']),
       discountpercent: _d(json['discountpercent']),
-      discountamount:  _d(json['discountamount']),
-      unitid:          _i(json['unitid']),
-      unitname:        json['unitname']?.toString() ?? 'Nos',
-      specification:   json['specification']?.toString() ?? '',
-      makeid:          _i(json['makeid']),
-      make:            json['make']?.toString() ?? '',
-      godownid:        _i(json['godownid']),
-      godownname:      json['godownname']?.toString() ?? '',
-      batchno:         json['batchno']?.toString() ?? '',
-      transid:         _i(json['transid']),
-      remqty:          _d(json['remqty']),
-      totalamount:     _d(json['totalamount']),
-      uniqueid:        _i(json['uniqueid']),
+      discountamount: _d(json['discountamount']),
+      unitid: _i(json['unitid']),
+      unitname: json['unitname']?.toString() ?? 'Nos',
+      specification: json['specification']?.toString() ?? '',
+      makeid: _i(json['makeid']),
+      make: json['make']?.toString() ?? '',
+      godownid: _i(json['godownid']),
+      godownname: json['godownname']?.toString() ?? '',
+      batchno: json['batchno']?.toString() ?? '',
+      transid: _i(json['transid']),
+      remqty: _d(json['remqty']),
+      totalamount: _d(json['totalamount']),
+      uniqueid: _i(json['uniqueid']),
     );
   }
 
@@ -547,26 +971,26 @@ class ProcessPoItem {
     // receiveNowQty = remqty (balance left to receive)
     final alreadyReceived = (quantity - remqty).clamp(0.0, double.infinity);
     return MrnItemLine(
-      itemId:                itemid.toString(),
-      itemName:              itemname,
-      itemCode:              itemid.toString(),
-      unit:                  unitname,
-      source:                'PO',
-      orderNo:               poNumber,
-      poQty:                 quantity,
+      itemId: itemid.toString(),
+      itemName: itemname,
+      itemCode: itemid.toString(),
+      unit: unitname,
+      source: 'PO',
+      orderNo: poNumber,
+      poQty: quantity,
       previouslyReceivedQty: alreadyReceived,
-      rate:                  rate,
-      discountPercent:       discountpercent,
-      gstPercent:            gstpercent,
-      receiveNowQty:         remqty,   // default to full balance
-      selectedGodownId:      godownid > 0 ? godownid.toString() : null,
-      remarks:               specification,
-      unitId:    unitid,
-      transId:   transid,
-      uniqueId:  uniqueid,
-      makeId:    makeid,
-      make:      make,
-      batchNo:   batchno,
+      rate: rate,
+      discountPercent: discountpercent,
+      gstPercent: gstpercent,
+      receiveNowQty: remqty, // default to full balance
+      selectedGodownId: godownid > 0 ? godownid.toString() : null,
+      remarks: specification,
+      unitId: unitid,
+      transId: transid,
+      uniqueId: uniqueid,
+      makeId: makeid,
+      make: make,
+      batchNo: batchno,
     );
   }
 
@@ -602,12 +1026,57 @@ class ProcessPendingPoResponse {
     return ProcessPendingPoResponse(
       success: json['success'],
       message: json['message'],
-      status:  json['status'],
+      status: json['status'],
       data: json['data'] != null && json['data'] is List
           ? (json['data'] as List)
-          .map((e) => ProcessPoItem.fromJson(e as Map<String, dynamic>))
-          .toList()
+              .map((e) => ProcessPoItem.fromJson(e as Map<String, dynamic>))
+              .toList()
           : [],
     );
+  }
+}
+
+class MrnItemDetailResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final MrnItemDetail? data;
+
+  MrnItemDetailResponse({this.success, this.status, this.message, this.data});
+
+  factory MrnItemDetailResponse.fromJson(Map<String, dynamic> json) {
+    dynamic raw = json['data'];
+    MrnItemDetail? detail;
+    if (raw is Map<String, dynamic>) {
+      detail = MrnItemDetail.fromJson(raw);
+    } else if (raw is List && raw.isNotEmpty) {
+      detail = MrnItemDetail.fromJson(raw.first as Map<String, dynamic>);
+    }
+    return MrnItemDetailResponse(
+      success: json['success'],
+      status: json['status'],
+      message: json['message'],
+      data: detail,
+    );
+  }
+}
+
+class MrnItemDetail {
+  final double gstpercent;
+
+  MrnItemDetail({required this.gstpercent});
+
+  factory MrnItemDetail.fromJson(Map<String, dynamic> json) {
+    return MrnItemDetail(
+      // TODO: confirm exact field name from real API response
+      gstpercent: _d(json['gstpercent'] ?? json['gst'] ?? json['taxpercent']),
+    );
+  }
+
+  static double _d(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
   }
 }

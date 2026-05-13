@@ -1,0 +1,92 @@
+
+import 'package:digitalerp/utils/show_message.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../../screen/base/base_controller.dart';
+import '../../home_controller.dart';
+import '../mrn_response/mrn_models.dart';
+
+class MrnListController extends AppBaseController {
+  final HomeController homeController = Get.find<HomeController>();
+
+  String htmlData = '';
+  bool isLoadingList = false;
+  List<MrnListItem> mrnItems = [];
+
+  final TextEditingController fromDateCtrl = TextEditingController();
+  final TextEditingController toDateCtrl   = TextEditingController();
+
+  @override
+  void onInit() {
+    super.onInit();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    fromDateCtrl.text = today;
+    toDateCtrl.text   = today;
+    fetchMrnList();
+  }
+
+  @override
+  void onClose() {
+    fromDateCtrl.dispose();
+    toDateCtrl.dispose();
+    super.onClose();
+  }
+
+
+  Future<void> fetchMrnList() async {
+    isLoadingList = true;
+    mrnItems = [];
+    htmlData = '';
+    update();
+    try {
+      final req = MrnListRequest(
+        fromdate: fromDateCtrl.text,
+        todate:   toDateCtrl.text,
+        compid:   homeController.currentUserData?.compId   ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        userid:   homeController.currentUserData?.userid   ?? 0,
+      );
+      final res = await api.getMrnList(req);
+      if (res.status == 200 || res.success == true) {
+        mrnItems  = res.data;        // ✅ keep for any future use
+        htmlData  = res.rawHtml;     // ✅ raw HTML string for WebView
+      } else {
+        ShowMessage.showSnackBar('MRN List', res.message ?? 'Failed to load');
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Error', '$e');
+    } finally {
+      isLoadingList = false;
+      update();
+    }
+  }
+
+  Future<void> pickFromDate(BuildContext ctx) async {
+    final picked = await showDatePicker(
+      context: ctx,
+      initialDate: DateTime.tryParse(fromDateCtrl.text) ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
+      update();
+    }
+  }
+
+  Future<void> pickToDate(BuildContext ctx) async {
+    final picked = await showDatePicker(
+      context: ctx,
+      initialDate: DateTime.tryParse(toDateCtrl.text) ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      toDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
+      update();
+    }
+  }
+}

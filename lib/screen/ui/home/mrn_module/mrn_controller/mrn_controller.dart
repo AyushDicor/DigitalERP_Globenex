@@ -132,6 +132,13 @@ class MrnController extends AppBaseController {
   List<MrnDropdownOption> makeList = [];
   bool isLoadingMake = false;
 
+  bool isLoadingItemDetail = false;
+
+
+  //Edit
+  bool isEditMode = false;
+  int? editStockId;
+
   // ── Step 3: Review ─────────────────────────────────────────────────────────
   final TextEditingController reviewRemarksCtrl = TextEditingController();
 
@@ -139,6 +146,7 @@ class MrnController extends AppBaseController {
   double get subtotal => itemLines.fold(0, (s, i) => s + i.amount);
   double get totalGst => itemLines.fold(0, (s, i) => s + i.gstAmount);
   double get grandTotal => subtotal + totalGst;
+  double get totalDiscount => itemLines.fold(0, (s, i) => s + i.discountAmount);
   double get roundOff {
     final exact = grandTotal;
     final rounded = exact.roundToDouble();
@@ -159,7 +167,16 @@ class MrnController extends AppBaseController {
     mrnNumber = _generateMrnNumber();
     _setLoggedInUser();
     _fetchAllDropdowns();
+
+    // ✅ Check if opened from MRN List (edit mode)
+    final args = Get.arguments;
+    if (args is MrnListItem) {
+      isEditMode = true;
+      editStockId = args.id;
+      _prefillFromListItem(args);
+    }
   }
+
 
   @override
   void onClose() {
@@ -272,6 +289,46 @@ class MrnController extends AppBaseController {
     update();
   }
 
+
+  void _prefillFromListItem(MrnListItem item) {
+    // Pre-fill what we have from the list
+    mrnNumber = item.mrnNo;
+    billNoCtrl.text = item.billNo;
+
+    // Parse mrnDate from dd-MM-yyyy to dd/MM/yyyy
+    try {
+      final date = DateFormat('dd-MM-yyyy').parse(item.mrnDate);
+      mrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(date);
+    } catch (_) {}
+
+    // Pre-fill party name as text (dropdown will be matched after parties load)
+    partyNameCtrl.text = item.partyName;
+
+    update();
+
+    // ✅ Fetch full MRN detail from API to fill remaining fields
+    _fetchMrnDetail(item.id);
+  }
+
+  Future<void> _fetchMrnDetail(int stockid) async {
+    setBusy(true);
+    try {
+      final body = {
+        'stockid':  stockid,
+        'compid':   homeController.currentUserData?.compId   ?? 0,
+        'branchid': homeController.currentUserData?.branchId ?? 0,
+        'userid':   homeController.currentUserData?.userid   ?? 0,
+      };
+      final res = await api.getMrnDetail(body);
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        _applyMrnDetail(res.data!);
+      }
+    } catch (e) {
+      if (kDebugMode) print('MRN detail error: $e');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   Future<void> fetchPaidByEmployees() async {
     isLoadingPaidBy = true;
@@ -556,6 +613,7 @@ class MrnController extends AppBaseController {
     required double qty,
     required double rate,
     required double gstPct,
+    required double discountPct,
     required double discount,
     required String remarks,
   }) {
@@ -570,7 +628,9 @@ class MrnController extends AppBaseController {
       previouslyReceivedQty: 0,
       receiveNowQty: qty,
       rate: rate,
-      discountPercent: (qty * rate) > 0 ? (discount / (qty * rate) * 100) : 0,
+      discountPercent: discountPct > 0 ? discountPct :
+      (qty * rate) > 0 ? (discount / (qty * rate) * 100) : 0,
+      discountAmount: discount,  // ✅ store flat amount too
       gstPercent: gstPct,
       selectedGodownId: godownId,
       remarks: remarks,
@@ -589,6 +649,26 @@ class MrnController extends AppBaseController {
     update();
   }
 
+
+  Future<MrnItemDetail?> fetchItemDetail(int itemid) async {
+    isLoadingItemDetail = true;
+    update();
+    try {
+      final res = await api.getItemDetail(
+        compid: homeController.currentUserData?.compId ?? 0,
+        itemid: itemid,
+      );
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        return res.data;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    } finally {
+      isLoadingItemDetail = false;
+      update();
+    }
+  }
 
 
   // ── File upload helper ─────────────────────────────────────────────────────
@@ -697,7 +777,7 @@ class MrnController extends AppBaseController {
 
       // ── Build request body ────────────────────────────────────────────
       final body = {
-        'stockid':          0,
+        'stockid':          isEditMode ? (editStockId ?? 0) : 0,
         'type':             selectedSource == MrnSourceType.purchaseOrder ? 'PO' : 'Direct',
         'pono':             processingPo?.orderno ?? '',
         'seriesid':         int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
@@ -773,11 +853,134 @@ class MrnController extends AppBaseController {
     }
   }
 
+
+
+
+
+  Future<void> submitGRN() async {
+    // ── Same validations as submitMRN ──────────────────────────────────────
+    if (partyNameCtrl.text.trim().isEmpty) {
+      ShowMessage.showSnackBar('Validation', 'Please select a party'); return;
+    }
+    if (selectedSite == null) {
+      ShowMessage.showSnackBar('Validation', 'Please select a site'); return;
+    }
+    if (itemLines.isEmpty) {
+      ShowMessage.showSnackBar('Validation', 'Please add at least one item'); return;
+    }
+    if (itemLines.any((i) => i.receiveNowQty <= 0)) {
+      ShowMessage.showSnackBar('Validation', 'All items must have qty > 0'); return;
+    }
+
+    setBusy(true);
+    try {
+      final billFileStr    = await _uploadAttachments(billAttachments);
+      final challanFileStr = await _uploadAttachments(challanAttachments);
+
+      DateTime parseDate(String d) {
+        try { return DateFormat('dd/MM/yyyy').parse(d); }
+        catch (_) { return DateTime.now(); }
+      }
+
+      final items = itemLines.map((i) => {
+        'itemname':        i.itemName,
+        'itemid':          int.tryParse(i.itemId) ?? 0,
+        'rate':            i.rate,
+        'quantity':        i.receiveNowQty,
+        'amount':          i.amount,
+        'gstpercent':      i.gstPercent,
+        'gstamount':       i.gstAmount,
+        'discountpercent': i.discountPercent,
+        'discountamount':  i.discountAmount,
+        'specification':   i.remarks,
+        'make':            i.make,
+        'makeid':          i.makeId,
+        'unitid':          i.unitId,
+        'godownid':        int.tryParse(
+            i.selectedGodownId ?? selectedGodown?.id ?? '0') ?? 0,
+        'transid':         i.transId,
+        'stockqty':        i.receiveNowQty,
+        'sgst': 0, 'sgstamt': 0, 'cgst': 0,
+        'cgstamt': 0, 'igst': 0, 'igstamt': 0,
+        'batchno':         i.batchNo,
+        'expirydate':      '',
+        'manufacturedate': '',
+        'uniqueid':        i.uniqueId,
+      }).toList();
+
+      final body = {
+        'stockid':       isEditMode ? (editStockId ?? 0) : 0,
+        'type':          'GRN',
+        'seriesid':      int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
+        'receiptdate':   parseDate(mrnDateCtrl.text).toIso8601String(),
+        'partyname':     partyNameCtrl.text.trim(),
+        'partyid':       int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        'billno':        billNoCtrl.text.trim(),
+        'billdate':      parseDate(billDateCtrl.text).toIso8601String(),
+        'godownid':      int.tryParse(selectedGodown?.id ?? '0') ?? 0,
+        'receivedby':    receivedByName,
+        'description':   reviewRemarksCtrl.text.trim(),
+        'lotno':         lotNoCtrl.text.trim(),
+        'grnno':         grnNoCtrl.text.trim(),
+        'grndate':       parseDate(grnDateCtrl.text).toIso8601String(),
+        'gateentryNo':   gateEntryNoCtrl.text.trim(),
+        'totalamount':   subtotal,
+        'totalquantity': itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
+        'grandtotal':    grandTotalRounded,
+        'roundoff':      roundOff,
+        'totaltax':      totalGst,
+        'siteid':        int.tryParse(selectedSite?.id ?? '0') ?? 0,
+        'compid':        homeController.currentUserData?.compId   ?? 0,
+        'branchid':      homeController.currentUserData?.branchId ?? 0,
+        'userid':        homeController.currentUserData?.userid   ?? 0,
+        'yearid':        currentYearId,
+        'dcno':          challanNoCtrl.text.trim(),
+        'dcdate':        parseDate(challanDateCtrl.text).toIso8601String(),
+        'dcfile':        challanFileStr,
+        'billfile':      billFileStr,
+        'reason':        reasonNACtrl.text.trim(),
+        'paidbyid':      int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
+        'paidby':        selectedPaidBy?.label ?? '',
+        'paidtype':      selectedPaidType?.label ?? '',
+        'jobtypeid':     int.tryParse(selectedJobType?.id ?? '0') ?? 0,
+        'mrnitems':      items,
+      };
+
+      if (kDebugMode) {
+        const encoder = JsonEncoder.withIndent('  ');
+        print('📦 GRN SUBMIT PAYLOAD');
+        print(encoder.convert(body));
+      }
+
+      // ✅ TODO: Replace URL when backend shares the GRN endpoint
+      // final res = await api.saveGrnEntry(body);
+      // if (res.status == 200 || res.success == true) {
+      //   ShowMessage.showSnackBar('Success', res.message ?? 'GRN saved successfully');
+      //   Get.back();
+      // } else {
+      //   ShowMessage.showSnackBar('Error', res.message ?? 'Failed to save GRN');
+      // }
+
+      // ── TEMPORARY: show payload until backend is ready ─────────────────
+      ShowMessage.showSnackBar('GRN Ready', 'API endpoint pending from backend');
+
+    } catch (e) {
+      ShowMessage.showSnackBar('Error', '$e');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+
+
+
   // ── Source label ───────────────────────────────────────────────────────────
   String sourceLabel(MrnSourceType s) {
     switch (s) {
       case MrnSourceType.purchaseOrder:  return 'Purchase Order';
       case MrnSourceType.directPurchase: return 'Direct Purchase';
+      case MrnSourceType.grn:            return 'GRN';           // ✅ add
     }
   }
 
@@ -803,7 +1006,7 @@ class MrnController extends AppBaseController {
       fetchSeriesTypes(),
       fetchSites(),
       fetchGodowns(),
-    //  fetchPaidTypes(),
+      //  fetchPaidTypes(),
       fetchCustomerPOs(),
       fetchJobTypes(),
       fetchWorkOrders(),
@@ -1110,6 +1313,120 @@ class MrnController extends AppBaseController {
       isLoadingItems = false;
       update();
     }
+  }
+
+  void _applyMrnDetail(MrnDetailData d) {
+    // Header
+    mrnNumber          = d.mrnno.isNotEmpty ? d.mrnno : mrnNumber;
+    billNoCtrl.text    = d.billno;
+    challanNoCtrl.text = d.dcno;
+    lotNoCtrl.text     = d.lotno;
+    grnNoCtrl.text     = d.grnno;
+    gateEntryNoCtrl.text = d.gateentryno;
+    receivedByName     = d.receivedby;
+    selectedQcRequired = d.qcstatus.isNotEmpty ? d.qcstatus : 'Yes';
+
+    // Dates
+    _setDateCtrl(mrnDateCtrl,     d.receiptdate);
+    _setDateCtrl(billDateCtrl,    d.billdate);
+    _setDateCtrl(challanDateCtrl, d.dcdate);
+    _setDateCtrl(grnDateCtrl,     d.grndate);
+
+    // Party — match from loaded list
+    partyNameCtrl.text = d.partyname;
+    if (d.partyid > 0) {
+      selectedParty = partyList.firstWhereOrNull(
+              (p) => p.id == d.partyid.toString());
+      // If not found yet (list still loading), store id to match later
+      if (selectedParty == null) {
+        selectedParty = MrnDropdownOption(
+            id: d.partyid.toString(), label: d.partyname);
+      }
+    }
+
+    // Site
+    if (d.siteid > 0) {
+      selectedSite = siteList.firstWhereOrNull(
+              (s) => s.id == d.siteid.toString())
+          ?? MrnDropdownOption(id: d.siteid.toString(), label: d.sitename);
+    }
+
+    // Godown
+    if (d.godownid > 0) {
+      selectedGodown = godownList.firstWhereOrNull(
+              (g) => g.id == d.godownid.toString())
+          ?? MrnDropdownOption(id: d.godownid.toString(), label: d.godownname);
+    }
+
+    // Series
+    if (d.seriesid > 0) {
+      selectedSeriesType = seriesTypeList.firstWhereOrNull(
+              (s) => s.id == d.seriesid.toString())
+          ?? MrnDropdownOption(id: d.seriesid.toString(), label: '');
+    }
+
+    // Paid type
+    if (d.paidtype.isNotEmpty) {
+      selectedPaidType = paidTypeList.firstWhereOrNull(
+              (p) => p.label == d.paidtype);
+      if (d.paidtype == 'Employee' && d.paidbyid > 0) {
+        selectedPaidBy = MrnDropdownOption(
+            id: d.paidbyid.toString(), label: d.paidby);
+      }
+    }
+
+    // Job type
+    if (d.jobtypeid > 0) {
+      selectedJobType = jobTypeList.firstWhereOrNull(
+              (j) => j.id == d.jobtypeid.toString())
+          ?? MrnDropdownOption(id: d.jobtypeid.toString(), label: '');
+    }
+
+    // Source type
+    selectedSource = d.type == 'PO'
+        ? MrnSourceType.purchaseOrder
+        : MrnSourceType.directPurchase;
+
+    // Items
+    itemLines = d.items.map((i) => MrnItemLine(
+      itemId:                i.itemid.toString(),
+      itemName:              i.itemname,
+      itemCode:              i.itemid.toString(),
+      unit:                  i.unitname,
+      source:                d.type == 'PO' ? 'PO' : 'Direct',
+      orderNo:               d.pono,
+      poQty:                 i.quantity,
+      previouslyReceivedQty: 0,
+      receiveNowQty:         i.quantity,
+      rate:                  i.rate,
+      discountPercent:       i.discountpercent,
+      discountAmount:        i.discountamount,
+      gstPercent:            i.gstpercent,
+      selectedGodownId:      i.godownid > 0 ? i.godownid.toString() : null,
+      remarks:               i.specification,
+      unitId:                i.unitid,
+      transId:               i.transid,
+      uniqueId:              i.uniqueid,
+      makeId:                i.makeid,
+      make:                  i.make,
+      batchNo:               i.batchno,
+    )).toList();
+
+    update();
+  }
+
+  void _setDateCtrl(TextEditingController ctrl, String raw) {
+    if (raw.isEmpty) return;
+    try {
+      DateTime? dt;
+      // Try ISO first
+      dt = DateTime.tryParse(raw);
+      // Try dd-MM-yyyy
+      dt ??= DateFormat('dd-MM-yyyy').tryParseStrict(raw);
+      // Try dd/MM/yyyy already
+      dt ??= DateFormat('dd/MM/yyyy').tryParseStrict(raw);
+      if (dt != null) ctrl.text = DateFormat('dd/MM/yyyy').format(dt);
+    } catch (_) {}
   }
 
 

@@ -1,6 +1,7 @@
 // Shared widgets used across MRN screens
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 // ── Section heading ──────────────────────────────────────────────────────────
 class MrnSectionHead extends StatelessWidget {

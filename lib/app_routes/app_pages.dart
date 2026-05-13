@@ -58,6 +58,7 @@ import 'package:digitalerp/screen/ui/home/mrn/material%20receipt/material_receip
 import 'package:digitalerp/screen/ui/home/mrn/screens/add_mrn_screen.dart';
 import 'package:digitalerp/screen/ui/home/mrn/screens/mrn_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/mrn_module/mrn_entry_view.dart';
+import 'package:digitalerp/screen/ui/home/mrn_module/mrn_screens/mrn_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/order/order_detail/order_detail_view.dart';
 import 'package:digitalerp/screen/ui/home/order/order_list/order_list_view.dart';
 import 'package:digitalerp/screen/ui/home/order/order_view.dart';
@@ -408,7 +409,7 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.mrnScreen,
-      page: () => MrnEntryView(),
+      page: () => MrnListScreen(),
     ),
     // GetPage(
     //   name: AppRoutes.addMRN,

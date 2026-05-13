@@ -277,15 +277,26 @@ class MrnReviewScreen extends StatelessWidget {
     }
     final sortedRates = gstByRate.keys.toList()..sort();
 
+    // ✅ Compute total discount across all items
+    final totalDiscount = ctrl.itemLines.fold(
+        0.0, (s, i) => s + i.discountAmount);
+
     return MrnCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const MrnSectionHead('Amount Summary'),
         const SizedBox(height: 4),
 
-        _sumRow('Subtotal (${ctrl.itemLines.length} items)',
-            _fmt(ctrl.subtotal)),
+        // Gross amount before discount
+        _sumRow('Gross Amount',
+            _fmt(ctrl.itemLines.fold(0.0, (s, i) => s + (i.receiveNowQty * i.rate)))),
 
-        // ── GST breakdown by slab ──────────────────────────────────────
+        // ✅ Discount row — only show if any discount exists
+        if (totalDiscount > 0)
+          _sumRow('Total Discount (-)  ', '- ${_fmt(totalDiscount)}'),
+
+        _sumRow('Subtotal (${ctrl.itemLines.length} items)', _fmt(ctrl.subtotal)),
+
+        // GST breakdown
         if (sortedRates.isNotEmpty) ...[
           const SizedBox(height: 4),
           Container(
@@ -317,21 +328,19 @@ class MrnReviewScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: newBlueLightColor,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text('GST ${rate.toInt()}%',
-                            style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: newBlueColor)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: newBlueLightColor,
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                    ]),
+                      child: Text('GST ${rate.toInt()}%',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: newBlueColor)),
+                    ),
                     Text(_fmt(gstByRate[rate]!),
                         style: const TextStyle(
                             fontSize: 12,
@@ -345,13 +354,32 @@ class MrnReviewScreen extends StatelessWidget {
         ] else
           _sumRow('Total GST', _fmt(ctrl.totalGst)),
 
-        // ── Grand Total ────────────────────────────────────────────────
+        // Round off
+        if (ctrl.roundOff != 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Round Off',
+                    style: TextStyle(fontSize: 12, color: newTextSecondary)),
+                Text(
+                  '${ctrl.roundOff >= 0 ? '+' : ''}${ctrl.roundOff.toStringAsFixed(2)}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ctrl.roundOff >= 0 ? newGreenColor : newRedColor),
+                ),
+              ],
+            ),
+          ),
+
+        // Grand Total
         Container(
           margin: const EdgeInsets.only(top: 8),
           padding: const EdgeInsets.only(top: 10),
           decoration: const BoxDecoration(
-              border: Border(
-                  top: BorderSide(color: newBorderColor, width: 1.5))),
+              border: Border(top: BorderSide(color: newBorderColor, width: 1.5))),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -365,27 +393,8 @@ class MrnReviewScreen extends StatelessWidget {
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                       color: newBlueColor)),
-              if (ctrl.roundOff != 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Round Off',
-                          style: TextStyle(fontSize: 12, color: newTextSecondary)),
-                      Text(
-                        '${ctrl.roundOff >= 0 ? '+' : ''}${ctrl.roundOff.toStringAsFixed(2)}',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: ctrl.roundOff >= 0 ? newGreenColor : newRedColor),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
-
         ),
       ]),
     );
@@ -477,11 +486,16 @@ class MrnReviewScreen extends StatelessWidget {
           Expanded(
             flex: 2,
             child: MrnPrimaryBtn(
-              label: ctrl.isBusy ? 'Uploading & Saving…' : 'Submit MRN',
+              label: ctrl.isBusy ? 'Uploading & Saving…' :
+              ctrl.selectedSource == MrnSourceType.grn
+                  ? 'Submit GRN'
+                  : 'Submit MRN',
               icon: ctrl.isBusy ? Icons.cloud_upload_outlined : Icons.check_rounded,
               color: newGreenColor,
               isLoading: ctrl.isBusy,
-              onTap: () => ctrl.submitMRN(),
+              onTap: () => ctrl.selectedSource == MrnSourceType.grn   // ✅
+                  ? ctrl.submitGRN()
+                  : ctrl.submitMRN(),
             ),
           ),
         ]),
@@ -672,8 +686,8 @@ class _ReviewItemRow extends StatelessWidget {
             const SizedBox(height: 6),
             _fieldGrid([
               _FieldTile('Rate', '₹${item.rate.toStringAsFixed(2)}'),
-              _FieldTile('Discount',
-                  '${item.discountPercent.toStringAsFixed(1)}%'),
+              _FieldTile('Discount %', '${item.discountPercent.toStringAsFixed(1)}%'),
+              _FieldTile('Discount (₹)', '₹${item.discountAmount.toStringAsFixed(2)}'),
               _FieldTile('Amount', '₹${item.amount.toStringAsFixed(2)}'),
               _FieldTile('GST ${item.gstPercent.toInt()}%',
                   '₹${item.gstAmount.toStringAsFixed(2)}'),

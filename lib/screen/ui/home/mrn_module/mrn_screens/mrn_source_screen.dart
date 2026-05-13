@@ -67,14 +67,20 @@ class MrnSourceScreen extends StatelessWidget {
                   Row(children: [
                     Expanded(
                       child: _sourceChip(ctrl, MrnSourceType.purchaseOrder,
-                          '📄', 'Purchase Order', 'Import from PO',
+                          '📄', 'Purchase\nOrder', 'From PO',
                           newBlueLightColor),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _sourceChip(ctrl, MrnSourceType.directPurchase,
-                          '🛒', 'Direct Purchase', 'Manual entry',
+                          '🛒', 'Direct\nPurchase', 'Manual',
                           newOrangeLightColor),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _sourceChip(ctrl, MrnSourceType.grn,
+                          '📦', 'GRN', 'Receipt Note',
+                          newGreenLightColor),
                     ),
                   ]),
                 ]),

@@ -83,14 +83,16 @@ class MrnEntryView extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('New MRN Entry',
-                style: TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w800,
-                    color: newTextPrimary)),
-            Text(ctrl.mrnNumber,
-                style: const TextStyle(
-                    fontSize: 11, color: newTextSecondary,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              ctrl.isEditMode ? 'Edit MRN Entry' : 'New MRN Entry',
+              style: const TextStyle(
+                  fontSize: 17, fontWeight: FontWeight.w800, color: newTextPrimary),
+            ),
+            Text(
+              ctrl.mrnNumber,
+              style: const TextStyle(
+                  fontSize: 11, color: newTextSecondary, fontWeight: FontWeight.w600),
+            ),
           ]),
         ),
         // Print icon (visible on review step)

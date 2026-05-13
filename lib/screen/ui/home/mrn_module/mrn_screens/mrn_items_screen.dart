@@ -30,8 +30,9 @@ class MrnItemsScreen extends StatelessWidget {
                 child: Column(children: [
 
                   // ── Direct purchase — show entry form ──────────────────
-                  if (ctrl.selectedSource == MrnSourceType.directPurchase)
-                    const MrnDirectItemForm(),
+                  if (ctrl.selectedSource == MrnSourceType.directPurchase ||
+                      ctrl.selectedSource == MrnSourceType.grn)
+                  const MrnDirectItemForm(),
 
                   if (ctrl.selectedSource == MrnSourceType.purchaseOrder)
                     MrnCard(
@@ -323,7 +324,7 @@ class MrnItemsScreen extends StatelessWidget {
                 'No Items',
                 ctrl.selectedSource == MrnSourceType.purchaseOrder
                     ? 'Please select and process a PO'
-                    : 'Please add at least one item',
+                    : 'Please add at least one item',  // covers both Direct and GRN
               );
               return;
             }
