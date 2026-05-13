@@ -317,7 +317,7 @@ class MrnController extends AppBaseController {
         'stockid':  stockid,
         'compid':   homeController.currentUserData?.compId   ?? 0,
         'branchid': homeController.currentUserData?.branchId ?? 0,
-        'userid':   homeController.currentUserData?.userid   ?? 0,
+        // ✅ removed userid — not needed by this API
       };
       final res = await api.getMrnDetail(body);
       if ((res.status == 200 || res.success == true) && res.data != null) {
@@ -1316,32 +1316,32 @@ class MrnController extends AppBaseController {
   }
 
   void _applyMrnDetail(MrnDetailData d) {
-    // Header
-    mrnNumber          = d.mrnno.isNotEmpty ? d.mrnno : mrnNumber;
-    billNoCtrl.text    = d.billno;
-    challanNoCtrl.text = d.dcno;
-    lotNoCtrl.text     = d.lotno;
-    grnNoCtrl.text     = d.grnno;
+    // Header — existing
+    mrnNumber            = d.mrnno.isNotEmpty ? d.mrnno : mrnNumber;
+    billNoCtrl.text      = d.billno;
+    challanNoCtrl.text   = d.dcno;
+    lotNoCtrl.text       = d.lotno;
+    grnNoCtrl.text       = d.grnno;
     gateEntryNoCtrl.text = d.gateentryno;
-    receivedByName     = d.receivedby;
-    selectedQcRequired = d.qcstatus.isNotEmpty ? d.qcstatus : 'Yes';
+    receivedByName       = d.receivedby;
+    selectedQcRequired   = d.qcstatus.isNotEmpty ? d.qcstatus : 'Yes';
+    reviewRemarksCtrl.text = d.description;   // ✅ fill description
 
-    // Dates
+    // ✅ Fill reason
+    reasonNACtrl.text = d.reason;
+
+    // Dates — existing
     _setDateCtrl(mrnDateCtrl,     d.receiptdate);
     _setDateCtrl(billDateCtrl,    d.billdate);
     _setDateCtrl(challanDateCtrl, d.dcdate);
     _setDateCtrl(grnDateCtrl,     d.grndate);
 
-    // Party — match from loaded list
+    // Party
     partyNameCtrl.text = d.partyname;
     if (d.partyid > 0) {
       selectedParty = partyList.firstWhereOrNull(
-              (p) => p.id == d.partyid.toString());
-      // If not found yet (list still loading), store id to match later
-      if (selectedParty == null) {
-        selectedParty = MrnDropdownOption(
-            id: d.partyid.toString(), label: d.partyname);
-      }
+              (p) => p.id == d.partyid.toString())
+          ?? MrnDropdownOption(id: d.partyid.toString(), label: d.partyname);
     }
 
     // Site
@@ -1365,6 +1365,13 @@ class MrnController extends AppBaseController {
           ?? MrnDropdownOption(id: d.seriesid.toString(), label: '');
     }
 
+    // ✅ Customer PO
+    if (d.customerpoid > 0) {
+      selectedCustomerPo = customerPoList.firstWhereOrNull(
+              (c) => c.id == d.customerpoid.toString())
+          ?? MrnDropdownOption(id: d.customerpoid.toString(), label: '');
+    }
+
     // Paid type
     if (d.paidtype.isNotEmpty) {
       selectedPaidType = paidTypeList.firstWhereOrNull(
@@ -1382,18 +1389,20 @@ class MrnController extends AppBaseController {
           ?? MrnDropdownOption(id: d.jobtypeid.toString(), label: '');
     }
 
-    // Source type
+    // Source type — ✅ handle GRN too
     selectedSource = d.type == 'PO'
         ? MrnSourceType.purchaseOrder
+        : d.type == 'GRN'
+        ? MrnSourceType.grn
         : MrnSourceType.directPurchase;
 
-    // Items
+    // Items — use mrnitems key
     itemLines = d.items.map((i) => MrnItemLine(
       itemId:                i.itemid.toString(),
       itemName:              i.itemname,
       itemCode:              i.itemid.toString(),
       unit:                  i.unitname,
-      source:                d.type == 'PO' ? 'PO' : 'Direct',
+      source:                d.type,
       orderNo:               d.pono,
       poQty:                 i.quantity,
       previouslyReceivedQty: 0,

@@ -285,6 +285,6 @@ class ApiMethods {
   String saveMrnEntry         = 'savemrnentry';
   String getItemDetail        = 'itemdetail';
   String getMrnList           = 'getmrnlist';
-  String getMrnDetail = 'api/getmrndetail';
+  String getMrnDetail = 'mrnfulldetail';
 //  static const String getPendingPoItems = 'getpendingpo';
 }

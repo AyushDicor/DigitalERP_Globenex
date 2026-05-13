@@ -281,6 +281,8 @@ class MrnDetailData {
   final int jobtypeid;
   final String description;
   final List<MrnDetailItem> items;
+  final int customerpoid;    // ✅ add
+  final String reason;
 
   MrnDetailData({
     required this.stockid,
@@ -311,42 +313,47 @@ class MrnDetailData {
     this.jobtypeid = 0,
     this.description = '',
     this.items = const [],
+    this.customerpoid = 0,
+    this.reason = '',
+
   });
 
   factory MrnDetailData.fromJson(Map<String, dynamic> json) {
     final rawItems = json['mrnitems'] ?? json['items'] ?? [];
     return MrnDetailData(
-      stockid: _i(json['stockid']),
-      mrnno: json['mrnno']?.toString() ?? '',
-      type: json['type']?.toString() ?? '',
-      pono: json['pono']?.toString() ?? '',
-      seriesid: _i(json['seriesid']),
+      stockid:     _i(json['stockid']),
+      mrnno:       json['mrnno']?.toString() ?? '',
+      type:        json['type']?.toString() ?? '',
+      pono:        json['pono']?.toString() ?? '',
+      seriesid:    _i(json['seriesid']),
       receiptdate: json['receiptdate']?.toString() ?? '',
-      partyname: json['partyname']?.toString() ?? '',
-      partyid: _i(json['partyid']),
-      billno: json['billno']?.toString() ?? '',
-      billdate: json['billdate']?.toString() ?? '',
-      godownid: _i(json['godownid']),
-      godownname: json['godownname']?.toString() ?? '',
-      receivedby: json['receivedby']?.toString() ?? '',
-      dcno: json['dcno']?.toString() ?? '',
-      dcdate: json['dcdate']?.toString() ?? '',
-      lotno: json['lotno']?.toString() ?? '',
-      grnno: json['grnno']?.toString() ?? '',
-      grndate: json['grndate']?.toString() ?? '',
+      partyname:   json['partyname']?.toString() ?? '',
+      partyid:     _i(json['partyid']),
+      billno:      json['billno']?.toString() ?? '',
+      billdate:    json['billdate']?.toString() ?? '',
+      godownid:    _i(json['godownid']),
+      godownname:  json['godownname']?.toString() ?? '',
+      receivedby:  json['receivedby']?.toString() ?? '',
+      dcno:        json['dcno']?.toString() ?? '',
+      dcdate:      json['dcdate']?.toString() ?? '',
+      lotno:       json['lotno']?.toString() ?? '',
+      grnno:       json['grnno']?.toString() ?? '',
+      grndate:     json['grndate']?.toString() ?? '',
       gateentryno: json['gateentryNo']?.toString() ?? '',
-      qcstatus: json['qcstatus']?.toString() ?? '',
-      siteid: _i(json['siteid']),
-      sitename: json['sitename']?.toString() ?? '',
-      paidbyid: _i(json['paidbyid']),
-      paidby: json['paidby']?.toString() ?? '',
-      paidtype: json['paidtype']?.toString() ?? '',
-      jobtypeid: _i(json['jobtypeid']),
+      qcstatus:    json['qcstatus']?.toString() ?? '',
+      siteid:      _i(json['siteid']),
+      sitename:    json['sitename']?.toString() ?? '',
+      paidbyid:    _i(json['paidbyid']),
+      paidby:      json['paidby']?.toString() ?? '',
+      paidtype:    json['paidtype']?.toString() ?? '',
+      jobtypeid:   _i(json['jobtypeid']),
       description: json['description']?.toString() ?? '',
+      // ✅ Add these missing fields
+      customerpoid: _i(json['customerpoid']),
+      reason:       json['reason']?.toString() ?? '',
       items: rawItems is List
-          ? rawItems
-              .map((e) => MrnDetailItem.fromJson(e as Map<String, dynamic>))
-              .toList()
+          ? rawItems.map((e) =>
+          MrnDetailItem.fromJson(e as Map<String, dynamic>)).toList()
           : [],
     );
   }
