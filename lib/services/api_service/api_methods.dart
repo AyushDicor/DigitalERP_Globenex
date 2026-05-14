@@ -285,6 +285,13 @@ class ApiMethods {
   String saveMrnEntry         = 'savemrnentry';
   String getItemDetail        = 'itemdetail';
   String getMrnList           = 'getmrnlist';
-  String getMrnDetail = 'mrnfulldetail';
+  String getMrnDetail         = 'mrnfulldetail';
+
+  ///GRN Module
+  String getGrnDetail        = 'grnfulldetailController';
+  String getGrnList          = 'getgrnlist';
+  String saveGrnEntry        = 'savegrnentry';
+  String getGrnDropdownList  = 'Getmrndropdownlist';
+  String getGrnItemDetail        = 'itemdetail';
 //  static const String getPendingPoItems = 'getpendingpo';
 }

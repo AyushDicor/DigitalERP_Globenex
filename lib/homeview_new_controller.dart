@@ -393,6 +393,7 @@ class HomeViewNewController extends AppBaseController {
       'Performance'          : AppAssets.performancenewIcon,
       'Attendance'           : AppAssets.attendencenewIcon,
       'MRN'                  : AppAssets.mrnIcon,
+      'GRN Entry'                  : AppAssets.grnIcon,
       'Material Received'    : AppAssets.mrnrIcon,
     };
   }
@@ -415,6 +416,7 @@ class HomeViewNewController extends AppBaseController {
     if (menuId == 2586) return AppRoutes.paymentRequestListScreen;
     if (menuId == 2701) return AppRoutes.reimbursement;
     if (menuId == 2754) return AppRoutes.mrnScreen;
+    if (menuId == 2760) return AppRoutes.grnScreen;
     if (menuId == 2755) return AppRoutes.materialReceiptScreen;
     return AppRoutes.homeNew;
   }

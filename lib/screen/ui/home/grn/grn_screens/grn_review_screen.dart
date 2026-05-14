@@ -2,27 +2,26 @@ import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../mrn_controller/mrn_controller.dart';
-import '../mrn_response/mrn_models.dart';
-import '../mrn_widgets.dart';
+import '../grn_controller/grn_controller.dart';
+import '../grn_response/grn_models.dart';
+import '../grn_widgets.dart';
 
-class MrnReviewScreen extends StatelessWidget {
-  const MrnReviewScreen({super.key});
+class GrnReviewScreen extends StatelessWidget {
+  const GrnReviewScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<MrnController>(builder: (ctrl) {
+    return GetBuilder<GrnController>(builder: (ctrl) {
       return Column(children: [
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 110),
             child: Column(children: [
-
               // ── Read-only notice banner ───────────────────────────────────
               _reviewBanner(),
 
-              // ── MRN Info card ─────────────────────────────────────────────
-              _mrnInfoCard(ctrl),
+              // ── Grn Info card ─────────────────────────────────────────────
+              _GrnInfoCard(ctrl),
 
               // ── Party & Site card ─────────────────────────────────────────
               _partyCard(ctrl),
@@ -56,13 +55,15 @@ class MrnReviewScreen extends StatelessWidget {
         border: Border.all(color: const Color(0xFFFFCC02)),
       ),
       child: Row(children: [
-        const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFE6A817)),
+        const Icon(Icons.info_outline_rounded,
+            size: 16, color: Color(0xFFE6A817)),
         const SizedBox(width: 8),
         const Expanded(
           child: Text(
             'Please review all details carefully. Go back to make any changes.',
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: Color(0xFF8A6200)),
           ),
         ),
@@ -70,53 +71,26 @@ class MrnReviewScreen extends StatelessWidget {
     );
   }
 
-  // ── MRN Info card ───────────────────────────────────────────────────────────
-  Widget _mrnInfoCard(MrnController ctrl) {
-    return MrnCard(
+  // ── Grn Info card ───────────────────────────────────────────────────────────
+  Widget _GrnInfoCard(GrnController ctrl) {
+    return GrnCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const MrnSectionHead('MRN Details'),
+        const GrnSectionHead('GRN Details'),
         _infoGrid([
-          _InfoTile('MRN No.',      ctrl.mrnNumber, mono: true),
-          _InfoTile('MRN Date',     ctrl.mrnDateCtrl.text),
-          _InfoTile('Series Type',  ctrl.selectedSeriesType?.label ?? '—'),
-          _InfoTile('Source',       ctrl.sourceLabel(ctrl.selectedSource)),
+          _InfoTile('GRN No.', ctrl.GrnNumber, mono: true),
+          _InfoTile('GRN Date', ctrl.GrnDateCtrl.text),
+          _InfoTile('Series Type', ctrl.selectedSeriesType?.label ?? '—'),
+          _InfoTile('Source', ctrl.sourceLabel(ctrl.selectedSource)),
         ]),
-
-        if (ctrl.selectedSource == MrnSourceType.purchaseOrder) ...[
-          const SizedBox(height: 8),
-          _infoGrid([
-            _InfoTile(
-              'Linked PO',
-              // Use orderno for display (e.g. "GP09/0030/PO/26-27")
-              // Fall back to orderid int if orderno is empty
-              ctrl.processingPo != null
-                  ? (ctrl.processingPo!.orderno.isNotEmpty
-                  ? ctrl.processingPo!.orderno
-                  : '#${ctrl.processingPo!.orderid}')
-                  : '—',
-              full: true,
-              mono: true,
-            ),
-          ]),
-
-          // Also show party name from the PO if partyNameCtrl is empty
-          if (ctrl.processingPo?.partyname.isNotEmpty == true &&
-              ctrl.partyNameCtrl.text.isEmpty) ...[
-            const SizedBox(height: 8),
-            _infoGrid([
-              _InfoTile('Party', ctrl.processingPo!.partyname, full: true),
-            ]),
-          ],
-        ],
       ]),
     );
   }
 
   // ── Party & Site card ───────────────────────────────────────────────────────
-  Widget _partyCard(MrnController ctrl) {
-    return MrnCard(
+  Widget _partyCard(GrnController ctrl) {
+    return GrnCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const MrnSectionHead('Party & Site Details'),
+        const GrnSectionHead('Party & Site Details'),
 
         // Party name highlight
         Container(
@@ -128,7 +102,8 @@ class MrnReviewScreen extends StatelessWidget {
           ),
           child: Row(children: [
             Container(
-              width: 38, height: 38,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                   color: newBlueColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10)),
@@ -141,14 +116,17 @@ class MrnReviewScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ctrl.partyNameCtrl.text.isEmpty ? '—' : ctrl.partyNameCtrl.text,
+                      ctrl.partyNameCtrl.text.isEmpty
+                          ? '—'
+                          : ctrl.partyNameCtrl.text,
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: newBlueColor),
                     ),
                     const Text('Party / Supplier',
-                        style: TextStyle(fontSize: 10, color: newTextSecondary)),
+                        style:
+                        TextStyle(fontSize: 10, color: newTextSecondary)),
                   ]),
             ),
           ]),
@@ -158,22 +136,26 @@ class MrnReviewScreen extends StatelessWidget {
 
         // Row 1: Site + Godown
         _infoGrid([
-          _InfoTile('Site',    ctrl.selectedSite?.label   ?? '—'),
-          _InfoTile('Godown',  ctrl.selectedGodown?.label ?? '—'),
+          _InfoTile('Site', ctrl.selectedSite?.label ?? '—'),
+          _InfoTile('Godown', ctrl.selectedGodown?.label ?? '—'),
         ]),
         const SizedBox(height: 8),
 
         // Row 2: Bill No + Bill Date
         _infoGrid([
-          _InfoTile('Bill No.',   ctrl.billNoCtrl.text.isEmpty   ? '—' : ctrl.billNoCtrl.text,   mono: true),
-          _InfoTile('Bill Date',  ctrl.billDateCtrl.text),
+          _InfoTile('Bill No.',
+              ctrl.billNoCtrl.text.isEmpty ? '—' : ctrl.billNoCtrl.text,
+              mono: true),
+          _InfoTile('Bill Date', ctrl.billDateCtrl.text),
         ]),
         const SizedBox(height: 8),
 
         // Row 3: Challan No + Challan Date
         _infoGrid([
-          _InfoTile('Challan No.',   ctrl.challanNoCtrl.text.isEmpty ? '—' : ctrl.challanNoCtrl.text, mono: true),
-          _InfoTile('Challan Date',  ctrl.challanDateCtrl.text),
+          _InfoTile('Challan No.',
+              ctrl.challanNoCtrl.text.isEmpty ? '—' : ctrl.challanNoCtrl.text,
+              mono: true),
+          _InfoTile('Challan Date', ctrl.challanDateCtrl.text),
         ]),
         const SizedBox(height: 8),
 
@@ -188,16 +170,38 @@ class MrnReviewScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _attachmentSummary(ctrl),
 
-          // if (ctrl.shippingAddress != null || ctrl.billingAddress != null) ...[
-          //   const SizedBox(height: 10),
-          //   _addressRow(ctrl),
-          // ],
+          // After the existing _infoGrid rows, before attachments summary:
+
+// ── Addresses ─────────────────────────────────────────────────────────
+          if (ctrl.fromAddressCtrl.text.isNotEmpty ||
+              ctrl.toAddressCtrl.text.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            if (ctrl.fromAddressCtrl.text.isNotEmpty)
+              _addressReviewTile(
+                icon: Icons.local_shipping_outlined,
+                label: 'From Address',
+                value: ctrl.fromAddressCtrl.text,
+                color: newBlueColor,
+                bg: newBlueLightColor,
+              ),
+            if (ctrl.fromAddressCtrl.text.isNotEmpty &&
+                ctrl.toAddressCtrl.text.isNotEmpty)
+              const SizedBox(height: 8),
+            if (ctrl.toAddressCtrl.text.isNotEmpty)
+              _addressReviewTile(
+                icon: Icons.location_on_outlined,
+                label: 'To Address',
+                value: ctrl.toAddressCtrl.text,
+                color: newGreenColor,
+                bg: newGreenLightColor,
+              ),
+          ],
         ],
       ]),
     );
   }
 
-  Widget _attachmentSummary(MrnController ctrl) {
+  Widget _attachmentSummary(GrnController ctrl) {
     final total = ctrl.billAttachments.length + ctrl.challanAttachments.length;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -221,14 +225,14 @@ class MrnReviewScreen extends StatelessWidget {
   }
 
   // ── Items card ──────────────────────────────────────────────────────────────
-  Widget _itemsCard(MrnController ctrl) {
-    return MrnCard(
+  Widget _itemsCard(GrnController ctrl) {
+    return GrnCard(
       padding: EdgeInsets.zero,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-          child: MrnSectionHead(
+          child: GrnSectionHead(
             'Items Received',
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -237,7 +241,8 @@ class MrnReviewScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20)),
               child: Text('${ctrl.itemLines.length} items',
                   style: const TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                       color: newBlueColor)),
             ),
           ),
@@ -266,7 +271,7 @@ class MrnReviewScreen extends StatelessWidget {
   }
 
   // ── Amount summary card ─────────────────────────────────────────────────────
-  Widget _summaryCard(MrnController ctrl) {
+  Widget _summaryCard(GrnController ctrl) {
     // Group GST by percentage slab
     final Map<double, double> gstByRate = {};
     for (final item in ctrl.itemLines) {
@@ -278,23 +283,26 @@ class MrnReviewScreen extends StatelessWidget {
     final sortedRates = gstByRate.keys.toList()..sort();
 
     // ✅ Compute total discount across all items
-    final totalDiscount = ctrl.itemLines.fold(
-        0.0, (s, i) => s + i.discountAmount);
+    final totalDiscount =
+    ctrl.itemLines.fold(0.0, (s, i) => s + i.discountAmount);
 
-    return MrnCard(
+    return GrnCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const MrnSectionHead('Amount Summary'),
+        const GrnSectionHead('Amount Summary'),
         const SizedBox(height: 4),
 
         // Gross amount before discount
-        _sumRow('Gross Amount',
-            _fmt(ctrl.itemLines.fold(0.0, (s, i) => s + (i.receiveNowQty * i.rate)))),
+        _sumRow(
+            'Gross Amount',
+            _fmt(ctrl.itemLines
+                .fold(0.0, (s, i) => s + (i.receiveNowQty * i.rate)))),
 
         // ✅ Discount row — only show if any discount exists
         if (totalDiscount > 0)
           _sumRow('Total Discount (-)  ', '- ${_fmt(totalDiscount)}'),
 
-        _sumRow('Subtotal (${ctrl.itemLines.length} items)', _fmt(ctrl.subtotal)),
+        _sumRow(
+            'Subtotal (${ctrl.itemLines.length} items)', _fmt(ctrl.subtotal)),
 
         // GST breakdown
         if (sortedRates.isNotEmpty) ...[
@@ -379,7 +387,8 @@ class MrnReviewScreen extends StatelessWidget {
           margin: const EdgeInsets.only(top: 8),
           padding: const EdgeInsets.only(top: 10),
           decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: newBorderColor, width: 1.5))),
+              border:
+              Border(top: BorderSide(color: newBorderColor, width: 1.5))),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -410,7 +419,8 @@ class MrnReviewScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: newTextSecondary)),
           Text(val,
               style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                   color: newTextPrimary)),
         ],
       ),
@@ -418,10 +428,10 @@ class MrnReviewScreen extends StatelessWidget {
   }
 
   // ── Remarks card (only editable field in review) ────────────────────────────
-  Widget _remarksCard(MrnController ctrl) {
-    return MrnCard(
+  Widget _remarksCard(GrnController ctrl) {
+    return GrnCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const MrnSectionHead('Final Remarks'),
+        const GrnSectionHead('Final Remarks'),
         const SizedBox(height: 2),
         const Text(
           'Add any delivery notes, quality observations or discrepancies.',
@@ -434,7 +444,8 @@ class MrnReviewScreen extends StatelessWidget {
           maxLines: 6,
           style: const TextStyle(fontSize: 13, color: newTextPrimary),
           decoration: InputDecoration(
-            hintText: 'e.g. Material arrived in good condition. 2 items damaged.',
+            hintText:
+            'e.g. Material arrived in good condition. 2 items damaged.',
             hintStyle: const TextStyle(color: newTextHint, fontSize: 12),
             filled: true,
             fillColor: newSurfaceColor,
@@ -447,8 +458,7 @@ class MrnReviewScreen extends StatelessWidget {
                 borderSide: const BorderSide(color: newBorderColor)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide:
-                const BorderSide(color: newBlueColor, width: 1.5)),
+                borderSide: const BorderSide(color: newBlueColor, width: 1.5)),
           ),
         ),
       ]),
@@ -456,7 +466,7 @@ class MrnReviewScreen extends StatelessWidget {
   }
 
   // ── Bottom bar ──────────────────────────────────────────────────────────────
-  Widget _bottomBar(MrnController ctrl) {
+  Widget _bottomBar(GrnController ctrl) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
       decoration: const BoxDecoration(
@@ -485,18 +495,14 @@ class MrnReviewScreen extends StatelessWidget {
           // Submit
           Expanded(
             flex: 2,
-            child: MrnPrimaryBtn(
-              label: ctrl.isBusy
-                  ? 'Uploading & Saving…'
-                  : ctrl.selectedSource == MrnSourceType.purchaseOrder
-                  ? 'Submit Purchase Order'
-                  : 'Submit Direct MRN',
+            child: GrnPrimaryBtn(
+              label: ctrl.isBusy ? 'Uploading & Saving…' : 'Submit GRN',
               icon: ctrl.isBusy
                   ? Icons.cloud_upload_outlined
                   : Icons.check_rounded,
               color: newGreenColor,
               isLoading: ctrl.isBusy,
-              onTap: () => ctrl.submitMRN(), // ✅ always submitMRN — one method
+              onTap: () => ctrl.submitGRN(),
             ),
           ),
         ]),
@@ -507,7 +513,8 @@ class MrnReviewScreen extends StatelessWidget {
   // ── Info grid ───────────────────────────────────────────────────────────────
   Widget _infoGrid(List<_InfoTile> tiles) {
     return LayoutBuilder(builder: (context, constraints) {
-      final tileWidth = (constraints.maxWidth - 8) / 2; // 2 columns, 8 = spacing
+      final tileWidth =
+          (constraints.maxWidth - 8) / 2; // 2 columns, 8 = spacing
       return Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -549,7 +556,7 @@ class MrnReviewScreen extends StatelessWidget {
 
   static String _fmt(double v) {
     if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
-    if (v >= 100000)   return '₹${(v / 100000).toStringAsFixed(2)} L';
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
 
     // ✅ Use proper Indian formatting for values < 1 lakh
     final formatted = v.toStringAsFixed(2);
@@ -570,30 +577,79 @@ class MrnReviewScreen extends StatelessWidget {
     return '₹$buf,$last3.$decimal';
   }
 
-  // Widget _addressRow(MrnController ctrl) {
-  //   return _infoGrid([
-  //     if (ctrl.shippingAddress != null)
-  //       _InfoTile(
-  //         'Shipping Address',
-  //         ctrl.shippingAddress!.formatted,
-  //         full: ctrl.billingAddress == null,
-  //       ),
-  //     if (ctrl.billingAddress != null)
-  //       _InfoTile(
-  //         'Billing Address',
-  //         ctrl.billingAddress!.formatted,
-  //         full: ctrl.shippingAddress == null,
-  //       ),
-  //   ]);
-  // }
+  Widget _addressReviewTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    required Color bg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8)),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 15, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                        letterSpacing: 0.3)),
+                const SizedBox(height: 4),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: newTextPrimary),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis),
+              ]),
+        ),
+      ]),
+    );
+  }
+
+// Widget _addressRow(GrnController ctrl) {
+//   return _infoGrid([
+//     if (ctrl.shippingAddress != null)
+//       _InfoTile(
+//         'Shipping Address',
+//         ctrl.shippingAddress!.formatted,
+//         full: ctrl.billingAddress == null,
+//       ),
+//     if (ctrl.billingAddress != null)
+//       _InfoTile(
+//         'Billing Address',
+//         ctrl.billingAddress!.formatted,
+//         full: ctrl.shippingAddress == null,
+//       ),
+//   ]);
+// }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Review item row — shows all item fields, read-only
 // ═══════════════════════════════════════════════════════════════════════════════
 class _ReviewItemRow extends StatelessWidget {
-  final MrnItemLine item;
-  final MrnController ctrl;
+  final GrnItemLine item;
+  final GrnController ctrl;
   final int index;
 
   const _ReviewItemRow(
@@ -616,24 +672,26 @@ class _ReviewItemRow extends StatelessWidget {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          childrenPadding:
-          const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           // ── Collapsed title ──────────────────────────────────────────────
           leading: Container(
-            width: 26, height: 26,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
                 color: newBlueLightColor,
                 borderRadius: BorderRadius.circular(8)),
             alignment: Alignment.center,
             child: Text('${index + 1}',
                 style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
                     color: newBlueColor)),
           ),
           title: Text(item.itemName,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                   color: newTextPrimary)),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 3),
@@ -642,8 +700,8 @@ class _ReviewItemRow extends StatelessWidget {
               const SizedBox(width: 5),
               _pill(item.unit, newSurfaceColor, newTextSecondary),
               const SizedBox(width: 5),
-              _pill('Rcvd: ${item.receiveNowQty.toInt()}',
-                  newGreenLightColor, newGreenColor),
+              _pill('Rcvd: ${item.receiveNowQty.toInt()}', newGreenLightColor,
+                  newGreenColor),
             ]),
           ),
           trailing: Column(
@@ -652,11 +710,11 @@ class _ReviewItemRow extends StatelessWidget {
             children: [
               Text('₹${item.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                       color: newTextPrimary)),
               Text('incl. GST',
-                  style: const TextStyle(
-                      fontSize: 9, color: newTextSecondary)),
+                  style: const TextStyle(fontSize: 9, color: newTextSecondary)),
             ],
           ),
 
@@ -672,11 +730,11 @@ class _ReviewItemRow extends StatelessWidget {
               _FieldTile('PO Qty', '${item.poQty.toInt()} ${item.unit}'),
               _FieldTile('Prev Received',
                   '${item.previouslyReceivedQty.toInt()} ${item.unit}'),
-              _FieldTile('Balance',
-                  '${item.maxReceivable.toInt()} ${item.unit}',
+              _FieldTile(
+                  'Balance', '${item.maxReceivable.toInt()} ${item.unit}',
                   valueColor: newGreenColor),
-              _FieldTile('Now Receiving',
-                  '${item.receiveNowQty.toInt()} ${item.unit}',
+              _FieldTile(
+                  'Now Receiving', '${item.receiveNowQty.toInt()} ${item.unit}',
                   valueColor: newBlueColor, bold: true),
             ]),
 
@@ -687,8 +745,10 @@ class _ReviewItemRow extends StatelessWidget {
             const SizedBox(height: 6),
             _fieldGrid([
               _FieldTile('Rate', '₹${item.rate.toStringAsFixed(2)}'),
-              _FieldTile('Discount %', '${item.discountPercent.toStringAsFixed(1)}%'),
-              _FieldTile('Discount (₹)', '₹${item.discountAmount.toStringAsFixed(2)}'),
+              _FieldTile(
+                  'Discount %', '${item.discountPercent.toStringAsFixed(1)}%'),
+              _FieldTile(
+                  'Discount (₹)', '₹${item.discountAmount.toStringAsFixed(2)}'),
               _FieldTile('Amount', '₹${item.amount.toStringAsFixed(2)}'),
               _FieldTile('GST ${item.gstPercent.toInt()}%',
                   '₹${item.gstAmount.toStringAsFixed(2)}'),
@@ -732,34 +792,29 @@ class _ReviewItemRow extends StatelessWidget {
       runSpacing: 8,
       children: tiles.map((t) {
         return SizedBox(
-          width: t.full
-              ? double.infinity
-              : (Get.width - 28 - 28 - 8) / 2,
+          width: t.full ? double.infinity : (Get.width - 28 - 28 - 8) / 2,
           child: Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
                 color: newSurfaceColor,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: newBorderColor)),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(t.label,
-                      style: const TextStyle(
-                          fontSize: 9,
-                          color: newTextSecondary,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 3),
-                  Text(t.value,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: t.bold
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                          color: t.valueColor ?? newTextPrimary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                ]),
+            child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t.label,
+                  style: const TextStyle(
+                      fontSize: 9,
+                      color: newTextSecondary,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Text(t.value,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: t.bold ? FontWeight.w800 : FontWeight.w600,
+                      color: t.valueColor ?? newTextPrimary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ]),
           ),
         );
       }).toList(),

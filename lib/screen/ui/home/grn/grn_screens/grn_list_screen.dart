@@ -1,36 +1,36 @@
-// import 'package:digitalerp/screen/ui/home/mrn_module/mrn_entry_view.dart';
+// import 'package:digitalerp/screen/ui/home/Grn_module/Grn_entry_view.dart';
 // import 'package:digitalerp/utils/app_constant_new.dart';
 // import 'package:flutter/material.dart';
 // import 'package:get/get.dart';
 // import 'package:webview_flutter/webview_flutter.dart';
-// import '../mrn_controller/mrn_list_controller.dart';
-// import '../mrn_response/mrn_models.dart';
+// import '../Grn_controller/Grn_list_controller.dart';
+// import '../Grn_response/Grn_models.dart';
 //
-// class MrnListScreen extends StatefulWidget {
-//   const MrnListScreen({super.key});
+// class GrnListScreen extends StatefulWidget {
+//   const GrnListScreen({super.key});
 //
 //   @override
-//   State<MrnListScreen> createState() => _MrnListScreenState();
+//   State<GrnListScreen> createState() => _GrnListScreenState();
 // }
 //
-// class _MrnListScreenState extends State<MrnListScreen> {
-//   late MrnListController ctrl;
+// class _GrnListScreenState extends State<GrnListScreen> {
+//   late GrnListController ctrl;
 //   @override
 //   void initState() {
 //     super.initState();
 //     // ✅ Delete any stale instance, then create fresh
-//     Get.delete<MrnListController>(force: true);
-//     ctrl = Get.put(MrnListController());
+//     Get.delete<GrnListController>(force: true);
+//     ctrl = Get.put(GrnListController());
 //   }
 //
 //   @override
 //   void dispose() {
-//     Get.delete<MrnListController>(force: true);
+//     Get.delete<GrnListController>(force: true);
 //     super.dispose();
 //   }
 //   @override
 //   Widget build(BuildContext context) {
-//     return GetBuilder<MrnListController>(
+//     return GetBuilder<GrnListController>(
 //       builder: (ctrl) {
 //         return Scaffold(
 //           backgroundColor: newSurfaceColor,
@@ -41,7 +41,7 @@
 //               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
 //               onPressed: () => Get.back(),
 //             ),
-//             title: const Text('MRN List',
+//             title: const Text('Grn List',
 //                 style: TextStyle(
 //                     fontSize: 16,
 //                     fontWeight: FontWeight.w800,
@@ -54,8 +54,8 @@
 //           ),
 //           floatingActionButton: FloatingActionButton(
 //             onPressed: () async {
-//               await Get.to(() => const MrnEntryView());
-//               ctrl.fetchMrnList();                  // ✅ refresh on return
+//               await Get.to(() => const GrnEntryView());
+//               ctrl.fetchGrnList();                  // ✅ refresh on return
 //             },
 //             backgroundColor: newBlueColor,
 //             shape: const CircleBorder(
@@ -70,7 +70,7 @@
 //                   ? _shimmer()
 //                   : ctrl.htmlData.isEmpty
 //                   ? _emptyState()
-//                   : _MrnWebView(htmlContent: ctrl.htmlData),
+//                   : _GrnWebView(htmlContent: ctrl.htmlData),
 //             ),
 //           ]),
 //         );
@@ -79,14 +79,14 @@
 //   }
 //   // @override
 //   // Widget build(BuildContext context) {
-//   //   return GetBuilder<MrnListController>(
+//   //   return GetBuilder<GrnListController>(
 //   //     builder: (ctrl) {
 //   //       return Scaffold(
 //   //         backgroundColor: newSurfaceColor,
 //   //         appBar: AppBar(
 //   //           backgroundColor: Colors.white,
 //   //           elevation: 0,
-//   //           title: const Text('MRN List',
+//   //           title: const Text('Grn List',
 //   //               style: TextStyle(
 //   //                   fontSize: 16,
 //   //                   fontWeight: FontWeight.w800,
@@ -99,12 +99,12 @@
 //   //         ),
 //   //         floatingActionButton: FloatingActionButton.extended(
 //   //           onPressed: () async {
-//   //             await Get.to(() => const MrnEntryView());
-//   //             Get.find<MrnListController>().fetchMrnList(); // ✅ refresh on return
+//   //             await Get.to(() => const GrnEntryView());
+//   //             Get.find<GrnListController>().fetchGrnList(); // ✅ refresh on return
 //   //           },
 //   //           backgroundColor: newBlueColor,
 //   //           icon: const Icon(Icons.add_rounded, color: Colors.white),
-//   //           label: const Text('New MRN',
+//   //           label: const Text('New Grn',
 //   //               style: TextStyle(
 //   //                   color: Colors.white,
 //   //                   fontWeight: FontWeight.w700,
@@ -117,24 +117,24 @@
 //   //                 ? _shimmer()
 //   //                 : ctrl.htmlData.isEmpty
 //   //                 ? _emptyState()
-//   //                 : _MrnWebView(htmlContent: ctrl.htmlData),
+//   //                 : _GrnWebView(htmlContent: ctrl.htmlData),
 //   //           ),
 //   //           // Expanded(
 //   //           //   child: ctrl.isLoadingList
 //   //           //       ? _shimmer()
-//   //           //       : ctrl.mrnItems.isEmpty
+//   //           //       : ctrl.GrnItems.isEmpty
 //   //           //       ? _emptyState()
 //   //           //       : RefreshIndicator(
 //   //           //     color: newBlueColor,
-//   //           //     onRefresh: ctrl.fetchMrnList,
+//   //           //     onRefresh: ctrl.fetchGrnList,
 //   //           //     child: ListView.separated(
 //   //           //       physics: const AlwaysScrollableScrollPhysics(),
 //   //           //       padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-//   //           //       itemCount: ctrl.mrnItems.length,
+//   //           //       itemCount: ctrl.GrnItems.length,
 //   //           //       separatorBuilder: (_, __) =>
 //   //           //       const SizedBox(height: 10),
 //   //           //       itemBuilder: (_, i) =>
-//   //           //           _MrnCard(item: ctrl.mrnItems[i]),
+//   //           //           _GrnCard(item: ctrl.GrnItems[i]),
 //   //           //     ),
 //   //           //   ),
 //   //           // ),
@@ -144,7 +144,7 @@
 //   //   );
 //   // }
 //
-//   Widget _filterBar(BuildContext context, MrnListController ctrl) {
+//   Widget _filterBar(BuildContext context, GrnListController ctrl) {
 //     return Container(
 //       color: Colors.white,
 //       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -162,7 +162,7 @@
 //         )),
 //         const SizedBox(width: 10),
 //         GestureDetector(
-//           onTap: ctrl.fetchMrnList,
+//           onTap: ctrl.fetchGrnList,
 //           child: Container(
 //             height: 44, width: 44,
 //             decoration: BoxDecoration(
@@ -227,7 +227,7 @@
 //     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 //       Icon(Icons.inventory_2_outlined, size: 56, color: newBorderColor),
 //       const SizedBox(height: 12),
-//       const Text('No MRN records found',
+//       const Text('No Grn records found',
 //           style: TextStyle(fontSize: 14,
 //               fontWeight: FontWeight.w700, color: newTextSecondary)),
 //       const SizedBox(height: 4),
@@ -249,15 +249,15 @@
 //   );
 // }
 //
-// class _MrnWebView extends StatefulWidget {
+// class _GrnWebView extends StatefulWidget {
 //   final String htmlContent;
-//   const _MrnWebView({required this.htmlContent});
+//   const _GrnWebView({required this.htmlContent});
 //
 //   @override
-//   State<_MrnWebView> createState() => _MrnWebViewState();
+//   State<_GrnWebView> createState() => _GrnWebViewState();
 // }
 //
-// class _MrnWebViewState extends State<_MrnWebView> {
+// class _GrnWebViewState extends State<_GrnWebView> {
 //   late final WebViewController _controller;
 //
 //   @override
@@ -293,17 +293,17 @@
 //   }
 // }
 //
-// // ── MRN Card ───────────────────────────────────────────────────────────────────
-// class _MrnCard extends StatelessWidget {
-//   final MrnListItem item;
-//   const _MrnCard({required this.item});
+// // ── Grn Card ───────────────────────────────────────────────────────────────────
+// class _GrnCard extends StatelessWidget {
+//   final GrnListItem item;
+//   const _GrnCard({required this.item});
 //
 //   @override
 //   Widget build(BuildContext context) {
 //     return GestureDetector(
 //         onTap: () => Get.to(
-//               () => const MrnEntryView(),
-//           arguments: item,   // ✅ pass the MrnListItem as argument
+//               () => const GrnEntryView(),
+//           arguments: item,   // ✅ pass the GrnListItem as argument
 //         ),
 //         child: Container(
 //       decoration: BoxDecoration(
@@ -321,7 +321,7 @@
 //             const Icon(Icons.receipt_long_rounded, size: 15, color: newBlueColor),
 //             const SizedBox(width: 8),
 //             Expanded(
-//               child: Text(item.mrnNo,
+//               child: Text(item.GrnNo,
 //                   style: const TextStyle(
 //                       fontSize: 13,
 //                       fontWeight: FontWeight.w800,
@@ -335,7 +335,7 @@
 //                   borderRadius: BorderRadius.circular(6),
 //                   border: Border.all(
 //                       color: newBlueColor.withValues(alpha: 0.3))),
-//               child: Text(item.mrnDate,
+//               child: Text(item.GrnDate,
 //                   style: const TextStyle(
 //                       fontSize: 10,
 //                       fontWeight: FontWeight.w700,
@@ -429,42 +429,43 @@
 //   }
 // }
 
-import 'package:digitalerp/screen/ui/home/mrn_module/mrn_entry_view.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../../utils/show_message.dart';
-import '../mrn_controller/mrn_list_controller.dart';
-import '../mrn_response/mrn_models.dart';
 
-class MrnListScreen extends StatefulWidget {
-  const MrnListScreen({super.key});
+import '../../../../../utils/show_message.dart';
+import '../grn_controller/grn_list_contoller.dart';
+import '../grn_entry_view.dart';
+import '../grn_response/grn_models.dart';
+
+class GrnListScreen extends StatefulWidget {
+  const GrnListScreen({super.key});
 
   @override
-  State<MrnListScreen> createState() => _MrnListScreenState();
+  State<GrnListScreen> createState() => _GrnListScreenState();
 }
 
-class _MrnListScreenState extends State<MrnListScreen> {
-  late MrnListController ctrl;
+class _GrnListScreenState extends State<GrnListScreen> {
+  late GrnListController ctrl;
 
   @override
   void initState() {
     super.initState();
-    Get.delete<MrnListController>(force: true);
-    ctrl = Get.put(MrnListController());
+    Get.delete<GrnListController>(force: true);
+    ctrl = Get.put(GrnListController());
   }
 
   @override
   void dispose() {
-    Get.delete<MrnListController>(force: true);
+    Get.delete<GrnListController>(force: true);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<MrnListController>(
+    return GetBuilder<GrnListController>(
       builder: (ctrl) {
         return Scaffold(
           backgroundColor: newSurfaceColor,
@@ -475,7 +476,7 @@ class _MrnListScreenState extends State<MrnListScreen> {
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
               onPressed: () => Get.back(),
             ),
-            title: const Text('MRN List',
+            title: const Text('GRN List',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -487,8 +488,8 @@ class _MrnListScreenState extends State<MrnListScreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
-              await Get.to(() => const MrnEntryView());
-              ctrl.fetchMrnList();
+              await Get.to(() => const GrnEntryView());
+              ctrl.fetchGrnList();
             },
             backgroundColor: newBlueColor,
             shape: const CircleBorder(
@@ -498,39 +499,39 @@ class _MrnListScreenState extends State<MrnListScreen> {
           ),
           body: Column(children: [
             _filterBar(context, ctrl),
-            if (!ctrl.isLoadingList && ctrl.mrnItems.isNotEmpty)
+            if (!ctrl.isLoadingList && ctrl.GrnItems.isNotEmpty)
            //   _summaryBar(ctrl),
             Expanded(
               child: ctrl.isLoadingList
                   ? _shimmer()
-                  : ctrl.mrnItems.isEmpty
-                      ? _emptyState()
-                      : RefreshIndicator(
-                          color: newBlueColor,
-                          onRefresh: ctrl.fetchMrnList,
-                          child: ListView.separated(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-                            itemCount: ctrl.mrnItems.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (_, i) =>
-                                _MrnCard(item: ctrl.mrnItems[i]),
-                          ),
-                        ),
+                  : ctrl.GrnItems.isEmpty
+                  ? _emptyState()
+                  : RefreshIndicator(
+                color: newBlueColor,
+                onRefresh: ctrl.fetchGrnList,
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+                  itemCount: ctrl.GrnItems.length,
+                  separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
+                  itemBuilder: (_, i) =>
+                      _GrnCard(item: ctrl.GrnItems[i]),
+                ),
+              ),
             ),
           ]),
           // body: Column(children: [
           //   _filterBar(context, ctrl),
           //   // ── Summary bar ──────────────────────────────────────────────
-          //   if (!ctrl.isLoadingList && ctrl.mrnItems.isNotEmpty)
+          //   if (!ctrl.isLoadingList && ctrl.GrnItems.isNotEmpty)
           //     _summaryBar(ctrl),
           //   Expanded(
           //     child: ctrl.isLoadingList
           //         ? _shimmer()
-          //         : ctrl.mrnItems.isEmpty
+          //         : ctrl.GrnItems.isEmpty
           //         ? _emptyState()
-          //         : _MrnTable(items: ctrl.mrnItems),
+          //         : _GrnTable(items: ctrl.GrnItems),
           //   ),
           // ]),
         );
@@ -538,15 +539,15 @@ class _MrnListScreenState extends State<MrnListScreen> {
     );
   }
 
-  // Widget _summaryBar(MrnListController ctrl) {
-  //   final totalAmt = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalAmt);
-  //   final totalQty = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalQty);
+  // Widget _summaryBar(GrnListController ctrl) {
+  //   final totalAmt = ctrl.GrnItems.fold(0.0, (s, i) => s + i.totalAmt);
+  //   final totalQty = ctrl.GrnItems.fold(0.0, (s, i) => s + i.totalQty);
   //   return Container(
   //     color: Colors.white,
   //     padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
   //     child: Row(children: [
   //       _summaryChip(Icons.receipt_long_rounded,
-  //           '${ctrl.mrnItems.length} Records', newBlueLightColor, newBlueColor),
+  //           '${ctrl.GrnItems.length} Records', newBlueLightColor, newBlueColor),
   //       const SizedBox(width: 8),
   //       _summaryChip(Icons.inventory_2_outlined,
   //           '${totalQty.toInt()} Items', newGreenLightColor, newGreenColor),
@@ -577,14 +578,14 @@ class _MrnListScreenState extends State<MrnListScreen> {
   //   );
   // }
 
-  Widget _summaryBar(MrnListController ctrl) {
-    final totalAmt = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalAmt);
-    final totalQty = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalQty);
+  Widget _summaryBar(GrnListController ctrl) {
+    final totalAmt = ctrl.GrnItems.fold(0.0, (s, i) => s + i.totalAmt);
+    final totalQty = ctrl.GrnItems.fold(0.0, (s, i) => s + i.totalQty);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Row(children: [
-        _chip(Icons.receipt_long_rounded, '${ctrl.mrnItems.length} Records',
+        _chip(Icons.receipt_long_rounded, '${ctrl.GrnItems.length} Records',
             newBlueLightColor, newBlueColor),
         const SizedBox(width: 8),
         _chip(Icons.inventory_2_outlined, '${totalQty.toInt()} Items',
@@ -597,21 +598,21 @@ class _MrnListScreenState extends State<MrnListScreen> {
   }
 
   Widget _chip(IconData icon, String label, Color bg, Color fg) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration:
-              BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 13, color: fg),
-            const SizedBox(width: 5),
-            Flexible(
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700, color: fg),
-                    overflow: TextOverflow.ellipsis)),
-          ]),
-        ),
-      );
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration:
+      BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: fg),
+        const SizedBox(width: 5),
+        Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+                overflow: TextOverflow.ellipsis)),
+      ]),
+    ),
+  );
 
   static String _inr(double v) {
     if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
@@ -620,7 +621,7 @@ class _MrnListScreenState extends State<MrnListScreen> {
     return '₹${v.toStringAsFixed(0)}';
   }
 
-  Widget _filterBar(BuildContext context, MrnListController ctrl) {
+  Widget _filterBar(BuildContext context, GrnListController ctrl) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -638,7 +639,7 @@ class _MrnListScreenState extends State<MrnListScreen> {
                 onTap: () => ctrl.pickToDate(context))),
         const SizedBox(width: 10),
         GestureDetector(
-          onTap: ctrl.fetchMrnList,
+          onTap: ctrl.fetchGrnList,
           child: Container(
             height: 44,
             width: 44,
@@ -647,12 +648,12 @@ class _MrnListScreenState extends State<MrnListScreen> {
             alignment: Alignment.center,
             child: ctrl.isLoadingList
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.search_rounded,
-                    color: Colors.white, size: 20),
+                color: Colors.white, size: 20),
           ),
         ),
       ]),
@@ -701,36 +702,46 @@ class _MrnListScreenState extends State<MrnListScreen> {
   }
 
   Widget _emptyState() => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.inventory_2_outlined, size: 56, color: newBorderColor),
-          const SizedBox(height: 12),
-          const Text('No MRN records found',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: newTextSecondary)),
-          const SizedBox(height: 4),
-          const Text('Try adjusting the date range',
-              style: TextStyle(fontSize: 12, color: newTextSecondary)),
-        ]),
-      );
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(Icons.inventory_2_outlined, size: 56, color: newBorderColor),
+      const SizedBox(height: 12),
+      const Text('No Grn records found',
+          style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: newTextSecondary)),
+      const SizedBox(height: 4),
+      const Text('Try adjusting the date range',
+          style: TextStyle(fontSize: 12, color: newTextSecondary)),
+    ]),
+  );
 
   Widget _shimmer() => ListView.separated(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-        itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, __) => Container(
-          height: 60,
-          decoration: BoxDecoration(
-              color: newBorderColor, borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+    itemCount: 5,
+    separatorBuilder: (_, __) => const SizedBox(height: 10),
+    itemBuilder: (_, __) => Container(
+      height: 60,
+      decoration: BoxDecoration(
+          color: newBorderColor, borderRadius: BorderRadius.circular(10)),
+    ),
+  );
 }
 
-class _MrnCard extends StatelessWidget {
-  final MrnListItem item;
-  const _MrnCard({required this.item});
+class _GrnCard extends StatelessWidget {
+  final GrnListItem item;
+  const _GrnCard({required this.item});
 
+  // ── Open URL in browser ──────────────────────────────────────────────────
+  // Future<void> _openUrl(String url) async {
+  //   if (url.isEmpty) return;
+  //   final uri = Uri.parse(url);
+  //   if (await canLaunchUrl(uri)) {
+  //     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  //   } else {
+  //     ShowMessage.showSnackBar('Error', 'Could not open URL');
+  //   }
+  // }
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
     try {
@@ -752,7 +763,7 @@ class _MrnCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.to(
-            () => const MrnEntryView(),
+            () => const GrnEntryView(),
         arguments: item,
       ),
       child: Container(
@@ -761,7 +772,7 @@ class _MrnCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: newBorderColor)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Blue header ──────────────────────────────────────────────────
+          // ── Blue header ────────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             decoration: BoxDecoration(
@@ -773,7 +784,7 @@ class _MrnCard extends StatelessWidget {
                   size: 15, color: newBlueColor),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(item.mrnNo,
+                child: Text(item.GrnNo,
                     style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
@@ -788,7 +799,7 @@ class _MrnCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                         color: newBlueColor.withValues(alpha: 0.3))),
-                child: Text(item.mrnDate,
+                child: Text(item.GrnDate,
                     style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -797,59 +808,58 @@ class _MrnCard extends StatelessWidget {
             ]),
           ),
 
-          // ── Body ────────────────────────────────────────────────────────
+          // ── Body ──────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Party
-                  Text(item.partyName,
+            child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Party
+              Text(item.partyName,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: newTextPrimary)),
+              const SizedBox(height: 8),
+
+              // Site + Job Type
+              Row(children: [
+                _pill(Icons.location_on_outlined, item.siteName,
+                    newSurfaceColor, newTextSecondary),
+                const SizedBox(width: 6),
+                if (item.jobType.isNotEmpty)
+                  _pill(Icons.work_outline_rounded, item.jobType,
+                      newOrangeLightColor, newOrangeColor),
+              ]),
+              const SizedBox(height: 10),
+
+              // Qty + Amount row
+              Row(children: [
+                if (item.billNo.isNotEmpty) ...[
+                  const Icon(Icons.receipt_outlined,
+                      size: 12, color: newTextSecondary),
+                  const SizedBox(width: 4),
+                  Text('Bill: ${item.billNo}',
                       style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: newTextPrimary)),
-                  const SizedBox(height: 8),
-
-                  // Site + Job Type
-                  Row(children: [
-                    _pill(Icons.location_on_outlined, item.siteName,
-                        newSurfaceColor, newTextSecondary),
-                    const SizedBox(width: 6),
-                    if (item.jobType.isNotEmpty)
-                      _pill(Icons.work_outline_rounded, item.jobType,
-                          newOrangeLightColor, newOrangeColor),
-                  ]),
-                  const SizedBox(height: 10),
-
-                  // Bottom row
-                  Row(children: [
-                    if (item.billNo.isNotEmpty) ...[
-                      const Icon(Icons.receipt_outlined,
-                          size: 12, color: newTextSecondary),
-                      const SizedBox(width: 4),
-                      Text('Bill: ${item.billNo}',
-                          style: const TextStyle(
-                              fontSize: 11, color: newTextSecondary)),
-                      const SizedBox(width: 12),
-                    ],
-                    const Icon(Icons.inventory_2_outlined,
-                        size: 12, color: newTextSecondary),
-                    const SizedBox(width: 4),
-                    Text('${item.totalQty.toInt()} items',
-                        style: const TextStyle(
-                            fontSize: 11, color: newTextSecondary)),
-                    const Spacer(),
-                    Text('₹${_inr(item.totalAmt)}',
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: newTextPrimary)),
-                  ]),
-                ]),
+                          fontSize: 11, color: newTextSecondary)),
+                  const SizedBox(width: 12),
+                ],
+                const Icon(Icons.inventory_2_outlined,
+                    size: 12, color: newTextSecondary),
+                const SizedBox(width: 4),
+                Text('${item.totalQty.toInt()} items',
+                    style: const TextStyle(
+                        fontSize: 11, color: newTextSecondary)),
+                const Spacer(),
+                Text('₹${_inr(item.totalAmt)}',
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: newTextPrimary)),
+              ]),
+            ]),
           ),
 
-          // ── Print buttons ────────────────────────────────────────────────
+          // ── Print buttons row ──────────────────────────────────────────────
           if (item.withRateUrl.isNotEmpty || item.withoutRateUrl.isNotEmpty)
             Container(
               decoration: const BoxDecoration(
@@ -954,22 +964,22 @@ class _MrnCard extends StatelessWidget {
   }
 }
 
-class _DynamicMrnTable extends StatefulWidget {
+class _DynamicGrnTable extends StatefulWidget {
   final List<String> columns;
-  final List<MrnListRawRow> rows;
-  final List<MrnListItem> items;
+  final List<GrnListRawRow> rows;
+  final List<GrnListItem> items;
 
-  const _DynamicMrnTable({
+  const _DynamicGrnTable({
     required this.columns,
     required this.rows,
     required this.items,
   });
 
   @override
-  State<_DynamicMrnTable> createState() => _DynamicMrnTableState();
+  State<_DynamicGrnTable> createState() => _DynamicGrnTableState();
 }
 
-class _DynamicMrnTableState extends State<_DynamicMrnTable> {
+class _DynamicGrnTableState extends State<_DynamicGrnTable> {
   int? _sortCol;
   bool _sortAsc = true;
   late List<int> _order; // indices into widget.rows
@@ -984,7 +994,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
   }
 
   @override
-  void didUpdateWidget(_DynamicMrnTable old) {
+  void didUpdateWidget(_DynamicGrnTable old) {
     super.didUpdateWidget(old);
     if (old.rows != widget.rows) {
       _order = List.generate(widget.rows.length, (i) => i);
@@ -1027,7 +1037,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
 
     return RefreshIndicator(
       color: newBlueColor,
-      onRefresh: () => Get.find<MrnListController>().fetchMrnList(),
+      onRefresh: () => Get.find<GrnListController>().fetchGrnList(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
@@ -1063,7 +1073,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                         ...cols.asMap().entries.map((e) => _headerCell(
                             _formatHeader(e.value),
                             e.key,
-                            () => _sortBy(e.key))),
+                                () => _sortBy(e.key))),
                       ],
                     ),
                     // ── Data rows ────────────────────────────────────────
@@ -1079,7 +1089,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                       return TableRow(
                         decoration: BoxDecoration(
                           color:
-                              isEven ? Colors.white : const Color(0xFFF8FAFC),
+                          isEven ? Colors.white : const Color(0xFFF8FAFC),
                           border: const Border(
                               top: BorderSide(color: newBorderColor)),
                         ),
@@ -1088,7 +1098,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                           _indexCell(displayIdx + 1, item),
                           // Dynamic cells
                           ...cols.map(
-                              (col) => _dataCell(col, row.data[col], item)),
+                                  (col) => _dataCell(col, row.data[col], item)),
                         ],
                       );
                     }),
@@ -1150,8 +1160,8 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
             Icon(
               isSorted
                   ? (_sortAsc
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded)
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded)
                   : Icons.unfold_more_rounded,
               size: 12,
               color: isSorted ? newBlueColor : newTextSecondary,
@@ -1163,11 +1173,11 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
   }
 
   // ── Index cell (row number + tap to edit) ──────────────────────────────
-  Widget _indexCell(int n, MrnListItem? item) {
+  Widget _indexCell(int n, GrnListItem? item) {
     return GestureDetector(
       onTap: item == null
           ? null
-          : () => Get.to(() => const MrnEntryView(), arguments: item),
+          : () => Get.to(() => const GrnEntryView(), arguments: item),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
         alignment: Alignment.center,
@@ -1188,11 +1198,11 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
   }
 
   // ── Data cell — smart rendering based on value type/content ───────────
-  Widget _dataCell(String col, dynamic value, MrnListItem? item) {
+  Widget _dataCell(String col, dynamic value, GrnListItem? item) {
     return GestureDetector(
       onTap: item == null
           ? null
-          : () => Get.to(() => const MrnEntryView(), arguments: item),
+          : () => Get.to(() => const GrnEntryView(), arguments: item),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         child: _renderValue(col, value),
@@ -1251,8 +1261,8 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
       );
     }
 
-    // ── MRN No / Bill No ───────────────────────────────────────────────
-    if (colLower.contains('mrnno') || colLower.contains('mrn')) {
+    // ── Grn No / Bill No ───────────────────────────────────────────────
+    if (colLower.contains('Grnno') || colLower.contains('Grn')) {
       return Text(str,
           style: const TextStyle(
               fontSize: 12,
@@ -1300,7 +1310,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
     return key
         .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
         .replaceAllMapped(
-            RegExp(r'([A-Z]+)([A-Z][a-z])'), (m) => '${m[1]} ${m[2]}');
+        RegExp(r'([A-Z]+)([A-Z][a-z])'), (m) => '${m[1]} ${m[2]}');
   }
 
   static String _inrFull(double v) {
@@ -1320,18 +1330,18 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
   }
 }
 
-class _MrnTable extends StatefulWidget {
-  final List<MrnListItem> items;
-  const _MrnTable({required this.items});
+class _GrnTable extends StatefulWidget {
+  final List<GrnListItem> items;
+  const _GrnTable({required this.items});
 
   @override
-  State<_MrnTable> createState() => _MrnTableState();
+  State<_GrnTable> createState() => _GrnTableState();
 }
 
-class _MrnTableState extends State<_MrnTable> {
+class _GrnTableState extends State<_GrnTable> {
   int? _sortColumnIndex;
   bool _sortAscending = true;
-  late List<MrnListItem> _sorted;
+  late List<GrnListItem> _sorted;
 
   @override
   void initState() {
@@ -1340,7 +1350,7 @@ class _MrnTableState extends State<_MrnTable> {
   }
 
   @override
-  void didUpdateWidget(_MrnTable old) {
+  void didUpdateWidget(_GrnTable old) {
     super.didUpdateWidget(old);
     if (old.items != widget.items) {
       _sorted = List.from(widget.items);
@@ -1348,7 +1358,7 @@ class _MrnTableState extends State<_MrnTable> {
     }
   }
 
-  void _sort<T>(Comparable<T> Function(MrnListItem i) getField, int colIdx) {
+  void _sort<T>(Comparable<T> Function(GrnListItem i) getField, int colIdx) {
     setState(() {
       if (_sortColumnIndex == colIdx) {
         _sortAscending = !_sortAscending;
@@ -1367,7 +1377,7 @@ class _MrnTableState extends State<_MrnTable> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       color: newBlueColor,
-      onRefresh: () => Get.find<MrnListController>().fetchMrnList(),
+      onRefresh: () => Get.find<GrnListController>().fetchGrnList(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
@@ -1406,8 +1416,8 @@ class _MrnTableState extends State<_MrnTable> {
                   ),
                   columns: [
                     _col('#', 0, () => _sort((i) => i.id, 0)),
-                    _col('MRN No', 1, () => _sort((i) => i.mrnNo, 1)),
-                    _col('Date', 2, () => _sort((i) => i.mrnDate, 2)),
+                    _col('Grn No', 1, () => _sort((i) => i.GrnNo, 1)),
+                    _col('Date', 2, () => _sort((i) => i.GrnDate, 2)),
                     _col('Party', 3, () => _sort((i) => i.partyName, 3)),
                     _col('Site', 4, () => _sort((i) => i.siteName, 4)),
                     _col('Job', 5, () => _sort((i) => i.jobType, 5)),
@@ -1422,7 +1432,7 @@ class _MrnTableState extends State<_MrnTable> {
                       color: WidgetStateProperty.all(
                           isEven ? Colors.white : const Color(0xFFF8FAFC)),
                       onSelectChanged: (_) => Get.to(
-                        () => const MrnEntryView(),
+                            () => const GrnEntryView(),
                         arguments: item,
                       ),
                       cells: [
@@ -1440,12 +1450,12 @@ class _MrnTableState extends State<_MrnTable> {
                                   fontWeight: FontWeight.w800,
                                   color: newBlueColor)),
                         )),
-                        // MRN No
+                        // Grn No
                         DataCell(Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(item.mrnNo,
+                            Text(item.GrnNo,
                                 style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w800,
@@ -1464,7 +1474,7 @@ class _MrnTableState extends State<_MrnTable> {
                           decoration: BoxDecoration(
                               color: newBlueLightColor,
                               borderRadius: BorderRadius.circular(6)),
-                          child: Text(item.mrnDate,
+                          child: Text(item.GrnDate,
                               style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
@@ -1487,9 +1497,9 @@ class _MrnTableState extends State<_MrnTable> {
                         // Job Type
                         DataCell(item.jobType.isEmpty
                             ? const Text('—',
-                                style: TextStyle(color: newTextSecondary))
+                            style: TextStyle(color: newTextSecondary))
                             : _pill(Icons.work_outline_rounded, item.jobType,
-                                newOrangeLightColor, newOrangeColor)),
+                            newOrangeLightColor, newOrangeColor)),
                         // Qty
                         DataCell(Container(
                           padding: const EdgeInsets.symmetric(
@@ -1533,18 +1543,18 @@ class _MrnTableState extends State<_MrnTable> {
   }
 
   Widget _pill(IconData icon, String label, Color bg, Color fg) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration:
-            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 10, color: fg),
-          const SizedBox(width: 3),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 9, fontWeight: FontWeight.w600, color: fg),
-              overflow: TextOverflow.ellipsis),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration:
+    BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 10, color: fg),
+      const SizedBox(width: 3),
+      Text(label,
+          style: TextStyle(
+              fontSize: 9, fontWeight: FontWeight.w600, color: fg),
+          overflow: TextOverflow.ellipsis),
+    ]),
+  );
 
   // static String _inr(double v) {
   //   if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(2)} Cr';

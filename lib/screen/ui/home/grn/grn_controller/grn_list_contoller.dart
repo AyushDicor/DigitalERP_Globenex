@@ -6,15 +6,15 @@ import 'package:intl/intl.dart';
 
 import '../../../../../screen/base/base_controller.dart';
 import '../../home_controller.dart';
-import '../mrn_response/mrn_models.dart';
+import '../grn_response/grn_models.dart';
 
-class MrnListController extends AppBaseController {
+class GrnListController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   String htmlData = '';
   bool isLoadingList = false;
-  List<MrnListItem> mrnItems = [];
-  List<MrnListRawRow> rawRows = []; // ✅ add this
+  List<GrnListItem> GrnItems = [];
+  List<GrnListRawRow> rawRows = []; // ✅ add this
   List<String> columns = [];
 
   final TextEditingController fromDateCtrl = TextEditingController();
@@ -27,7 +27,7 @@ class MrnListController extends AppBaseController {
     final from = today.subtract(const Duration(days: 30));
     fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(from); // ✅ 30 days back
     toDateCtrl.text = DateFormat('yyyy-MM-dd').format(today);
-    fetchMrnList();
+    fetchGrnList();
   }
 
   @override
@@ -37,29 +37,34 @@ class MrnListController extends AppBaseController {
     super.onClose();
   }
 
-  Future<void> fetchMrnList() async {
+  Future<void> fetchGrnList() async {
     isLoadingList = true;
-    mrnItems = [];
+    GrnItems = [];
     htmlData = '';
     rawRows = []; // ✅ reset
     columns = []; // ✅ reset
     update();
     try {
-      final req = MrnListRequest(
+      final request = GrnListRequest(
         fromdate: fromDateCtrl.text,
         todate: toDateCtrl.text,
         compid: homeController.currentUserData?.compId ?? 0,
         branchid: homeController.currentUserData?.branchId ?? 0,
         userid: homeController.currentUserData?.userid ?? 0,
       );
-      final res = await api.getMrnList(req);
+      final res = await api.getGrnList(request);
       if (res.status == 200 || res.success == true) {
-        mrnItems = res.data;
+        GrnItems = res.data;
         htmlData = res.rawHtml;
         rawRows = res.rawRows; // ✅ assign
         columns = res.columns; // ✅ assign
+
+        if (kDebugMode && res.rawRows.isNotEmpty) {
+          print('📋 GRN List columns: ${res.columns}');
+          print('📋 First row raw data: ${res.rawRows.first.data}');
+        }
       } else {
-        ShowMessage.showSnackBar('MRN List', res.message ?? 'Failed to load');
+        ShowMessage.showSnackBar('Grn List', res.message ?? 'Failed to load');
       }
     } catch (e) {
       ShowMessage.showSnackBar('Error', '$e');

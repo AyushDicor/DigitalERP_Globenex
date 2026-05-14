@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 // MRN Models
 
-enum MrnSourceType { purchaseOrder, directPurchase, grn }
+enum MrnSourceType { purchaseOrder, directPurchase }
 
 enum MrnDocType { invoice, indent, deliveryChallan, inspection, other }
 
@@ -100,11 +100,21 @@ class MrnListRequest {
 //   }
 // }
 //─────────────────────MRN List ───────────────────────────────────────────────
+
+class MrnListRawRow {
+  final int id; // always extract ID for tap-to-edit
+  final Map<String, dynamic> data; // all columns as-is from API
+
+  MrnListRawRow({required this.id, required this.data});
+}
+
 class MrnListResponse {
   final bool? success;
   final int? status;
   final String? message;
-  final List<MrnListItem> data;
+  final List<MrnListItem> data; // parsed items (for edit navigation)
+  final List<MrnListRawRow> rawRows; // dynamic rows for table display
+  final List<String> columns; // column headers in order
   final String rawHtml;
 
   MrnListResponse({
@@ -112,21 +122,42 @@ class MrnListResponse {
     this.status,
     this.message,
     this.data = const [],
-    this.rawHtml = '',           // ✅ add this
+    this.rawRows = const [],
+    this.columns = const [],
+    this.rawHtml = '',
   });
 
-  // ✅ Fixed - data is an HTML string, parse it here
   factory MrnListResponse.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'];
     List<MrnListItem> items = [];
-    String rawHtml = '';
+    List<MrnListRawRow> rawRows = [];
+    List<String> columns = [];
+    String html = '';
 
-    if (rawData is String && rawData.isNotEmpty) {
-      rawHtml = rawData;
+    if (rawData is List && rawData.isNotEmpty) {
+      final firstRow = rawData.first as Map<String, dynamic>;
+      columns = firstRow.keys.toList();
+
+      for (final row in rawData) {
+        final map = row as Map<String, dynamic>;
+
+        // ✅ Handle double ID (335787.0) correctly
+        final rawId = map['ID'] ?? map['id'] ?? map['stockid'] ?? 0;
+        final int id;
+        if (rawId is double) {
+          id = rawId.toInt();
+        } else if (rawId is int) {
+          id = rawId;
+        } else {
+          id = int.tryParse(rawId.toString().split('.')[0]) ?? 0;
+        }
+
+        rawRows.add(MrnListRawRow(id: id, data: map));
+        items.add(MrnListItem.fromJson(map));
+      }
+    } else if (rawData is String && rawData.isNotEmpty) {
+      html = rawData;
       items = MrnListResponse._parseHtmlTable(rawData);
-    } else if (rawData is List) {
-      // fallback if API ever returns JSON array
-      items = rawData.map((e) => MrnListItem.fromJson(e)).toList();
     }
 
     return MrnListResponse(
@@ -134,37 +165,26 @@ class MrnListResponse {
       success: json['success'] ?? false,
       message: json['message'] ?? '',
       data: items,
-      rawHtml: rawHtml,
+      rawRows: rawRows,
+      columns: columns,
+      rawHtml: html,
     );
   }
 
   static List<MrnListItem> _parseHtmlTable(String html) {
     final List<MrnListItem> result = [];
     try {
-      final tbodyMatch = RegExp(
-        r'<tbody>(.*?)</tbody>',
-        dotAll: true,
-      ).firstMatch(html);
-
-      if (kDebugMode) print('tbody found: ${tbodyMatch != null}'); // ✅
+      final tbodyMatch =
+          RegExp(r'<tbody>(.*?)</tbody>', dotAll: true).firstMatch(html);
       if (tbodyMatch == null) return result;
-
-      final rowMatches = RegExp(
-        r'<tr>(.*?)</tr>',
-        dotAll: true,
-      ).allMatches(tbodyMatch.group(1)!);
-
-      if (kDebugMode) print('rows found: ${rowMatches.length}'); // ✅
-
+      final rowMatches = RegExp(r'<tr>(.*?)</tr>', dotAll: true)
+          .allMatches(tbodyMatch.group(1)!);
       for (final row in rowMatches) {
         final cells = RegExp(r'<td>(.*?)</td>', dotAll: true)
             .allMatches(row.group(1)!)
             .map((m) => m.group(1)?.trim() ?? '')
             .toList();
-
-        if (kDebugMode) print('cells: ${cells.length} → $cells'); // ✅
         if (cells.length < 9) continue;
-
         result.add(MrnListItem(
           id: int.tryParse(cells[0]) ?? 0,
           mrnNo: cells[1],
@@ -177,10 +197,7 @@ class MrnListResponse {
           totalAmt: double.tryParse(cells[8]) ?? 0,
         ));
       }
-    } catch (e) {
-      if (kDebugMode) print('HTML parse error: $e');
-    }
-    if (kDebugMode) print('Parsed ${result.length} MRN items'); // ✅
+    } catch (_) {}
     return result;
   }
 }
@@ -195,6 +212,8 @@ class MrnListItem {
   final String jobType;
   final double totalQty;
   final double totalAmt;
+  final String withRateUrl;
+  final String withoutRateUrl;
 
   MrnListItem({
     required this.id,
@@ -206,23 +225,44 @@ class MrnListItem {
     required this.jobType,
     required this.totalQty,
     required this.totalAmt,
+    this.withRateUrl = '',
+    this.withoutRateUrl = '',
   });
 
   // ✅ Add this
   factory MrnListItem.fromJson(Map<String, dynamic> json) {
     return MrnListItem(
-      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      mrnNo: json['mrnno']?.toString() ?? json['mrnNo']?.toString() ?? '',
-      billNo: json['billno']?.toString() ?? json['billNo']?.toString() ?? '',
-      mrnDate: json['mrndate']?.toString() ?? json['mrnDate']?.toString() ?? '',
+      // ✅ ID comes as double (335787.0) — must handle both int and double
+      id: _parseId(json['ID'] ?? json['id'] ?? json['stockid']),
+      mrnNo: json['Mrnno']?.toString() ?? json['mrnno']?.toString() ?? '',
+      billNo: json['BillNo']?.toString() ?? json['billno']?.toString() ?? '',
+      mrnDate: json['mrndate']?.toString() ?? '',
       partyName:
-          json['partyname']?.toString() ?? json['partyName']?.toString() ?? '',
+          json['PartyName']?.toString() ?? json['partyname']?.toString() ?? '',
       siteName:
-          json['sitename']?.toString() ?? json['siteName']?.toString() ?? '',
-      jobType: json['jobtype']?.toString() ?? json['jobType']?.toString() ?? '',
-      totalQty: double.tryParse(json['totalqty']?.toString() ?? '0') ?? 0,
-      totalAmt: double.tryParse(json['totalamt']?.toString() ?? '0') ?? 0,
+          json['SiteName']?.toString() ?? json['sitename']?.toString() ?? '',
+      jobType: json['JobType']?.toString() ?? json['jobtype']?.toString() ?? '',
+      totalQty: _parseDouble(json['TotalQty'] ?? json['totalqty']),
+      totalAmt: _parseDouble(json['TotalAmt'] ?? json['totalamt']),
+      withRateUrl: json['withrateurl']?.toString() ?? '',
+      withoutRateUrl: json['withOUTrateurl']?.toString() ?? '',
     );
+  }
+
+// ✅ Handles int, double (335787.0), and string ("335787")
+  static int _parseId(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt(); // ✅ 335787.0 → 335787
+    final str = v.toString().split('.')[0]; // ✅ "335787.0" → "335787"
+    return int.tryParse(str) ?? 0;
+  }
+
+  static double _parseDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
   }
 }
 
@@ -254,7 +294,6 @@ class MrnDetailResponse {
 
 class MrnDetailData {
   final int stockid;
-  final String mrnno;
   final String type;
   final String pono;
   final int seriesid;
@@ -266,7 +305,7 @@ class MrnDetailData {
   final int godownid;
   final String godownname;
   final String receivedby;
-  final String dcno; // challan no
+  final String dcno;
   final String dcdate;
   final String lotno;
   final String grnno;
@@ -280,13 +319,14 @@ class MrnDetailData {
   final String paidtype;
   final int jobtypeid;
   final String description;
-  final List<MrnDetailItem> items;
-  final int customerpoid;    // ✅ add
   final String reason;
+  final int customerpoid;
+  final String billfile;
+  final String dcfile;
+  final List<MrnDetailItem> items;
 
   MrnDetailData({
-    required this.stockid,
-    this.mrnno = '',
+    this.stockid = 0,
     this.type = '',
     this.pono = '',
     this.seriesid = 0,
@@ -312,50 +352,60 @@ class MrnDetailData {
     this.paidtype = '',
     this.jobtypeid = 0,
     this.description = '',
-    this.items = const [],
-    this.customerpoid = 0,
     this.reason = '',
-
+    this.customerpoid = 0,
+    this.billfile = '',
+    this.dcfile = '',
+    this.items = const [],
   });
 
   factory MrnDetailData.fromJson(Map<String, dynamic> json) {
+    // ✅ items come under key 'mrnitems' in the real response
     final rawItems = json['mrnitems'] ?? json['items'] ?? [];
     return MrnDetailData(
-      stockid:     _i(json['stockid']),
-      mrnno:       json['mrnno']?.toString() ?? '',
-      type:        json['type']?.toString() ?? '',
-      pono:        json['pono']?.toString() ?? '',
-      seriesid:    _i(json['seriesid']),
+      stockid: _i(json['stockid']),
+      type: json['type']?.toString() ?? '',
+      pono: json['pono']?.toString() ?? '',
+      seriesid: _i(json['seriesid']),
       receiptdate: json['receiptdate']?.toString() ?? '',
-      partyname:   json['partyname']?.toString() ?? '',
-      partyid:     _i(json['partyid']),
-      billno:      json['billno']?.toString() ?? '',
-      billdate:    json['billdate']?.toString() ?? '',
-      godownid:    _i(json['godownid']),
-      godownname:  json['godownname']?.toString() ?? '',
-      receivedby:  json['receivedby']?.toString() ?? '',
-      dcno:        json['dcno']?.toString() ?? '',
-      dcdate:      json['dcdate']?.toString() ?? '',
-      lotno:       json['lotno']?.toString() ?? '',
-      grnno:       json['grnno']?.toString() ?? '',
-      grndate:     json['grndate']?.toString() ?? '',
+      partyname: json['partyname']?.toString() ?? '',
+      partyid: _i(json['partyid']),
+      billno: json['billno']?.toString() ?? '',
+      billdate: json['billdate']?.toString() ?? '',
+      godownid: _i(json['godownid']),
+      godownname: json['godownname']?.toString() ?? '',
+      receivedby: json['receivedby']?.toString() ?? '',
+      dcno: json['dcno']?.toString() ?? '',
+      dcdate: json['dcdate']?.toString() ?? '',
+      // ✅ API sends "0" as string for lotno — treat "0" as empty
+      lotno: _cleanZero(json['lotno']?.toString()),
+      grnno: _cleanZero(json['grnno']?.toString()),
+      grndate: json['grndate']?.toString() ?? '',
       gateentryno: json['gateentryNo']?.toString() ?? '',
-      qcstatus:    json['qcstatus']?.toString() ?? '',
-      siteid:      _i(json['siteid']),
-      sitename:    json['sitename']?.toString() ?? '',
-      paidbyid:    _i(json['paidbyid']),
-      paidby:      json['paidby']?.toString() ?? '',
-      paidtype:    json['paidtype']?.toString() ?? '',
-      jobtypeid:   _i(json['jobtypeid']),
+      qcstatus: json['qcstatus']?.toString() ?? '',
+      siteid: _i(json['siteid']),
+      sitename: json['sitename']?.toString() ?? '',
+      paidbyid: _i(json['paidbyid']),
+      paidby: json['paidby']?.toString() ?? '',
+      paidtype: json['paidtype']?.toString() ?? '',
+      jobtypeid: _i(json['jobtypeid']),
       description: json['description']?.toString() ?? '',
-      // ✅ Add these missing fields
+      reason: json['reason']?.toString() ?? '',
       customerpoid: _i(json['customerpoid']),
-      reason:       json['reason']?.toString() ?? '',
+      billfile: json['billfile']?.toString() ?? '',
+      dcfile: json['dcfile']?.toString() ?? '',
       items: rawItems is List
-          ? rawItems.map((e) =>
-          MrnDetailItem.fromJson(e as Map<String, dynamic>)).toList()
+          ? rawItems
+              .map((e) => MrnDetailItem.fromJson(e as Map<String, dynamic>))
+              .toList()
           : [],
     );
+  }
+
+  // ✅ Treat "0" and "null" string as empty — API sends lotno: "0"
+  static String _cleanZero(String? v) {
+    if (v == null || v == '0' || v.toLowerCase() == 'null') return '';
+    return v;
   }
 
   static int _i(dynamic v) {
@@ -420,6 +470,7 @@ class MrnDetailItem {
         make: json['make']?.toString() ?? '',
         makeid: _i(json['makeid']),
         unitid: _i(json['unitid']),
+        // ✅ API doesn't return unitname — will fall back to 'Nos'
         unitname: json['unitname']?.toString() ?? 'Nos',
         godownid: _i(json['godownid']),
         transid: _i(json['transid']),

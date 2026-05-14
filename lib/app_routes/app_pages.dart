@@ -86,6 +86,7 @@ import '../payment_request/payment request detail/payment_request_detail_control
 import '../payment_request/payment request detail/payment_request_detail_screen.dart';
 import '../payment_request/payment request list/payment_request_list_screen.dart';
 import '../screen/ui/home/approval_management/approval_hub_screens/approval_hub_list.dart';
+import '../screen/ui/home/grn/grn_screens/grn_list_screen.dart';
 import '../task management/create_task/create_task_screen.dart';
 
 class AppPages {
@@ -419,6 +420,10 @@ class AppPages {
     //   name: AppRoutes.materialReceiptScreen,
     //   page: () => const MaterialReceiptListScreen(),
     // ),
+    GetPage(
+      name: AppRoutes.grnScreen,
+      page: () => GrnListScreen(),
+    ),
     GetPage(
       name: AppRoutes.paymentRequestScreen,
       page: () => PaymentRequestScreen(),

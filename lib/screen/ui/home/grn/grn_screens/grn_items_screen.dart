@@ -4,17 +4,17 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../../../utils/show_message.dart';
-import '../mrn_controller/mrn_controller.dart';
-import '../mrn_response/mrn_models.dart';
-import '../mrn_widgets.dart';
-import 'mrn_direct_item_form.dart';
+import '../grn_controller/grn_controller.dart';
+import '../grn_response/grn_models.dart';
+import '../grn_widgets.dart';
+import 'grn_direct_item_form.dart';
 
-class MrnItemsScreen extends StatelessWidget {
-  const MrnItemsScreen({super.key});
+class GrnItemsScreen extends StatelessWidget {
+  const GrnItemsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<MrnController>(builder: (ctrl) {
+    return GetBuilder<GrnController>(builder: (ctrl) {
       return Scaffold(
         resizeToAvoidBottomInset: true,
         body: SafeArea(
@@ -22,7 +22,7 @@ class MrnItemsScreen extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
+                ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   14,
                   14,
@@ -31,105 +31,8 @@ class MrnItemsScreen extends StatelessWidget {
                 ),
                 child: Column(children: [
                   // ── Direct purchase — show entry form ──────────────────
-                  if (ctrl.selectedSource == MrnSourceType.directPurchase)
-                    const MrnDirectItemForm(),
-
-                  if (ctrl.selectedSource == MrnSourceType.purchaseOrder)
-                    MrnCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(children: [
-                        // ── Card header ──────────────────────────────────
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                          child: MrnSectionHead(
-                            'Select Purchase Order',
-                            trailing: ctrl.isLoadingPO
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 1.5, color: newBlueColor))
-                                : GestureDetector(
-                                    onTap: () => ctrl.fetchPendingPoList(),
-                                    child: const Icon(Icons.refresh_rounded,
-                                        size: 18, color: newBlueColor),
-                                  ),
-                          ),
-                        ),
-
-                        // ── PO list ──────────────────────────────────────
-                        if (ctrl.isLoadingPO)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                            child: _poShimmer(),
-                          )
-                        else if (ctrl.poList.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                            child: _emptyState('No pending POs found',
-                                Icons.receipt_long_outlined),
-                          )
-                        else
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-                            child: Column(
-                              children: ctrl.poList
-                                  .map((po) => _poTile(ctrl, po))
-                                  .toList(),
-                            ),
-                          ),
-
-                        // ── Process button (shown when a PO is selected) ─
-                        if (ctrl.processingPo != null && !ctrl.isLoadingPO)
-                          Container(
-                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                            child: _ProcessButton(ctrl: ctrl),
-                          ),
-                      ]),
-                    ),
-
-                  // ── PO / GRN items list ────────────────────────────────
-                  if (ctrl.selectedSource == MrnSourceType.purchaseOrder &&
-                      (ctrl.itemLines.isNotEmpty || ctrl.isLoadingItems))
-                    MrnCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                          child: MrnSectionHead(
-                            'Item Details',
-                            trailing:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              if (ctrl.isLoadingItems)
-                                const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 1.5, color: newBlueColor)),
-                              const SizedBox(width: 6),
-                              _countBadge(ctrl.itemLines.length, 'items'),
-                            ]),
-                          ),
-                        ),
-                        if (ctrl.isLoadingItems)
-                          Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: _itemsShimmer(),
-                          )
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: ctrl.itemLines.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1, color: newBorderColor),
-                            itemBuilder: (_, i) => _ItemCard(
-                                ctrl: ctrl, item: ctrl.itemLines[i], index: i),
-                          ),
-                        if (!ctrl.isLoadingItems && ctrl.itemLines.isNotEmpty)
-                          _totalsFooter(ctrl),
-                      ]),
-                    ),
+                  if (ctrl.selectedSource == GrnSourceType.grn)
+                    const GrnDirectItemForm(),
                 ]),
               ),
             ),
@@ -142,132 +45,17 @@ class MrnItemsScreen extends StatelessWidget {
     });
   }
 
-  // ── PO tile ────────────────────────────────────────────────────────────────
-  Widget _poTile(MrnController ctrl, PendingPoItem po) {
-    return GestureDetector(
-      onTap: () => ctrl.togglePOSelection(po),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: po.isSelected ? newBlueLightColor : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: po.isSelected ? newBlueColor : newBorderColor,
-            width: po.isSelected ? 1.8 : 1,
-          ),
-        ),
-        child: Row(children: [
-          // ── Radio circle ─────────────────────────────────────────────────
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: po.isSelected ? newBlueColor : Colors.white,
-              border: Border.all(
-                  color: po.isSelected ? newBlueColor : newBorderColor,
-                  width: 2),
-            ),
-            alignment: Alignment.center,
-            child: po.isSelected
-                ? Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle))
-                : null,
-          ),
-          const SizedBox(width: 12),
-
-          // ── PO info ───────────────────────────────────────────────────────
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // PO number (orderno)
-              Text(po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: newTextPrimary,
-                      letterSpacing: .2)),
-              const SizedBox(height: 3),
-
-              // Party name
-              if (po.partyname.isNotEmpty)
-                Text(po.partyname,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: newTextPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-
-              const SizedBox(height: 3),
-
-              // Date + qty pill row
-              Row(children: [
-                if (po.orderdate.isNotEmpty) ...[
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 10, color: newTextSecondary),
-                  const SizedBox(width: 3),
-                  Text(po.orderdate,
-                      style: const TextStyle(
-                          fontSize: 10, color: newTextSecondary)),
-                  const SizedBox(width: 8),
-                ],
-                if (po.totalqty > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: newSurfaceColor,
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: newBorderColor)),
-                    child: Text(
-                        '${po.totalqty} item${po.totalqty == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: newTextSecondary)),
-                  ),
-              ]),
-            ]),
-          ),
-
-          const SizedBox(width: 8),
-
-          // ── Amount column ─────────────────────────────────────────────────
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            // Grand total (incl GST)
-            Text('₹${MrnUtils.inr(po.grandtotal)}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: newTextPrimary)),
-            const SizedBox(height: 2),
-            // Subtotal label
-            Text('₹${MrnUtils.inr(po.totalamount)} + GST',
-                style: const TextStyle(fontSize: 9, color: newTextSecondary)),
-          ]),
-        ]),
-      ),
-    );
-  }
-
   // ── Totals footer ──────────────────────────────────────────────────────────
-  Widget _totalsFooter(MrnController ctrl) {
+  Widget _totalsFooter(GrnController ctrl) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: const BoxDecoration(
           color: newSurfaceColor,
           border: Border(top: BorderSide(color: newBorderColor))),
       child: Column(children: [
-        _totalRow('Subtotal', MrnUtils.inr(ctrl.subtotal)),
+        _totalRow('Subtotal', GrnUtils.inr(ctrl.subtotal)),
         const SizedBox(height: 6),
-        _totalRow('Total GST', MrnUtils.inr(ctrl.totalGst)),
+        _totalRow('Total GST', GrnUtils.inr(ctrl.totalGst)),
         const Divider(height: 16, color: newBorderColor),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -277,7 +65,7 @@ class MrnItemsScreen extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: newTextPrimary)),
-            Text(MrnUtils.inr(ctrl.grandTotal),
+            Text(GrnUtils.inr(ctrl.grandTotal),
                 style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -304,7 +92,7 @@ class MrnItemsScreen extends StatelessWidget {
   }
 
   // ── Bottom bar ─────────────────────────────────────────────────────────────
-  Widget _bottomBar(MrnController ctrl) {
+  Widget _bottomBar(GrnController ctrl) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
       decoration: const BoxDecoration(
@@ -312,15 +100,15 @@ class MrnItemsScreen extends StatelessWidget {
           border: Border(top: BorderSide(color: newBorderColor))),
       child: SafeArea(
         top: false,
-        child: MrnPrimaryBtn(
+        child: GrnPrimaryBtn(
           label: 'Review & Submit →',
           icon: Icons.arrow_forward_rounded,
           onTap: () {
             if (ctrl.itemLines.isEmpty) {
               ShowMessage.showSnackBar(
                 'No Items',
-                ctrl.selectedSource == MrnSourceType.purchaseOrder
-                    ? 'Please select and process a PO'
+                ctrl.selectedSource == GrnSourceType.grn
+                    ? 'Please select and process a GRN'
                     : 'Please add at least one item', // covers both Direct and GRN
               );
               return;
@@ -339,49 +127,49 @@ class MrnItemsScreen extends StatelessWidget {
 
   // ── Shimmer placeholders ───────────────────────────────────────────────────
   Widget _poShimmer() => Column(
-        children: List.generate(
-            3,
+    children: List.generate(
+        3,
             (i) => Container(
-                  height: 60,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                      color: newBorderColor,
-                      borderRadius: BorderRadius.circular(12)),
-                )),
-      );
+          height: 60,
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+              color: newBorderColor,
+              borderRadius: BorderRadius.circular(12)),
+        )),
+  );
 
   Widget _itemsShimmer() => Column(
-        children: List.generate(
-            3,
+    children: List.generate(
+        3,
             (i) => Container(
-                  height: 70,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                      color: newBorderColor,
-                      borderRadius: BorderRadius.circular(10)),
-                )),
-      );
+          height: 70,
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+              color: newBorderColor,
+              borderRadius: BorderRadius.circular(10)),
+        )),
+  );
 
   Widget _emptyState(String msg, IconData icon) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(children: [
-          Icon(icon, size: 36, color: newBorderColor),
-          const SizedBox(height: 8),
-          Text(msg,
-              style: const TextStyle(fontSize: 13, color: newTextSecondary)),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Column(children: [
+      Icon(icon, size: 36, color: newBorderColor),
+      const SizedBox(height: 8),
+      Text(msg,
+          style: const TextStyle(fontSize: 13, color: newTextSecondary)),
+    ]),
+  );
 
   Widget _countBadge(int count, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(
-            color: newBlueLightColor, borderRadius: BorderRadius.circular(20)),
-        child: Text('$count $label',
-            style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: newBlueColor)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+    decoration: BoxDecoration(
+        color: newBlueLightColor, borderRadius: BorderRadius.circular(20)),
+    child: Text('$count $label',
+        style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: newBlueColor)),
+  );
 
   // ── REMOVE this entire broken _inr ────────────────────────────────────────
   // ✅ Fixed Indian number formatter
@@ -407,116 +195,12 @@ class MrnItemsScreen extends StatelessWidget {
   }
 }
 
-class _ProcessButton extends StatelessWidget {
-  final MrnController ctrl;
-  const _ProcessButton({required this.ctrl});
-
-  @override
-  Widget build(BuildContext context) {
-    final po = ctrl.processingPo!;
-    return Container(
-      decoration: BoxDecoration(
-        color: newBlueLightColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: newBlueColor.withValues(alpha: 0.4)),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(children: [
-        // ── Selected PO summary ─────────────────────────────────────────────
-        Row(children: [
-          const Icon(Icons.receipt_long_rounded, size: 16, color: newBlueColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor),
-              ),
-              if (po.partyname.isNotEmpty)
-                Text(po.partyname,
-                    style:
-                        const TextStyle(fontSize: 11, color: newTextSecondary)),
-              if (po.orderdate.isNotEmpty)
-                Text(po.orderdate,
-                    style:
-                        const TextStyle(fontSize: 10, color: newTextSecondary)),
-            ]),
-          ),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('₹${MrnUtils.inr(po.grandtotal)}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor)),
-            Text('${po.totalqty} item${po.totalqty == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: 10, color: newTextSecondary)),
-          ]),
-        ]),
-
-        const SizedBox(height: 10),
-
-        // ── Process button ──────────────────────────────────────────────────
-        SizedBox(
-          width: double.infinity,
-          height: 44,
-          child: ElevatedButton.icon(
-            onPressed:
-                ctrl.isLoadingItems ? null : () => ctrl.processSelectedPO(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newBlueColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            icon: ctrl.isLoadingItems
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.play_arrow_rounded, size: 20),
-            label: Text(
-              ctrl.isLoadingItems ? 'Loading Items…' : 'Process PO',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  static String _inr(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
-
-    final parts = v.toStringAsFixed(2).split('.');
-    final whole = parts[0];
-    final decimal = parts[1];
-
-    if (whole.length <= 3) return '₹$whole.$decimal';
-
-    final last3 = whole.substring(whole.length - 3);
-    final rest = whole.substring(0, whole.length - 3);
-    final buf = StringBuffer();
-    for (int i = 0; i < rest.length; i++) {
-      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
-      buf.write(rest[i]);
-    }
-    return '₹$buf,$last3.$decimal';
-  }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Individual item card
 // ═══════════════════════════════════════════════════════════════════════════════
 class _ItemCard extends StatelessWidget {
-  final MrnController ctrl;
-  final MrnItemLine item;
+  final GrnController ctrl;
+  final GrnItemLine item;
   final int index;
 
   const _ItemCard(
@@ -531,8 +215,8 @@ class _ItemCard extends StatelessWidget {
       color: isOverReceived
           ? newRedLightColor
           : item.isExpanded
-              ? newBlueLightColor.withValues(alpha: 0.4)
-              : Colors.white,
+          ? newBlueLightColor.withValues(alpha: 0.4)
+          : Colors.white,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Compact summary row (always visible) ─────────────────────────────
         Padding(
@@ -672,7 +356,7 @@ class _ItemCard extends StatelessWidget {
                 const Spacer(),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                       color: newBlueColor,
                       borderRadius: BorderRadius.circular(4)),
@@ -699,34 +383,11 @@ class _ItemCard extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // ── PO quantity summary ─────────────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: newSurfaceColor,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: newBorderColor),
-          ),
-          child: Row(children: [
-            _qtyBlock(
-                'PO Qty', item.poQty.toInt(), newBlueLightColor, newBlueColor),
-            _qDivider(),
-            _qtyBlock('Prev Rcvd', item.previouslyReceivedQty.toInt(),
-                newOrangeLightColor, newOrangeColor),
-            _qDivider(),
-            _qtyBlock('Balance', item.maxReceivable.toInt(), newGreenLightColor,
-                newGreenColor),
-            _qDivider(),
-            _qtyBlock('Now Rcvg', item.receiveNowQty.toInt(), newBlueLightColor,
-                newBlueColor,
-                bold: true),
-          ]),
-        ),
 
         const SizedBox(height: 12),
 
         // ── Remarks ─────────────────────────────────────────────────────────
-        MrnField(
+        GrnField(
           label: 'Remarks',
           hint: 'Optional delivery note for this item…',
           controller: TextEditingController(text: item.remarks)
@@ -804,36 +465,15 @@ class _ItemCard extends StatelessWidget {
     );
   }
 
-  Widget _qtyBlock(String label, int val, Color bg, Color fg,
-      {bool bold = false}) {
-    return Expanded(
-      child: Column(children: [
-        Text('$val',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800, color: fg)),
-        const SizedBox(height: 3),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration:
-              BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
-        ),
-      ]),
-    );
-  }
-
-  Widget _qDivider() => Container(width: 1, height: 36, color: newBorderColor);
 
   Widget _pill(String text, Color bg, Color fg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(5)),
+      BoxDecoration(color: bg, borderRadius: BorderRadius.circular(5)),
       child: Text(text,
           style:
-              TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
+          TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }
@@ -842,8 +482,8 @@ class _ItemCard extends StatelessWidget {
 // Inline Godown Selector (compact row — always visible)
 // ═══════════════════════════════════════════════════════════════════════════════
 class _InlineGodownSelector extends StatelessWidget {
-  final MrnController ctrl;
-  final MrnItemLine item;
+  final GrnController ctrl;
+  final GrnItemLine item;
 
   const _InlineGodownSelector({required this.ctrl, required this.item});
 
@@ -913,8 +553,8 @@ class _InlineGodownSelector extends StatelessWidget {
 
 // ── Godown picker bottom sheet ──────────────────────────────────────────────
 class _GodownPickerSheet extends StatefulWidget {
-  final MrnController ctrl;
-  final MrnItemLine item;
+  final GrnController ctrl;
+  final GrnItemLine item;
   const _GodownPickerSheet({required this.ctrl, required this.item});
 
   @override
@@ -934,7 +574,7 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
 
     return Padding(
       padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Handle
         const SizedBox(height: 10),
@@ -968,7 +608,7 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
               hintText: 'Search godown…',
               hintStyle: const TextStyle(fontSize: 13, color: newTextHint),
               prefixIcon:
-                  const Icon(Icons.search, size: 18, color: newTextSecondary),
+              const Icon(Icons.search, size: 18, color: newTextSecondary),
               filled: true,
               fillColor: newSurfaceColor,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -981,7 +621,7 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide:
-                      const BorderSide(color: newBlueColor, width: 1.5)),
+                  const BorderSide(color: newBlueColor, width: 1.5)),
             ),
           ),
         ),
@@ -1019,7 +659,7 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
   }
 
   Widget _godownTile({
-    required MrnDropdownOption godown,
+    required GrnDropdownOption godown,
     required String? currentId,
     required bool isDefault,
   }) {
@@ -1068,7 +708,7 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
       ]),
       trailing: isSelected
           ? const Icon(Icons.check_circle_rounded,
-              size: 18, color: newBlueColor)
+          size: 18, color: newBlueColor)
           : null,
     );
   }
@@ -1078,8 +718,8 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
 // Qty stepper field
 // ═══════════════════════════════════════════════════════════════════════════════
 class _QtyField extends StatefulWidget {
-  final MrnController ctrl;
-  final MrnItemLine item;
+  final GrnController ctrl;
+  final GrnItemLine item;
   const _QtyField({required this.ctrl, required this.item});
 
   @override

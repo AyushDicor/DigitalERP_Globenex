@@ -12,11 +12,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../../repo/reimbursement_repo.dart';
 import '../../home_controller.dart';
-import '../mrn_response/mrn_models.dart';
-import '../mrn_screens/mrn_list_screen.dart';
-import 'mrn_list_controller.dart';
+import '../grn_response/grn_models.dart';
+import '../grn_screens/grn_list_screen.dart';
+import 'grn_list_contoller.dart';
 
-class MrnController extends AppBaseController {
+class GrnController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
@@ -24,23 +24,23 @@ class MrnController extends AppBaseController {
   final PageController pageController = PageController();
 
   // ── Step 1: Header ─────────────────────────────────────────────────────────
-  List<MrnDropdownOption> seriesTypeList = [];
-  MrnDropdownOption? selectedSeriesType;
+  List<GrnDropdownOption> seriesTypeList = [];
+  GrnDropdownOption? selectedSeriesType;
   bool isLoadingSeriesType = false;
 
-  final TextEditingController mrnDateCtrl = TextEditingController();
-  String mrnNumber = '';
+  final TextEditingController GrnDateCtrl = TextEditingController();
+  String GrnNumber = '';
 
   // ── Source selection ───────────────────────────────────────────────────────
-  MrnSourceType selectedSource = MrnSourceType.purchaseOrder;
+  GrnSourceType selectedSource = GrnSourceType.grn;
 
   // ── Party ──────────────────────────────────────────────────────────────────
   final TextEditingController partyNameCtrl = TextEditingController();
-  List<MrnDropdownOption> partyList = [];
-  MrnDropdownOption? selectedParty;
+  List<GrnDropdownOption> partyList = [];
+  GrnDropdownOption? selectedParty;
   bool isLoadingParty = false;
 
-  void setParty(MrnDropdownOption? v) {
+  void setParty(GrnDropdownOption? v) {
     selectedParty = v;
     partyNameCtrl.text = v?.label ?? '';
     if (v != null) {
@@ -54,12 +54,12 @@ class MrnController extends AppBaseController {
   }
 
   // ── Site / Godown ──────────────────────────────────────────────────────────
-  List<MrnDropdownOption> siteList = [];
-  MrnDropdownOption? selectedSite;
+  List<GrnDropdownOption> siteList = [];
+  GrnDropdownOption? selectedSite;
   bool isLoadingSite = false;
 
-  List<MrnDropdownOption> godownList = [];
-  MrnDropdownOption? selectedGodown;
+  List<GrnDropdownOption> godownList = [];
+  GrnDropdownOption? selectedGodown;
   bool isLoadingGodown = false;
 
   // ── Bill / Challan ─────────────────────────────────────────────────────────
@@ -70,70 +70,66 @@ class MrnController extends AppBaseController {
   String receivedByName = '';
 
   // ── Addresses ──────────────────────────────────────────────────────────────
-  MrnAddress? shippingAddress;
-  MrnAddress? billingAddress;
+  GrnAddress? shippingAddress;
+  GrnAddress? billingAddress;
   bool isLoadingAddresses = false;
+  final TextEditingController fromAddressCtrl = TextEditingController();
+  final TextEditingController toAddressCtrl = TextEditingController();
 
   // ── Attachments ────────────────────────────────────────────────────────────
-  Set<MrnAttachmentType> selectedAttachmentTypes = {
-    MrnAttachmentType.bill,
-    MrnAttachmentType.challan,
+  Set<GrnAttachmentType> selectedAttachmentTypes = {
+    GrnAttachmentType.bill,
+    GrnAttachmentType.challan,
   };
-  List<MrnDocument> billAttachments = [];
-  List<MrnDocument> challanAttachments = [];
+  List<GrnDocument> billAttachments = [];
+  List<GrnDocument> challanAttachments = [];
   final TextEditingController reasonNACtrl = TextEditingController();
 
   // ── Additional fields ──────────────────────────────────────────────────────
-  List<MrnDropdownOption> paidTypeList = [
-    MrnDropdownOption(id: 'Employee', label: 'Employee'),
-    MrnDropdownOption(id: 'Company', label: 'Company'),
+  List<GrnDropdownOption> paidTypeList = [
+    GrnDropdownOption(id: 'Employee', label: 'Employee'),
+    GrnDropdownOption(id: 'Company', label: 'Company'),
   ];
-  List<MrnDropdownOption> paidByList = [];
-  MrnDropdownOption? selectedPaidBy;
+  List<GrnDropdownOption> paidByList = [];
+  GrnDropdownOption? selectedPaidBy;
   bool isLoadingPaidBy = false;
-  MrnDropdownOption? selectedPaidType;
+  GrnDropdownOption? selectedPaidType;
   bool isLoadingPaidType = false;
+  List<GrnItemLine> itemLines = [];
 
   String selectedQcRequired = 'Yes';
   final List<String> qcRequiredOptions = ['Yes', 'No'];
 
-  List<MrnDropdownOption> customerPoList = [];
-  MrnDropdownOption? selectedCustomerPo;
+  List<GrnDropdownOption> customerPoList = [];
+  GrnDropdownOption? selectedCustomerPo;
   bool isLoadingCustomerPo = false;
 
-  List<MrnDropdownOption> jobTypeList = [];
-  MrnDropdownOption? selectedJobType;
+  List<GrnDropdownOption> jobTypeList = [];
+  GrnDropdownOption? selectedJobType;
   bool isLoadingJobType = false;
 
-  List<MrnDropdownOption> workOrderList = [];
-  MrnDropdownOption? selectedWorkOrder;
+  List<GrnDropdownOption> workOrderList = [];
+  GrnDropdownOption? selectedWorkOrder;
   bool isLoadingWorkOrder = false;
 
   List<String> existingBillFiles = []; // URLs from server
   List<String> existingDcFiles = [];
 
-  // Add these fields to MrnController:
+  // Add these fields to GrnController:
   final TextEditingController lotNoCtrl = TextEditingController();
   final TextEditingController grnNoCtrl = TextEditingController();
   final TextEditingController grnDateCtrl = TextEditingController();
   final TextEditingController gateEntryNoCtrl = TextEditingController();
-
-  // ── Step 2: PO list & Items ────────────────────────────────────────────────
-  List<PendingPoItem> poList = [];
-  bool isLoadingPO = false;
-  List<MrnItemLine> itemLines = [];
-  bool isLoadingItems = false;
-  String? expandedPoNumber;
-  PendingPoItem? processingPo;
+  final TextEditingController grnDisplayNoCtrl = TextEditingController();
 
   // ── Direct entry dropdowns ─────────────────────────────────────────────────
-  List<MrnDropdownOption> directItemList = [];
+  List<GrnDropdownOption> directItemList = [];
   bool isLoadingDirectItems = false;
 
-  List<MrnDropdownOption> unitList = [];
+  List<GrnDropdownOption> unitList = [];
   bool isLoadingUnit = false;
 
-  List<MrnDropdownOption> makeList = [];
+  List<GrnDropdownOption> makeList = [];
   bool isLoadingMake = false;
 
   bool isLoadingItemDetail = false;
@@ -164,17 +160,18 @@ class MrnController extends AppBaseController {
   @override
   void onInit() {
     super.onInit();
-    mrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    GrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     billDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     challanDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     grnDateCtrl.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
-    mrnNumber = _generateMrnNumber();
+    GrnNumber = _generateGrnNumber();
     _setLoggedInUser();
     _fetchAllDropdowns();
+    grnDisplayNoCtrl.text = GrnNumber;
 
-    // ✅ Check if opened from MRN List (edit mode)
+    // ✅ Check if opened from Grn List (edit mode)
     final args = Get.arguments;
-    if (args is MrnListItem) {
+    if (args is GrnListItem) {
       isEditMode = true;
       editStockId = args.id;
       _prefillFromListItem(args);
@@ -184,7 +181,7 @@ class MrnController extends AppBaseController {
   @override
   void onClose() {
     pageController.dispose();
-    mrnDateCtrl.dispose();
+    GrnDateCtrl.dispose();
     billDateCtrl.dispose();
     challanDateCtrl.dispose();
     partyNameCtrl.dispose();
@@ -196,6 +193,9 @@ class MrnController extends AppBaseController {
     grnNoCtrl.dispose();
     grnDateCtrl.dispose();
     gateEntryNoCtrl.dispose();
+    fromAddressCtrl.dispose();
+    toAddressCtrl.dispose();
+    grnDisplayNoCtrl.dispose();
     super.onClose();
   }
 
@@ -206,11 +206,6 @@ class MrnController extends AppBaseController {
     pageController.animateToPage(step,
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
 
-    // ✅ Only PO source needs refresh
-    if (step == 1 && selectedSource == MrnSourceType.purchaseOrder) {
-      fetchPendingPoList();
-    }
-
     update();
   }
 
@@ -218,27 +213,22 @@ class MrnController extends AppBaseController {
   void prevStep() => goToStep(currentStep - 1);
 
   // ── Source ─────────────────────────────────────────────────────────────────
-  void setSource(MrnSourceType src) {
+  void setSource(GrnSourceType src) {
     selectedSource = src;
     itemLines.clear();
-    poList.clear();
-    processingPo = null;
     existingBillFiles = [];
     existingDcFiles = [];
     // ✅ Only PO needs the list fetch now
-    if (src == MrnSourceType.purchaseOrder) {
-      fetchPendingPoList();
-    }
     update();
   }
 
   // ── Step 1 setters ─────────────────────────────────────────────────────────
-  void setSeriesType(MrnDropdownOption? v) {
+  void setSeriesType(GrnDropdownOption? v) {
     selectedSeriesType = v;
     update();
   }
 
-  void setSite(MrnDropdownOption? v) {
+  void setSite(GrnDropdownOption? v) {
     selectedSite = v;
     // Re-fetch work orders with both ids
     fetchWorkOrders(
@@ -248,7 +238,7 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  void setGodown(MrnDropdownOption? v) {
+  void setGodown(GrnDropdownOption? v) {
     selectedGodown = v;
     update();
   }
@@ -258,22 +248,22 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  void setCustomerPo(MrnDropdownOption? v) {
+  void setCustomerPo(GrnDropdownOption? v) {
     selectedCustomerPo = v;
     update();
   }
 
-  void setJobType(MrnDropdownOption? v) {
+  void setJobType(GrnDropdownOption? v) {
     selectedJobType = v;
     update();
   }
 
-  void setWorkOrder(MrnDropdownOption? v) {
+  void setWorkOrder(GrnDropdownOption? v) {
     selectedWorkOrder = v;
     update();
   }
 
-  void toggleAttachmentType(MrnAttachmentType type) {
+  void toggleAttachmentType(GrnAttachmentType type) {
     if (selectedAttachmentTypes.contains(type)) {
       selectedAttachmentTypes.remove(type);
     } else {
@@ -286,61 +276,12 @@ class MrnController extends AppBaseController {
     if (selectedAttachmentTypes.isEmpty) return 'None selected';
     return selectedAttachmentTypes.map((t) {
       switch (t) {
-        case MrnAttachmentType.bill:
+        case GrnAttachmentType.bill:
           return 'Bill';
-        case MrnAttachmentType.challan:
+        case GrnAttachmentType.challan:
           return 'Challan';
       }
     }).join(', ');
-  }
-
-  // ── Re-match dropdowns after edit prefill ──────────────────────────────────
-  void _rematchEditSelections() {
-    if (!isEditMode || editStockId == null) return;
-
-    // Godown
-    if (selectedGodown != null && godownList.isNotEmpty) {
-      selectedGodown = godownList
-          .firstWhereOrNull((g) => g.id == selectedGodown!.id)
-          ?? selectedGodown;
-    }
-
-    // Job Type
-    if (selectedJobType != null && jobTypeList.isNotEmpty) {
-      selectedJobType = jobTypeList
-          .firstWhereOrNull((j) => j.id == selectedJobType!.id)
-          ?? selectedJobType;
-    }
-
-    // Series
-    if (selectedSeriesType != null && seriesTypeList.isNotEmpty) {
-      selectedSeriesType = seriesTypeList
-          .firstWhereOrNull((s) => s.id == selectedSeriesType!.id)
-          ?? selectedSeriesType;
-    }
-
-    // Customer PO
-    if (selectedCustomerPo != null && customerPoList.isNotEmpty) {
-      selectedCustomerPo = customerPoList
-          .firstWhereOrNull((c) => c.id == selectedCustomerPo!.id)
-          ?? selectedCustomerPo;
-    }
-
-    // Site
-    if (selectedSite != null && siteList.isNotEmpty) {
-      selectedSite = siteList
-          .firstWhereOrNull((s) => s.id == selectedSite!.id)
-          ?? selectedSite;
-    }
-
-    // Party
-    if (selectedParty != null && partyList.isNotEmpty) {
-      selectedParty = partyList
-          .firstWhereOrNull((p) => p.id == selectedParty!.id)
-          ?? selectedParty;
-    }
-
-    update();
   }
 
   // ── Financial year string (e.g. "2026-27") ────────────────────────────────
@@ -354,7 +295,7 @@ class MrnController extends AppBaseController {
     return '$fyStart-$fyEndShort'; // "2026-27"
   }
 
-  void setPaidType(MrnDropdownOption? v) {
+  void setPaidType(GrnDropdownOption? v) {
     selectedPaidType = v;
     selectedPaidBy = null; // reset paid by on type change
     if (v?.id == 'Employee') {
@@ -365,30 +306,31 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  void setPaidBy(MrnDropdownOption? v) {
+  void setPaidBy(GrnDropdownOption? v) {
     selectedPaidBy = v;
     update();
   }
 
-  void _prefillFromListItem(MrnListItem item) {
-
-    // Pre-fill what we have from the list
-    mrnNumber = item.mrnNo;
+  void _prefillFromListItem(GrnListItem item) {
+    if (kDebugMode) {
+      print('🔑 Edit mode — item.id: ${item.id}');
+      print('🔑 item.GrnNo: "${item.GrnNo}"');
+      print('🔑 item.billNo: "${item.billNo}"');
+      print('🔑 item.partyName: "${item.partyName}"');
+    }
+    GrnNumber = item.GrnNo;
+    grnDisplayNoCtrl.text = item.GrnNo; // ✅ THIS is what actually shows in UI
     billNoCtrl.text = item.billNo;
+    grnNoCtrl.text = item.GrnNo;        // ✅ Additional Details GRN No. field
 
-    // Parse mrnDate from dd-MM-yyyy to dd/MM/yyyy
     try {
-      final date = DateFormat('dd-MM-yyyy').parse(item.mrnDate);
-      mrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(date);
+      final date = DateFormat('dd-MM-yyyy').parse(item.GrnDate);
+      GrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(date);
     } catch (_) {}
 
-    // Pre-fill party name as text (dropdown will be matched after parties load)
     partyNameCtrl.text = item.partyName;
-
     update();
-
-    // ✅ Fetch full MRN detail from API to fill remaining fields
-    _fetchMrnDetail(item.id);
+    _fetchGrnDetail(item.id);
   }
 
   void removeExistingBillFile(int index) {
@@ -405,7 +347,7 @@ class MrnController extends AppBaseController {
     }
   }
 
-  Future<void> _fetchMrnDetail(int stockid) async {
+  Future<void> _fetchGrnDetail(int stockid) async {
     setBusy(true);
     try {
       final body = {
@@ -415,20 +357,20 @@ class MrnController extends AppBaseController {
         // ✅ NO userid — API doesn't use it
       };
 
-      if (kDebugMode) print('🔍 MRN Detail Request: $body');
+      if (kDebugMode) print('🔍 Grn Detail Request: $body');
 
-      final res = await api.getMrnDetail(body);
+      final res = await api.getGrnDetail(body);
 
-      if (kDebugMode) print('📥 MRN Detail: ${res.status} | ${res.message}');
+      if (kDebugMode) print('📥 Grn Detail: ${res.status} | ${res.message}');
 
       if ((res.status == 200 || res.success == true) && res.data != null) {
-        _applyMrnDetail(res.data!);
+        _applyGrnDetail(res.data!);
       } else {
         ShowMessage.showSnackBar(
-            'Detail', res.message ?? 'Could not load MRN details');
+            'Detail', res.message ?? 'Could not load Grn details');
       }
     } catch (e) {
-      if (kDebugMode) print('❌ MRN detail error: $e');
+      if (kDebugMode) print('❌ Grn detail error: $e');
     } finally {
       setBusy(false);
     }
@@ -438,9 +380,9 @@ class MrnController extends AppBaseController {
     isLoadingPaidBy = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('employee'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('employee'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
-        paidByList = res.data!;
+        paidByList = res.data!.cast<GrnDropdownOption>();
       }
     } catch (e) {
       ShowMessage.showSnackBar('Paid By', '$e');
@@ -469,24 +411,24 @@ class MrnController extends AppBaseController {
     }
   }
 
-  Future<void> pickMrnDate(BuildContext ctx) => _pickDate(ctx, mrnDateCtrl);
   Future<void> pickBillDate(BuildContext ctx) => _pickDate(ctx, billDateCtrl);
   Future<void> pickChallanDate(BuildContext ctx) =>
       _pickDate(ctx, challanDateCtrl);
+  Future<void> pickReceiptDate(BuildContext ctx) => _pickDate(ctx, GrnDateCtrl);
   Future<void> pickGrnDate(BuildContext ctx) => _pickDate(ctx, grnDateCtrl);
 
   // ── Attachments ────────────────────────────────────────────────────────────
   Future<void> pickBillFromCamera() async =>
-      _pickImageCamera(MrnAttachmentType.bill);
+      _pickImageCamera(GrnAttachmentType.bill);
   Future<void> pickBillFromGallery() async =>
-      _pickImageGallery(MrnAttachmentType.bill);
-  Future<void> pickBillFile() async => _pickRealFile(MrnAttachmentType.bill);
+      _pickImageGallery(GrnAttachmentType.bill);
+  Future<void> pickBillFile() async => _pickRealFile(GrnAttachmentType.bill);
   Future<void> pickChallanFile() async =>
-      _pickRealFile(MrnAttachmentType.challan);
+      _pickRealFile(GrnAttachmentType.challan);
   Future<void> pickChallanFromCamera() async =>
-      _pickImageCamera(MrnAttachmentType.challan);
+      _pickImageCamera(GrnAttachmentType.challan);
   Future<void> pickChallanFromGallery() async =>
-      _pickImageGallery(MrnAttachmentType.challan);
+      _pickImageGallery(GrnAttachmentType.challan);
 
   void removeBillAttachment(String id) {
     billAttachments.removeWhere((d) => d.id == id);
@@ -498,7 +440,7 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  Future<void> _pickRealFile(MrnAttachmentType type) async {
+  Future<void> _pickRealFile(GrnAttachmentType type) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -527,7 +469,7 @@ class MrnController extends AppBaseController {
   }
 
 // ── Also fix gallery to support multiple images ────────────────────────────
-  Future<void> _pickImageGallery(MrnAttachmentType type) async {
+  Future<void> _pickImageGallery(GrnAttachmentType type) async {
     try {
       final xfiles = await picker.pickMultiImage(imageQuality: 75);
       for (final f in xfiles) {
@@ -553,7 +495,7 @@ class MrnController extends AppBaseController {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  Future<void> _pickImageCamera(MrnAttachmentType type) async {
+  Future<void> _pickImageCamera(GrnAttachmentType type) async {
     try {
       final xfile =
           await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
@@ -573,10 +515,10 @@ class MrnController extends AppBaseController {
   }
 
   void _addAttachment(
-      String path, String type, String source, MrnAttachmentType attachmentType,
+      String path, String type, String source, GrnAttachmentType attachmentType,
       {String? overrideName, String? overrideSize}) {
     final file = File(path);
-    final doc = MrnDocument(
+    final doc = GrnDocument(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       fileName: overrideName ?? path.split('/').last,
       filePath: path,
@@ -586,7 +528,7 @@ class MrnController extends AppBaseController {
       source: source,
       uploadedAt: DateTime.now(),
     );
-    if (attachmentType == MrnAttachmentType.bill) {
+    if (attachmentType == GrnAttachmentType.bill) {
       billAttachments.add(doc);
     } else {
       challanAttachments.add(doc);
@@ -594,63 +536,13 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  // ── Step 2: PO selection ───────────────────────────────────────────────────
-  // Future<void> togglePO(MrnPOItem po) async {
-  //   po.isSelected = !po.isSelected;
-  //   update();
-  //   if (po.isSelected) {
-  //     await _loadItemsForPO(po.poNumber);
-  //   } else {
-  //     itemLines.removeWhere((i) => i.orderNo == po.poNumber);
-  //     update();
-  //   }
-  // }
-  // Future<void> _loadItemsForPO(String poNumber) async {
-  //   // Find the matching PO from the list
-  //   final po = poList.firstWhereOrNull((p) => p.orderid.toString() == poNumber || p.orderno == poNumber);
-  //   if (po == null) return;
-  //
-  //   isLoadingItems = true;
-  //   update();
-  //   try {
-  //     final req = GetPendingPoRequest(
-  //       compid:   homeController.currentUserData?.compId ?? 0,
-  //       branchid: homeController.currentUserData?.branchId ?? 0,
-  //       userid:   homeController.currentUserData?.userid ?? 0,
-  //       partyid:  int.tryParse(selectedParty?.id ?? '0') ?? 0,
-  //       siteid:   int.tryParse(selectedSite?.id  ?? '0') ?? 0,
-  //       orderid:  po.orderid.toString(),
-  //       stockid:  po.stockid,
-  //     );
-  //     final res = await api.getPendingPoItems(req);
-  //     if ((res.status == 200 || res.success == true) &&
-  //         res.data != null && res.data!.isNotEmpty) {
-  //       final loaded = res.data!
-  //           .map((raw) => raw.toItemLine(poNumber: po.orderid.toString()))
-  //           .toList();
-  //       for (final item in loaded) {
-  //         if (!itemLines.any((i) => i.itemId == item.itemId)) {
-  //           itemLines.add(item);
-  //         }
-  //       }
-  //     } else {
-  //       ShowMessage.showSnackBar('Items', res.message ?? 'No items found for this PO');
-  //     }
-  //   } catch (e) {
-  //     ShowMessage.showSnackBar('Error', 'Failed to load items: $e');
-  //   } finally {
-  //     isLoadingItems = false;
-  //     update();
-  //   }
-  // }
-
   // ── Item interactions ──────────────────────────────────────────────────────
-  void toggleItemExpanded(MrnItemLine item) {
+  void toggleItemExpanded(GrnItemLine item) {
     item.isExpanded = !item.isExpanded;
     update();
   }
 
-  void setReceivedQty(MrnItemLine item, double qty) {
+  void setReceivedQty(GrnItemLine item, double qty) {
     final double clamped = qty.clamp(0.0, item.maxReceivable).toDouble();
     if (qty > item.maxReceivable) {
       ShowMessage.showSnackBar('Quantity Limit',
@@ -660,7 +552,7 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  void increaseQty(MrnItemLine item) {
+  void increaseQty(GrnItemLine item) {
     if (item.receiveNowQty < item.maxReceivable) {
       item.receiveNowQty++;
       update();
@@ -670,24 +562,24 @@ class MrnController extends AppBaseController {
     }
   }
 
-  void decreaseQty(MrnItemLine item) {
+  void decreaseQty(GrnItemLine item) {
     if (item.receiveNowQty > 0) {
       item.receiveNowQty--;
       update();
     }
   }
 
-  void setItemGodown(MrnItemLine item, MrnDropdownOption? godown) {
+  void setItemGodown(GrnItemLine item, GrnDropdownOption? godown) {
     item.selectedGodownId = godown?.id;
     update();
   }
 
-  void setItemRemarks(MrnItemLine item, String val) {
+  void setItemRemarks(GrnItemLine item, String val) {
     item.remarks = val;
     update();
   }
 
-  void removeItem(MrnItemLine item) {
+  void removeItem(GrnItemLine item) {
     itemLines.remove(item);
     update();
   }
@@ -697,7 +589,7 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  String effectiveGodownLabel(MrnItemLine item) {
+  String effectiveGodownLabel(GrnItemLine item) {
     if (item.selectedGodownId != null) {
       return godownList
               .firstWhereOrNull((g) => g.id == item.selectedGodownId)
@@ -723,7 +615,7 @@ class MrnController extends AppBaseController {
     required double discount,
     required String remarks,
   }) {
-    itemLines.add(MrnItemLine(
+    itemLines.add(GrnItemLine(
       itemId: itemCode,
       itemName: itemName,
       itemCode: itemCode,
@@ -747,22 +639,11 @@ class MrnController extends AppBaseController {
     update();
   }
 
-  void togglePOSelection(PendingPoItem po) {
-    for (final p in poList) {
-      p.isSelected = false;
-    }
-    po.isSelected = true;
-    processingPo = po;
-    // Clear any previously loaded items when user changes PO selection
-    itemLines.clear();
-    update();
-  }
-
-  Future<MrnItemDetail?> fetchItemDetail(int itemid) async {
+  Future<GrnItemDetail?> fetchItemDetail(int itemid) async {
     isLoadingItemDetail = true;
     update();
     try {
-      final res = await api.getItemDetail(
+      final res = await api.getGrnItemDetail(
         compid: homeController.currentUserData?.compId ?? 0,
         itemid: itemid,
       );
@@ -779,7 +660,7 @@ class MrnController extends AppBaseController {
   }
 
   // ── File upload helper ─────────────────────────────────────────────────────
-  Future<String> _uploadAttachments(List<MrnDocument> docs) async {
+  Future<String> _uploadAttachments(List<GrnDocument> docs) async {
     if (docs.isEmpty) return '';
 
     final List<String> uploadedNames = [];
@@ -803,14 +684,14 @@ class MrnController extends AppBaseController {
             uploadedNames.add(filename);
           } else {
             if (kDebugMode)
-              print('MRN upload: filename empty for ${doc.fileName}');
+              print('Grn upload: filename empty for ${doc.fileName}');
           }
         } else {
           ShowMessage.showSnackBar(
               'Upload Failed', 'Could not upload ${doc.fileName}');
         }
       } catch (e) {
-        if (kDebugMode) print('MRN upload error for ${doc.fileName}: $e');
+        if (kDebugMode) print('Grn upload error for ${doc.fileName}: $e');
         ShowMessage.showSnackBar('Upload Error', '${doc.fileName}: $e');
       }
     }
@@ -820,8 +701,165 @@ class MrnController extends AppBaseController {
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  Future<void> submitMRN() async {
-    // Validations
+//   Future<void> submitGrn() async {
+//     // Validations
+//     if (partyNameCtrl.text.trim().isEmpty) {
+//       ShowMessage.showSnackBar('Validation', 'Please select a party');
+//       return;
+//     }
+//     if (selectedSite == null) {
+//       ShowMessage.showSnackBar('Validation', 'Please select a site');
+//       return;
+//     }
+//     if (itemLines.isEmpty) {
+//       ShowMessage.showSnackBar('Validation', 'Please add at least one item');
+//       return;
+//     }
+//     if (itemLines.any((i) => i.receiveNowQty <= 0)) {
+//       ShowMessage.showSnackBar('Validation', 'All items must have qty > 0');
+//       return;
+//     }
+//
+//     setBusy(true);
+//     try {
+//       // ── Step 1: Upload bill attachments ───────────────────────────────
+//       final billFileStr = billAttachments.isNotEmpty
+//           ? await _uploadAttachments(billAttachments)
+//           : existingBillFiles.join(','); // ✅ keep existing if no new upload
+//
+//       final challanFileStr = challanAttachments.isNotEmpty
+//           ? await _uploadAttachments(challanAttachments)
+//           : existingDcFiles.join(',');
+//
+//       // ── Parse dates to ISO ──────────────────────────────────────────────
+//       DateTime parseDate(String d) {
+//         try {
+//           return DateFormat('dd/MM/yyyy').parse(d);
+//         } catch (_) {
+//           return DateTime.now();
+//         }
+//       }
+//
+//       // ── Build items list ────────────────────────────────────────────────
+//       final items = itemLines
+//           .map((i) => {
+//         'itemname': i.itemName,
+//         'itemid': int.tryParse(i.itemId) ?? 0,
+//         'rate': i.rate,
+//         'quantity': i.receiveNowQty,
+//         'amount': i.amount,
+//         'gstpercent': i.gstPercent,
+//         'gstamount': i.gstAmount,
+//         'discountpercent': i.discountPercent,
+//         'discountamount': i.discountAmount,
+//         'specification': i.remarks,
+//         'make': i.make,
+//         'makeid': i.makeId,
+//         'unitid': i.unitId,
+//         'godownid': int.tryParse(
+//             i.selectedGodownId ?? selectedGodown?.id ?? '0') ??
+//             0,
+//         'poid':  0,
+//         'transid': i.transId,
+//         'stockqty': i.receiveNowQty,
+//         'sgst': 0,
+//         'sgstamt': 0,
+//         'cgst': 0,
+//         'cgstamt': 0,
+//         'igst': 0,
+//         'igstamt': 0,
+//         'batchno': i.batchNo,
+//         'expirydate': '',
+//         'manufacturedate': '',
+//         'uniqueid': i.uniqueId,
+//       })
+//           .toList();
+//
+//       // ── Build request body ────────────────────────────────────────────
+//       final body = {
+//         'stockid': isEditMode ? (editStockId ?? 0) : 0,
+//         'type': selectedSource == GrnSourceType.grn,
+//         'pono': 0,
+//         'seriesid': int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
+//         'receiptdate': parseDate(GrnDateCtrl.text).toIso8601String(),
+//         'partyname': partyNameCtrl.text.trim(),
+//         'partyid': int.tryParse(selectedParty?.id ?? '0') ?? 0,
+//         'billno': billNoCtrl.text.trim(),
+//         'godownid': int.tryParse(selectedGodown?.id ?? '0') ?? 0,
+//         'receivedby': receivedByName,
+//         'totalweight': 0,
+//         'description': reviewRemarksCtrl.text.trim(),
+//         'lotno': lotNoCtrl.text.trim(),
+//         'grnno': grnNoCtrl.text.trim(),
+//         'grndate': parseDate(grnDateCtrl.text).toIso8601String(),
+//         'totalamount': subtotal,
+//         'totalquantity': itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
+//         'poid':  0,
+//         'qcstatus': selectedQcRequired,
+//         'compid': homeController.currentUserData?.compId ?? 0,
+//         'branchid': homeController.currentUserData?.branchId ?? 0,
+//         'userid': homeController.currentUserData?.userid ?? 0,
+//         'yearid': currentYearId,
+//         'ledgertrans': '',
+//         'grandtotal': grandTotalRounded,
+//         'roundoff': roundOff,
+//         'menuid': 0,
+//         'totaltax': totalGst,
+//         'updateinvoiceid': 0,
+//         'freightmode': '',
+//         'freightmodeid': 0,
+//         'billdate': parseDate(billDateCtrl.text).toIso8601String(),
+//         'othervaluetaxxml': '',
+//         'Grntype': '',
+//         'gateentryNo': gateEntryNoCtrl.text.trim(),
+//         'billfile': billFileStr,
+//         'filetypeId': billAttachments.isNotEmpty ? 1 : 0,
+//         'dcno': challanNoCtrl.text.trim(),
+//         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
+//         'dcfile': challanFileStr,
+//         'reason': reasonNACtrl.text.trim(),
+//         'siteid': int.tryParse(selectedSite?.id ?? '0') ?? 0,
+//         'paidbyid': int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
+//         'paidby': selectedPaidBy?.label ?? '',
+//         'paidtype': selectedPaidType?.label ?? '',
+//         'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
+//         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
+//         'fromaddress': fromAddressCtrl.text.trim(),
+//         'toaddress': toAddressCtrl.text.trim(),
+//         'Grnitems': items,
+//       };
+//
+// // ── Pretty-print log matching exact API schema ────────────────────
+//       if (kDebugMode) {
+//         const encoder = JsonEncoder.withIndent('  ');
+//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+//         print('📦 Grn SUBMIT PAYLOAD');
+//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+//         print(encoder.convert(body));
+//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+//       }
+//
+//       final res = await api.saveGrnEntry(body);
+//       if (res.status == 200 || res.success == true) {
+//         ShowMessage.showSnackBar(
+//             'Success', res.message ?? 'Grn saved successfully');
+//         Get.back(); // ✅ go back to list
+//         // ✅ refresh list if controller is still alive
+//         if (Get.isRegistered<GrnListController>()) {
+//           Get.find<GrnListController>().fetchGrnList();
+//         }
+//       } else {
+//         ShowMessage.showSnackBar('Error', res.message ?? 'Failed to save Grn');
+//       }
+//     } catch (e) {
+//       ShowMessage.showSnackBar('Error', '$e');
+//     } finally {
+//       setBusy(false);
+//     }
+//   }
+
+  Future<void> submitGRN() async {
+    // ── Same validations as submitGrn ──────────────────────────────────────
     if (partyNameCtrl.text.trim().isEmpty) {
       ShowMessage.showSnackBar('Validation', 'Please select a party');
       return;
@@ -841,16 +879,14 @@ class MrnController extends AppBaseController {
 
     setBusy(true);
     try {
-      // ── Step 1: Upload bill attachments ───────────────────────────────
       final billFileStr = billAttachments.isNotEmpty
           ? await _uploadAttachments(billAttachments)
-          : existingBillFiles.join(','); // ✅ keep existing if no new upload
+          : existingBillFiles.join(',');  // ✅ keep existing files in edit mode
 
       final challanFileStr = challanAttachments.isNotEmpty
           ? await _uploadAttachments(challanAttachments)
           : existingDcFiles.join(',');
 
-      // ── Parse dates to ISO ──────────────────────────────────────────────
       DateTime parseDate(String d) {
         try {
           return DateFormat('dd/MM/yyyy').parse(d);
@@ -859,7 +895,6 @@ class MrnController extends AppBaseController {
         }
       }
 
-      // ── Build items list ────────────────────────────────────────────────
       final items = itemLines
           .map((i) => {
                 'itemname': i.itemName,
@@ -878,7 +913,6 @@ class MrnController extends AppBaseController {
                 'godownid': int.tryParse(
                         i.selectedGodownId ?? selectedGodown?.id ?? '0') ??
                     0,
-                'poid': processingPo?.orderid ?? 0,
                 'transid': i.transId,
                 'stockqty': i.receiveNowQty,
                 'sgst': 0,
@@ -894,80 +928,74 @@ class MrnController extends AppBaseController {
               })
           .toList();
 
-      // ── Build request body ────────────────────────────────────────────
       final body = {
         'stockid': isEditMode ? (editStockId ?? 0) : 0,
-        'type': selectedSource == MrnSourceType.purchaseOrder ? 'PO' : 'Direct',
-        'pono': processingPo?.orderno ?? '',
+        'type': 'GRN',
+        'pono': '',                          // ✅ ADD
         'seriesid': int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
-        'receiptdate': parseDate(mrnDateCtrl.text).toIso8601String(),
+        'receiptdate': parseDate(GrnDateCtrl.text).toIso8601String(),
         'partyname': partyNameCtrl.text.trim(),
         'partyid': int.tryParse(selectedParty?.id ?? '0') ?? 0,
         'billno': billNoCtrl.text.trim(),
+        'billdate': parseDate(billDateCtrl.text).toIso8601String(),
         'godownid': int.tryParse(selectedGodown?.id ?? '0') ?? 0,
         'receivedby': receivedByName,
-        'totalweight': 0,
+        'totalweight': 0,                    // ✅ ADD
         'description': reviewRemarksCtrl.text.trim(),
         'lotno': lotNoCtrl.text.trim(),
         'grnno': grnNoCtrl.text.trim(),
         'grndate': parseDate(grnDateCtrl.text).toIso8601String(),
+        'gateentryNo': gateEntryNoCtrl.text.trim(),
         'totalamount': subtotal,
         'totalquantity': itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
-        'poid': processingPo?.orderid ?? 0,
-        'qcstatus': selectedQcRequired,
+        'poid': 0,                           // ✅ ADD
+        'qcstatus': selectedQcRequired,      // ✅ ADD
+        'grandtotal': grandTotalRounded,
+        'roundoff': roundOff,
+        'totaltax': totalGst,
+        'siteid': int.tryParse(selectedSite?.id ?? '0') ?? 0,
         'compid': homeController.currentUserData?.compId ?? 0,
         'branchid': homeController.currentUserData?.branchId ?? 0,
         'userid': homeController.currentUserData?.userid ?? 0,
         'yearid': currentYearId,
-        'ledgertrans': '',
-        'grandtotal': grandTotalRounded,
-        'roundoff': roundOff,
-        'menuid': 0,
-        'totaltax': totalGst,
-        'updateinvoiceid': 0,
-        'freightmode': '',
-        'freightmodeid': 0,
-        'billdate': parseDate(billDateCtrl.text).toIso8601String(),
-        'othervaluetaxxml': '',
-        'mrntype': '',
-        'gateentryNo': gateEntryNoCtrl.text.trim(),
-        'billfile': billFileStr,
-        'filetypeId': billAttachments.isNotEmpty ? 1 : 0,
+        'ledgertrans': '',                   // ✅ ADD
+        'menuid': 0,                         // ✅ ADD
+        'updateinvoiceid': 0,                // ✅ ADD
+        'freightmode': '',                   // ✅ ADD
+        'freightmodeid': 0,                  // ✅ ADD
+        'othervaluetaxxml': '',              // ✅ ADD
+        'filetypeId': billAttachments.isNotEmpty ? 1 : 0,  // ✅ ADD
         'dcno': challanNoCtrl.text.trim(),
         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
         'dcfile': challanFileStr,
+        'billfile': billFileStr,
         'reason': reasonNACtrl.text.trim(),
-        'siteid': int.tryParse(selectedSite?.id ?? '0') ?? 0,
         'paidbyid': int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
         'paidby': selectedPaidBy?.label ?? '',
         'paidtype': selectedPaidType?.label ?? '',
-        'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
+        'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,  // ✅ ADD
         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
-        'fromaddress': '',
-        'toaddress': '',
+        'fromaddress': fromAddressCtrl.text.trim(),
+        'toaddress': toAddressCtrl.text.trim(),
         'mrnitems': items,
       };
 
-// ── Pretty-print log matching exact API schema ────────────────────
       if (kDebugMode) {
         const encoder = JsonEncoder.withIndent('  ');
-        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        print('📦 MRN SUBMIT PAYLOAD');
-        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('📦 GRN SUBMIT PAYLOAD');
         print(encoder.convert(body));
-        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       }
 
-      final res = await api.saveMrnEntry(body);
+
+      final res = await api.saveGrnEntry(body);
       if (res.status == 200 || res.success == true) {
-        ShowMessage.showSnackBar(
-            'Success', res.message ?? 'MRN saved successfully');
-        if (Get.isRegistered<MrnListController>()) {
-          Get.find<MrnListController>().fetchMrnList();
+        ShowMessage.showSnackBar('Success', res.message ?? 'GRN saved successfully');
+        if (Get.isRegistered<GrnListController>()) {
+          Get.find<GrnListController>().fetchGrnList();
         }
-        Get.off(() => MrnListScreen());
+        Get.off(() => GrnListScreen());
       } else {
-        ShowMessage.showSnackBar('Error', res.message ?? 'Failed to save MRN');
+        ShowMessage.showSnackBar('Error', res.message ?? 'Failed to save GRN');
       }
     } catch (e) {
       ShowMessage.showSnackBar('Error', '$e');
@@ -977,17 +1005,15 @@ class MrnController extends AppBaseController {
   }
 
   // ── Source label ───────────────────────────────────────────────────────────
-  String sourceLabel(MrnSourceType s) {
+  String sourceLabel(GrnSourceType s) {
     switch (s) {
-      case MrnSourceType.purchaseOrder:
-        return 'Purchase Order';
-      case MrnSourceType.directPurchase:
-        return 'Direct Purchase';
+      case GrnSourceType.grn:
+        return 'GRN'; // ✅ add
     }
   }
 
   // ── Base API body ──────────────────────────────────────────────────────────
-  Map<String, dynamic> _mrnDropdownBody(
+  Map<String, dynamic> _GrnDropdownBody(
     String type, {
     int partyId = 0,
     int siteId = 0,
@@ -1018,7 +1044,6 @@ class MrnController extends AppBaseController {
       fetchMakes(),
       fetchParties(),
       fetchAddresses(),
-      _loadPOList(),
     ]);
   }
 
@@ -1027,30 +1052,27 @@ class MrnController extends AppBaseController {
     isLoadingSeriesType = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('series'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('series'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         seriesTypeList = res.data!;
-        if (seriesTypeList.isNotEmpty && selectedSeriesType == null) {
+        if (seriesTypeList.isNotEmpty)
           selectedSeriesType = seriesTypeList.first;
-        }
       }
     } catch (e) {
       ShowMessage.showSnackBar('Series', '$e');
     } finally {
       isLoadingSeriesType = false;
-      _rematchEditSelections(); // ✅
       update();
     }
   }
 
   Future<void> fetchSites({int partyId = 0}) async {
     isLoadingSite = true;
-    // ✅ Only reset if NOT edit mode — don't wipe the prefilled site
-    if (!isEditMode) selectedSite = null;
+    selectedSite = null; // reset on party change
     update();
     try {
-      final res = await api.getMrnDropdownList(
-        _mrnDropdownBody('Site', partyId: partyId),
+      final res = await api.getGrnDropdownList(
+        _GrnDropdownBody('Site', partyId: partyId),
       );
       if ((res.status == 200 || res.success == true) && res.data != null) {
         siteList = res.data!;
@@ -1059,7 +1081,6 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Site', '$e');
     } finally {
       isLoadingSite = false;
-      _rematchEditSelections(); // ✅
       update();
     }
   }
@@ -1068,7 +1089,7 @@ class MrnController extends AppBaseController {
     isLoadingGodown = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Godown'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Godown'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         godownList = res.data!;
       }
@@ -1076,7 +1097,6 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Godown', '$e');
     } finally {
       isLoadingGodown = false;
-      _rematchEditSelections(); // ✅ re-match after load
       update();
     }
   }
@@ -1085,7 +1105,8 @@ class MrnController extends AppBaseController {
     isLoadingCustomerPo = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('customerorder'));
+      final res =
+          await api.getGrnDropdownList(_GrnDropdownBody('customerorder'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         customerPoList = res.data!;
       }
@@ -1093,7 +1114,6 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('CustomerPO', '$e');
     } finally {
       isLoadingCustomerPo = false;
-      _rematchEditSelections(); // ✅
       update();
     }
   }
@@ -1102,7 +1122,7 @@ class MrnController extends AppBaseController {
     isLoadingJobType = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Jobtype'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Jobtype'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         jobTypeList = res.data!;
       }
@@ -1110,7 +1130,6 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('JobType', '$e');
     } finally {
       isLoadingJobType = false;
-      _rematchEditSelections();
       update();
     }
   }
@@ -1119,8 +1138,8 @@ class MrnController extends AppBaseController {
     isLoadingWorkOrder = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(
-        _mrnDropdownBody('workorder', partyId: partyId, siteId: siteId),
+      final res = await api.getGrnDropdownList(
+        _GrnDropdownBody('workorder', partyId: partyId, siteId: siteId),
       );
       if ((res.status == 200 || res.success == true) && res.data != null) {
         workOrderList = res.data!;
@@ -1137,7 +1156,7 @@ class MrnController extends AppBaseController {
     isLoadingDirectItems = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Item'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Item'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         directItemList = res.data!;
       }
@@ -1153,7 +1172,7 @@ class MrnController extends AppBaseController {
     isLoadingUnit = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Unit'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Unit'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         unitList = res.data!;
       }
@@ -1169,8 +1188,8 @@ class MrnController extends AppBaseController {
     isLoadingMake = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(
-        _mrnDropdownBody('Brand', dependentId: dependentId),
+      final res = await api.getGrnDropdownList(
+        _GrnDropdownBody('Brand', dependentId: dependentId),
       );
       if ((res.status == 200 || res.success == true) && res.data != null) {
         makeList = res.data!;
@@ -1187,7 +1206,7 @@ class MrnController extends AppBaseController {
     isLoadingParty = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Party'));
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Party'));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         partyList = res.data!;
       }
@@ -1195,67 +1214,13 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Party', '$e');
     } finally {
       isLoadingParty = false;
-      _rematchEditSelections(); // ✅
       update();
     }
   }
 
   Future<void> fetchAddresses() async {
-    isLoadingAddresses = true;
-    update();
-    try {
-      // TODO: Replace with real API call
-      await Future.delayed(const Duration(milliseconds: 300));
-      shippingAddress = MrnAddress(
-        label: 'Shipping',
-        line1: 'Plot No. 12, MIDC Industrial Area',
-        line2: 'Taloja Phase II',
-        city: 'Navi Mumbai',
-        state: 'Maharashtra',
-        pincode: '410208',
-      );
-      billingAddress = MrnAddress(
-        label: 'Billing',
-        line1: '4th Floor, Tower B, Infinity IT Park',
-        line2: 'DLF Cyber City',
-        city: 'Gurugram',
-        state: 'Haryana',
-        pincode: '122002',
-      );
-    } finally {
-      isLoadingAddresses = false;
-      update();
-    }
-  }
-
-  Future<void> _loadPOList() async {
-    if (selectedSource != MrnSourceType.purchaseOrder) return;
-    isLoadingPO = true;
-    update();
-    try {
-      // Using the real getPendingPoList API (stockid=0 = PO list)
-      final req = GetPendingPoRequest(
-        compid: homeController.currentUserData?.compId ?? 0,
-        branchid: homeController.currentUserData?.branchId ?? 0,
-        userid: homeController.currentUserData?.userid ?? 0,
-        partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
-        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
-        orderid: '',
-        stockid: 0,
-      );
-      final res = await api.getPendingPoList(req);
-      if ((res.status == 200 || res.success == true) && res.data != null) {
-        poList = res.data!; // List<PendingPoItem> ✅
-      } else {
-        poList = [];
-      }
-    } catch (e) {
-      poList = [];
-      ShowMessage.showSnackBar('PO List', '$e');
-    } finally {
-      isLoadingPO = false;
-      update();
-    }
+    // ✅ Addresses now come from grnfulldetailController — nothing to fetch here
+    // They are applied in _applyGrnDetail when editing
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -1264,11 +1229,11 @@ class MrnController extends AppBaseController {
     receivedByName = homeController.currentUserData?.name ?? 'User';
   }
 
-  String _generateMrnNumber() {
+  String _generateGrnNumber() {
     final year = DateTime.now().year;
     final seq =
         (DateTime.now().millisecondsSinceEpoch % 9000 + 1000).toString();
-    return 'MRN-$year-$seq';
+    return 'Grn-$year-$seq';
   }
 
   String _fileSize(File file) {
@@ -1281,111 +1246,39 @@ class MrnController extends AppBaseController {
     }
   }
 
-  Future<void> fetchPendingPoList() async {
-    isLoadingPO = true;
-    poList.clear();
-    processingPo = null;
-    update();
-    try {
-      final req = GetPendingPoRequest(
-        compid: homeController.currentUserData?.compId ?? 0,
-        branchid: homeController.currentUserData?.branchId ?? 0,
-        userid: homeController.currentUserData?.userid ?? 0,
-        partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
-        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
-        orderid: '',
-        stockid: 0, // 0 = PO list, not items
-      );
-      final res = await api.getPendingPoList(req);
-      if ((res.status == 200 || res.success == true) && res.data != null) {
-        poList = res.data!;
-      } else {
-        poList = [];
-        ShowMessage.showSnackBar(
-            'PO List', res.message ?? 'No pending POs found');
-      }
-    } catch (e) {
-      poList = [];
-      ShowMessage.showSnackBar('PO List', '$e');
-    } finally {
-      isLoadingPO = false;
-      update();
-    }
-  }
-
-  Future<void> processSelectedPO() async {
-    if (processingPo == null) {
-      ShowMessage.showSnackBar('Select PO', 'Please select a PO first');
-      return;
-    }
-    isLoadingItems = true;
-    itemLines.clear();
-    update();
-    try {
-      final req = ProcessPendingPoRequest(
-        type: 1,
-        compid: homeController.currentUserData?.compId ?? 0,
-        branchid: homeController.currentUserData?.branchId ?? 0,
-        userid: homeController.currentUserData?.userid ?? 0,
-        partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
-        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
-        orderid: processingPo!.orderid.toString(), // ✅ "27658"
-        stockid: 0,
-      );
-
-      final res = await api.processPoItems(req);
-
-      if ((res.status == 200 || res.success == true) &&
-          res.data != null &&
-          res.data!.isNotEmpty) {
-        itemLines = res.data!
-            .map((item) => item.toItemLine(
-                  poNumber: processingPo!.orderno.isNotEmpty
-                      ? processingPo!.orderno
-                      : processingPo!.orderid.toString(),
-                ))
-            .toList();
-      } else {
-        ShowMessage.showSnackBar(
-            'No Items', res.message ?? 'No pending items found for this PO');
-      }
-    } catch (e) {
-      ShowMessage.showSnackBar('Items', '$e');
-    } finally {
-      isLoadingItems = false;
-      update();
-    }
-  }
-
-  void _applyMrnDetail(MrnDetailData d) {
-    // ✅ REMOVED: mrnNumber = d.mrnno — field doesn't exist in API response
-    // mrnNumber is already set from MrnListItem.mrnNo in _prefillFromListItem
+  void _applyGrnDetail(GrnDetailData d) {
+    // ✅ REMOVED: GrnNumber = d.Grnno — field doesn't exist in API response
+    // GrnNumber is already set from GrnListItem.GrnNo in _prefillFromListItem
 
     billNoCtrl.text = d.billno;
     challanNoCtrl.text = d.dcno;
     lotNoCtrl.text = d.lotno;
-    grnNoCtrl.text = d.grnno;
+    if (d.grnno.isNotEmpty) grnNoCtrl.text = d.grnno;
     gateEntryNoCtrl.text = d.gateentryno;
     receivedByName = d.receivedby;
     selectedQcRequired = d.qcstatus.isNotEmpty ? d.qcstatus : 'Yes';
     reviewRemarksCtrl.text = d.description;
     reasonNACtrl.text = d.reason;
+    fromAddressCtrl.text = d.fromaddress;
+    toAddressCtrl.text = d.toaddress;
     existingBillFiles = d.billfile.isNotEmpty
         ? d.billfile
-            .split(',')
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty)
-            .toList()
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
+        .toList()
         : [];
     existingDcFiles = d.dcfile.isNotEmpty
         ? d.dcfile
-            .split(',')
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty)
-            .toList()
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
+        .toList()
         : [];
 
-    _setDateCtrl(mrnDateCtrl, d.receiptdate);
+    _setDateCtrl(GrnDateCtrl, d.receiptdate);
     _setDateCtrl(billDateCtrl, d.billdate);
     _setDateCtrl(challanDateCtrl, d.dcdate);
     _setDateCtrl(grnDateCtrl, d.grndate);
@@ -1395,35 +1288,35 @@ class MrnController extends AppBaseController {
     if (d.partyid > 0) {
       selectedParty =
           partyList.firstWhereOrNull((p) => p.id == d.partyid.toString()) ??
-              MrnDropdownOption(id: d.partyid.toString(), label: d.partyname);
+              GrnDropdownOption(id: d.partyid.toString(), label: d.partyname);
     }
 
     // Site
     if (d.siteid > 0) {
       selectedSite =
           siteList.firstWhereOrNull((s) => s.id == d.siteid.toString()) ??
-              MrnDropdownOption(id: d.siteid.toString(), label: d.sitename);
+              GrnDropdownOption(id: d.siteid.toString(), label: d.sitename);
     }
 
     // Godown
     if (d.godownid > 0) {
       selectedGodown =
           godownList.firstWhereOrNull((g) => g.id == d.godownid.toString()) ??
-              MrnDropdownOption(id: d.godownid.toString(), label: d.godownname);
+              GrnDropdownOption(id: d.godownid.toString(), label: d.godownname);
     }
 
     // Series
     if (d.seriesid > 0) {
       selectedSeriesType = seriesTypeList
               .firstWhereOrNull((s) => s.id == d.seriesid.toString()) ??
-          MrnDropdownOption(id: d.seriesid.toString(), label: '');
+          GrnDropdownOption(id: d.seriesid.toString(), label: '');
     }
 
     // Customer PO
     if (d.customerpoid > 0) {
       selectedCustomerPo = customerPoList
               .firstWhereOrNull((c) => c.id == d.customerpoid.toString()) ??
-          MrnDropdownOption(id: d.customerpoid.toString(), label: '');
+          GrnDropdownOption(id: d.customerpoid.toString(), label: '');
     }
 
     // Paid type
@@ -1432,7 +1325,7 @@ class MrnController extends AppBaseController {
           paidTypeList.firstWhereOrNull((p) => p.label == d.paidtype);
       if (d.paidtype == 'Employee' && d.paidbyid > 0) {
         selectedPaidBy =
-            MrnDropdownOption(id: d.paidbyid.toString(), label: d.paidby);
+            GrnDropdownOption(id: d.paidbyid.toString(), label: d.paidby);
       }
     }
 
@@ -1440,17 +1333,28 @@ class MrnController extends AppBaseController {
     if (d.jobtypeid > 0) {
       selectedJobType =
           jobTypeList.firstWhereOrNull((j) => j.id == d.jobtypeid.toString()) ??
-              MrnDropdownOption(id: d.jobtypeid.toString(), label: '');
+              GrnDropdownOption(id: d.jobtypeid.toString(), label: '');
+    }
+    // ✅ NEW — apply real addresses from API
+    if (d.fromaddress.isNotEmpty) {
+      shippingAddress = GrnAddress(
+        label: 'From Address',
+        line1: d.fromaddress,
+      );
+    }
+    if (d.toaddress.isNotEmpty) {
+      billingAddress = GrnAddress(
+        label: 'To Address',
+        line1: d.toaddress,
+      );
     }
 
     // Source type
-    selectedSource = d.type == 'PO'
-        ? MrnSourceType.purchaseOrder
-        : MrnSourceType.directPurchase;
+    selectedSource = GrnSourceType.grn;
 
     // Items
     itemLines = d.items
-        .map((i) => MrnItemLine(
+        .map((i) => GrnItemLine(
               itemId: i.itemid.toString(),
               itemName: i.itemname,
               itemCode: i.itemid.toString(),
@@ -1474,8 +1378,8 @@ class MrnController extends AppBaseController {
               batchNo: i.batchno,
             ))
         .toList();
-
-    update();
+    if (kDebugMode) print('📦 Items populated: ${itemLines.length}');
+    update(['items_list']);
   }
 
   void _setDateCtrl(TextEditingController ctrl, String raw) {

@@ -3,18 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-import '../mrn_controller/mrn_controller.dart';
-import '../mrn_response/mrn_models.dart';
-import '../mrn_widgets.dart';
+import '../grn_controller/grn_controller.dart';
+import '../grn_response/grn_models.dart';
+import '../grn_widgets.dart';
 
-class MrnDirectItemForm extends StatefulWidget {
-  const MrnDirectItemForm({super.key});
+
+class GrnDirectItemForm extends StatefulWidget {
+  const GrnDirectItemForm({super.key});
 
   @override
-  State<MrnDirectItemForm> createState() => _MrnDirectItemFormState();
+  State<GrnDirectItemForm> createState() => _GrnDirectItemFormState();
 }
 
-class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
+class _GrnDirectItemFormState extends State<GrnDirectItemForm> {
   // Form controllers
   final _qtyCtrl = TextEditingController();
   final _rateCtrl = TextEditingController();
@@ -24,10 +25,10 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   final _discPctCtrl = TextEditingController(text: '0'); // ← add this
 
   // Selected values
-  MrnDropdownOption? _selectedItem;
-  MrnDropdownOption? _selectedUnit;
-  MrnDropdownOption? _selectedMake;
-  MrnDropdownOption? _selectedGodown;
+  GrnDropdownOption? _selectedItem;
+  GrnDropdownOption? _selectedUnit;
+  GrnDropdownOption? _selectedMake;
+  GrnDropdownOption? _selectedGodown;
 
   // ── NEW: tracks whether GST was auto-filled from API (locks field) ────────
   bool _gstFromApi = false;
@@ -46,17 +47,17 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   double get _gstAmt => _amount * _gstPct / 100;
   double get _totalAmt => _amount + _gstAmt;
 
-  MrnDropdownOption? get _effectiveGodown =>
-      _selectedGodown ?? Get.find<MrnController>().selectedGodown;
+  GrnDropdownOption? get _effectiveGodown =>
+      _selectedGodown ?? Get.find<GrnController>().selectedGodown;
 
   bool get _isValid =>
       _selectedItem != null &&
-      _selectedUnit != null &&
-      _selectedMake != null &&
-      _effectiveGodown != null &&
-      _qty > 0 &&
-      _rate > 0 &&
-      _gstPct >= 0;
+          _selectedUnit != null &&
+          _selectedMake != null &&
+          _effectiveGodown != null &&
+          _qty > 0 &&
+          _rate > 0 &&
+          _gstPct >= 0;
 
   // ── Reset all form fields ─────────────────────────────────────────────────
   void _resetForm() {
@@ -75,7 +76,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
     });
   }
 
-  void _addItem(MrnController ctrl) {
+  void _addItem(GrnController ctrl) {
     if (!_isValid) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,12 +121,12 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = Get.find<MrnController>();
+    final ctrl = Get.find<GrnController>();
     return Column(children: [
       // ── Add item form card ──────────────────────────────────────────────
-      MrnCard(
+      GrnCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const MrnSectionHead('Add Item'),
+          const GrnSectionHead('Add Item'),
 
           // ── Item Name / Code ────────────────────────────────────────────
           _SearchableField(
@@ -232,10 +233,10 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           Row(children: [
             Expanded(
                 child: _GstField(
-              controller: _gstCtrl,
-              isLocked: _gstFromApi,
-              onChanged: (_) => setState(() {}),
-            )),
+                  controller: _gstCtrl,
+                  isLocked: _gstFromApi,
+                  onChanged: (_) => setState(() {}),
+                )),
             const SizedBox(width: 10),
             // ✅ NEW: Discount %
             // ── Replace the Discount % NumField onChanged ──────────────────────────────
@@ -273,14 +274,14 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
                 // ✅ If user manually types flat ₹, clear the % field
                 final flat = double.tryParse(v) ?? 0;
                 final pctComputed =
-                    (_qty * _rate) > 0 ? (flat / (_qty * _rate) * 100) : 0.0;
+                (_qty * _rate) > 0 ? (flat / (_qty * _rate) * 100) : 0.0;
                 // Only clear % if it doesn't match the computed value
                 // (i.e. user is typing manually, not synced from % field)
                 final currentPct = double.tryParse(_discPctCtrl.text) ?? 0;
                 final expectedFlat = (_qty * _rate) * currentPct / 100;
                 if ((flat - expectedFlat).abs() > 0.01) {
                   _discPctCtrl.text =
-                      pctComputed > 0 ? pctComputed.toStringAsFixed(2) : '0';
+                  pctComputed > 0 ? pctComputed.toStringAsFixed(2) : '0';
                 }
               });
             },
@@ -288,7 +289,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           const SizedBox(height: 10),
 
           // ── Remarks ─────────────────────────────────────────────────────
-          MrnField(
+          GrnField(
             label: 'Remarks',
             controller: _remarksCtrl,
             hint: 'Optional note…',
@@ -312,7 +313,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           if (_qty > 0 && _rate > 0) const SizedBox(height: 14),
 
           // ── Add button ──────────────────────────────────────────────────
-          MrnPrimaryBtn(
+          GrnPrimaryBtn(
             label: 'Add Item',
             icon: Icons.add_rounded,
             color: newGreenColor,
@@ -322,42 +323,43 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
       ),
 
       // ── Added items list ────────────────────────────────────────────────
-      GetBuilder<MrnController>(
+      GetBuilder<GrnController>(
+        id: 'items_list',   // ← add this
         builder: (ctrl) => ctrl.itemLines.isEmpty
             ? const SizedBox.shrink()
-            : MrnCard(
-                padding: EdgeInsets.zero,
-                child: Column(children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                    child: MrnSectionHead(
-                      'Added Items',
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 3),
-                        decoration: BoxDecoration(
-                            color: newGreenLightColor,
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Text('${ctrl.itemLines.length} items',
-                            style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: newGreenColor)),
-                      ),
-                    ),
-                  ),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: ctrl.itemLines.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1, color: newBorderColor),
-                    itemBuilder: (_, i) => _DirectItemRow(
-                        item: ctrl.itemLines[i], ctrl: ctrl, index: i),
-                  ),
-                  _DirectTotalsFooter(ctrl: ctrl),
-                ]),
+            : GrnCard(
+          padding: EdgeInsets.zero,
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+              child: GrnSectionHead(
+                'Added Items',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: newGreenLightColor,
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text('${ctrl.itemLines.length} items',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: newGreenColor)),
+                ),
               ),
+            ),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: ctrl.itemLines.length,
+              separatorBuilder: (_, __) =>
+              const Divider(height: 1, color: newBorderColor),
+              itemBuilder: (_, i) => _DirectItemRow(
+                  item: ctrl.itemLines[i], ctrl: ctrl, index: i),
+            ),
+            _DirectTotalsFooter(ctrl: ctrl),
+          ]),
+        ),
       ),
     ]);
   }
@@ -426,22 +428,22 @@ class _GstField extends StatelessWidget {
           // Green tint when locked, normal when editable
           fillColor: isLocked ? newGreenLightColor : newSurfaceColor,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           // Lock icon suffix when locked
           suffixIcon: isLocked
               ? const Padding(
-                  padding: EdgeInsets.all(13),
-                  child:
-                      Icon(Icons.lock_rounded, size: 15, color: newGreenColor))
+              padding: EdgeInsets.all(13),
+              child:
+              Icon(Icons.lock_rounded, size: 15, color: newGreenColor))
               : null,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide:
-                  BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
+              BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide:
-                  BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
+              BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
@@ -530,28 +532,28 @@ class _CalcPreview extends StatelessWidget {
   }
 
   Widget _row(String label, String val) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: newBlueColor)),
-            Text(val,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: newBlueColor)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: newBlueColor)),
+        Text(val,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: newBlueColor)),
+      ],
+    ),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Added item row (compact, with delete)
 // ═══════════════════════════════════════════════════════════════════════════════
 class _DirectItemRow extends StatelessWidget {
-  final MrnItemLine item;
-  final MrnController ctrl;
+  final GrnItemLine item;
+  final GrnController ctrl;
   final int index;
   const _DirectItemRow(
       {required this.item, required this.ctrl, required this.index});
@@ -577,7 +579,7 @@ class _DirectItemRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(item.itemName,
                 style: const TextStyle(
                     fontSize: 13,
@@ -620,7 +622,7 @@ class _DirectItemRow extends StatelessWidget {
                   color: newRedLightColor,
                   borderRadius: BorderRadius.circular(7),
                   border:
-                      Border.all(color: newRedColor.withValues(alpha: 0.3))),
+                  Border.all(color: newRedColor.withValues(alpha: 0.3))),
               child: const Icon(Icons.delete_outline_rounded,
                   size: 15, color: newRedColor),
             ),
@@ -631,20 +633,20 @@ class _DirectItemRow extends StatelessWidget {
   }
 
   Widget _pill(String text, Color bg, Color fg) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration:
-            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(5)),
-        child: Text(text,
-            style:
-                TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration:
+    BoxDecoration(color: bg, borderRadius: BorderRadius.circular(5)),
+    child: Text(text,
+        style:
+        TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Totals footer for direct items
 // ═══════════════════════════════════════════════════════════════════════════════
 class _DirectTotalsFooter extends StatelessWidget {
-  final MrnController ctrl;
+  final GrnController ctrl;
   const _DirectTotalsFooter({required this.ctrl});
 
   @override
@@ -679,17 +681,17 @@ class _DirectTotalsFooter extends StatelessWidget {
   }
 
   Widget _row(String l, String v) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(l,
-              style: const TextStyle(fontSize: 12, color: newTextSecondary)),
-          Text(v,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: newTextPrimary)),
-        ],
-      );
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(l,
+          style: const TextStyle(fontSize: 12, color: newTextSecondary)),
+      Text(v,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: newTextPrimary)),
+    ],
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -697,11 +699,11 @@ class _DirectTotalsFooter extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 class _SearchableField extends StatelessWidget {
   final String label, hint;
-  final MrnDropdownOption? value;
-  final List<MrnDropdownOption> items;
+  final GrnDropdownOption? value;
+  final List<GrnDropdownOption> items;
   final bool isLoading;
   final bool hasError;
-  final ValueChanged<MrnDropdownOption?> onChanged;
+  final ValueChanged<GrnDropdownOption?> onChanged;
 
   const _SearchableField({
     required this.label,
@@ -726,18 +728,18 @@ class _SearchableField extends StatelessWidget {
         onTap: isLoading
             ? null
             : () async {
-                final picked = await showModalBottomSheet<MrnDropdownOption>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.white,
-                  shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20))),
-                  builder: (_) =>
-                      _PickerSheet(title: label, items: items, selected: value),
-                );
-                if (picked != null) onChanged(picked);
-              },
+          final picked = await showModalBottomSheet<GrnDropdownOption>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+                borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20))),
+            builder: (_) =>
+                _PickerSheet(title: label, items: items, selected: value),
+          );
+          if (picked != null) onChanged(picked);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           decoration: BoxDecoration(
@@ -754,18 +756,18 @@ class _SearchableField extends StatelessWidget {
             Expanded(
               child: isLoading
                   ? const SizedBox(
-                      height: 14,
-                      width: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 1.5, color: newBlueColor))
+                  height: 14,
+                  width: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: newBlueColor))
                   : Text(
-                      value?.label ?? hint,
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: value != null
-                              ? newTextPrimary
-                              : newTextSecondary),
-                    ),
+                value?.label ?? hint,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: value != null
+                        ? newTextPrimary
+                        : newTextSecondary),
+              ),
             ),
             const Icon(Icons.keyboard_arrow_down_rounded,
                 size: 18, color: newTextSecondary),
@@ -779,8 +781,8 @@ class _SearchableField extends StatelessWidget {
 // ── Bottom sheet picker ───────────────────────────────────────────────────────
 class _PickerSheet extends StatefulWidget {
   final String title;
-  final List<MrnDropdownOption> items;
-  final MrnDropdownOption? selected;
+  final List<GrnDropdownOption> items;
+  final GrnDropdownOption? selected;
   const _PickerSheet({required this.title, required this.items, this.selected});
 
   @override
@@ -794,8 +796,8 @@ class _PickerSheetState extends State<_PickerSheet> {
   Widget build(BuildContext context) {
     final filtered = widget.items
         .where((i) =>
-            i.label.toLowerCase().contains(_query.toLowerCase()) ||
-            i.id.toLowerCase().contains(_query.toLowerCase()))
+    i.label.toLowerCase().contains(_query.toLowerCase()) ||
+        i.id.toLowerCase().contains(_query.toLowerCase()))
         .toList();
 
     return DraggableScrollableSheet(
@@ -805,7 +807,7 @@ class _PickerSheetState extends State<_PickerSheet> {
       expand: false,
       builder: (_, sc) => Padding(
         padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Column(children: [
           const SizedBox(height: 10),
           Container(
@@ -838,7 +840,7 @@ class _PickerSheetState extends State<_PickerSheet> {
                 filled: true,
                 fillColor: newSurfaceColor,
                 border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ),
@@ -846,52 +848,52 @@ class _PickerSheetState extends State<_PickerSheet> {
           Expanded(
             child: filtered.isEmpty
                 ? const Center(
-                    child: Text('No results',
-                        style: TextStyle(color: newTextSecondary)))
+                child: Text('No results',
+                    style: TextStyle(color: newTextSecondary)))
                 : ListView.builder(
-                    controller: sc,
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) {
-                      final item = filtered[i];
-                      final isSelected = item.id == widget.selected?.id;
-                      return ListTile(
-                        dense: true,
-                        onTap: () => Navigator.pop(context, item),
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                              color: isSelected
-                                  ? newBlueLightColor
-                                  : newSurfaceColor,
-                              borderRadius: BorderRadius.circular(8)),
-                          alignment: Alignment.center,
-                          child: Text(
-                            item.id.length <= 4 ? item.id : '•',
-                            style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected
-                                    ? newBlueColor
-                                    : newTextSecondary),
-                          ),
-                        ),
-                        title: Text(item.label,
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: isSelected
-                                    ? newBlueColor
-                                    : newTextPrimary)),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded,
-                                size: 18, color: newBlueColor)
-                            : null,
-                      );
-                    },
+              controller: sc,
+              itemCount: filtered.length,
+              itemBuilder: (_, i) {
+                final item = filtered[i];
+                final isSelected = item.id == widget.selected?.id;
+                return ListTile(
+                  dense: true,
+                  onTap: () => Navigator.pop(context, item),
+                  leading: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: isSelected
+                            ? newBlueLightColor
+                            : newSurfaceColor,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: Text(
+                      item.id.length <= 4 ? item.id : '•',
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected
+                              ? newBlueColor
+                              : newTextSecondary),
+                    ),
                   ),
+                  title: Text(item.label,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? newBlueColor
+                              : newTextPrimary)),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle_rounded,
+                      size: 18, color: newBlueColor)
+                      : null,
+                );
+              },
+            ),
           ),
         ]),
       ),
@@ -940,7 +942,7 @@ class _NumField extends StatelessWidget {
           filled: true,
           fillColor: newSurfaceColor,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(

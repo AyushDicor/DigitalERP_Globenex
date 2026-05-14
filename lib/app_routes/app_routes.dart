@@ -88,6 +88,9 @@ class AppRoutes {
   static const filterMRN = '/filterMrn';
   static const materialReceiptScreen = '/materialReceived';
 
+  //GRN Module
+  static const grnScreen = '/grn';
+
   static const String approvalHub = '/approvalHubDashboard';  // ← ADD
 
 }
