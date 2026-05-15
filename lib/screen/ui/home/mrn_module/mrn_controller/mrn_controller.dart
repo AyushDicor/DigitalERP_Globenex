@@ -795,27 +795,42 @@ class MrnController extends AppBaseController {
         if (res.status == true && res.statusCode == 200) {
           final jsonData = res.data as Map<String, dynamic>?;
           // ✅ Same extraction pattern as PaymentRequestController
-          final filename = jsonData?['data']?['filename'] as String? ??
+          String filename = jsonData?['data']?['filename'] as String? ??
+              jsonData?['data']?['file_name'] as String? ??
+              jsonData?['data']?['originalname'] as String? ??
               jsonData?['filename'] as String? ??
+              jsonData?['file_name'] as String? ??
               '';
+
+          if (filename.contains('/')) {
+            filename = filename.split('/').last;
+          }
+
+          // ✅ If API returned empty but upload succeeded, fall back to original file name
+          if (filename.isEmpty) {
+            filename = doc.fileName; // e.g. "20250514_173201.jpg"
+          }
+
+          // ✅ Ensure extension is present — add from original if missing
+          if (!filename.contains('.')) {
+            final originalExt = doc.fileName.contains('.')
+                ? '.${doc.fileName.split('.').last}'
+                : '';
+            filename = '$filename$originalExt';
+          }
 
           if (filename.isNotEmpty) {
             uploadedNames.add(filename);
-          } else {
-            if (kDebugMode)
-              print('MRN upload: filename empty for ${doc.fileName}');
+            if (kDebugMode) print('✅ Uploaded: $filename');
           }
         } else {
-          ShowMessage.showSnackBar(
-              'Upload Failed', 'Could not upload ${doc.fileName}');
+          ShowMessage.showSnackBar('Upload Failed', 'Could not upload ${doc.fileName}');
         }
       } catch (e) {
-        if (kDebugMode) print('MRN upload error for ${doc.fileName}: $e');
+        if (kDebugMode) print('❌ Upload error for ${doc.fileName}: $e');
         ShowMessage.showSnackBar('Upload Error', '${doc.fileName}: $e');
       }
     }
-
-    // ✅ Multiple files → comma separated (same as payment request)
     return uploadedNames.join(',');
   }
 
