@@ -739,4 +739,3 @@ class GrnItemLine {
   double get lineTotal => totalAmount;
 }
 
-

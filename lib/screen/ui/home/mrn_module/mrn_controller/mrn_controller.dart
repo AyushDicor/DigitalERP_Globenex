@@ -20,7 +20,7 @@ class MrnController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
-  int currentStep = 0; // 0=Source  1=Items  2=Review
+  int currentStep = 0;
   final PageController pageController = PageController();
 
   // ── Step 1: Header ─────────────────────────────────────────────────────────
@@ -39,6 +39,8 @@ class MrnController extends AppBaseController {
   List<MrnDropdownOption> partyList = [];
   MrnDropdownOption? selectedParty;
   bool isLoadingParty = false;
+  bool get isSourceLocked => isEditMode;
+  bool get isPartyLocked => isEditMode;
 
   void setParty(MrnDropdownOption? v) {
     selectedParty = v;
@@ -62,7 +64,13 @@ class MrnController extends AppBaseController {
   MrnDropdownOption? selectedGodown;
   bool isLoadingGodown = false;
 
-  // ── Bill / Challan ─────────────────────────────────────────────────────────
+  // ── Document Type ──────────────────────────────────────────────────────────
+  List<MrnDropdownOption> documentTypeList = [];
+  bool isLoadingDocumentTypes = false;
+  Set<String> selectedDocumentTypeIds = {};
+
+  String get selectedDocumentTypesString => selectedDocumentTypeIds.join(',');
+
   final TextEditingController billNoCtrl = TextEditingController();
   final TextEditingController billDateCtrl = TextEditingController();
   final TextEditingController challanNoCtrl = TextEditingController();
@@ -109,10 +117,9 @@ class MrnController extends AppBaseController {
   MrnDropdownOption? selectedWorkOrder;
   bool isLoadingWorkOrder = false;
 
-  List<String> existingBillFiles = []; // URLs from server
+  List<String> existingBillFiles = [];
   List<String> existingDcFiles = [];
 
-  // Add these fields to MrnController:
   final TextEditingController lotNoCtrl = TextEditingController();
   final TextEditingController grnNoCtrl = TextEditingController();
   final TextEditingController grnDateCtrl = TextEditingController();
@@ -138,7 +145,7 @@ class MrnController extends AppBaseController {
 
   bool isLoadingItemDetail = false;
 
-  //Edit
+  // ── Edit ───────────────────────────────────────────────────────────────────
   bool isEditMode = false;
   int? editStockId;
 
@@ -172,7 +179,6 @@ class MrnController extends AppBaseController {
     _setLoggedInUser();
     _fetchAllDropdowns();
 
-    // ✅ Check if opened from MRN List (edit mode)
     final args = Get.arguments;
     if (args is MrnListItem) {
       isEditMode = true;
@@ -205,12 +211,9 @@ class MrnController extends AppBaseController {
     currentStep = step;
     pageController.animateToPage(step,
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-
-    // ✅ Only PO source needs refresh
     if (step == 1 && selectedSource == MrnSourceType.purchaseOrder) {
       fetchPendingPoList();
     }
-
     update();
   }
 
@@ -225,7 +228,6 @@ class MrnController extends AppBaseController {
     processingPo = null;
     existingBillFiles = [];
     existingDcFiles = [];
-    // ✅ Only PO needs the list fetch now
     if (src == MrnSourceType.purchaseOrder) {
       fetchPendingPoList();
     }
@@ -240,11 +242,14 @@ class MrnController extends AppBaseController {
 
   void setSite(MrnDropdownOption? v) {
     selectedSite = v;
-    // Re-fetch work orders with both ids
-    fetchWorkOrders(
-      partyId: int.tryParse(selectedParty?.id ?? '0') ?? 0,
-      siteId: int.tryParse(v?.id ?? '0') ?? 0,
-    );
+    selectedCustomerPo = null;
+    selectedGodown = null;
+    final siteId = int.tryParse(v?.id ?? '0') ?? 0;
+    final partyId = int.tryParse(selectedParty?.id ?? '0') ?? 0;
+    fetchWorkOrders(partyId: partyId, siteId: siteId);
+    fetchCustomerPOs(siteId: siteId);
+    fetchGodowns(siteId: siteId);
+
     update();
   }
 
@@ -258,19 +263,95 @@ class MrnController extends AppBaseController {
     update();
   }
 
+  // ── ✅ Customer PO selected → fetch dependent detail to auto-fill Job Type ──
   void setCustomerPo(MrnDropdownOption? v) {
     selectedCustomerPo = v;
+    _refreshWorkOrders();
     update();
+
+    if (v != null && v.id.isNotEmpty) {
+      _fetchDependentDetail(
+        type: 'customerpo',
+        dependentId: v.id,
+        onResult: (detail) {
+          // Customer PO selection → auto-fill Job Type only
+          if (detail.hasJobType) {
+            final matched = jobTypeList.firstWhereOrNull(
+              (j) => j.id == detail.jobtypeid.toString(),
+            );
+            if (matched != null) {
+              selectedJobType = matched;
+              if (kDebugMode) {
+                print(
+                    '✅ Auto-filled JobType from CustomerPO: ${matched.label}');
+              }
+              update();
+            }
+          }
+        },
+      );
+    }
   }
 
+  // ── ✅ Job Type selected → (no dependent call needed, just refresh work orders)
   void setJobType(MrnDropdownOption? v) {
     selectedJobType = v;
+    _refreshWorkOrders();
     update();
   }
 
+  // ── ✅ Work Order selected → fetch dependent detail to auto-fill Job Type + Customer PO ──
   void setWorkOrder(MrnDropdownOption? v) {
     selectedWorkOrder = v;
     update();
+
+    if (v != null && v.id.isNotEmpty) {
+      _fetchDependentDetail(
+        type: 'workorder',
+        dependentId: v.id,
+        onResult: (detail) {
+          bool changed = false;
+
+          // Auto-fill Job Type
+          if (detail.hasJobType) {
+            final matched = jobTypeList.firstWhereOrNull(
+              (j) => j.id == detail.jobtypeid.toString(),
+            );
+            if (matched != null) {
+              selectedJobType = matched;
+              changed = true;
+              if (kDebugMode) {
+                print('✅ Auto-filled JobType from WorkOrder: ${matched.label}');
+              }
+            }
+          }
+
+          // Auto-fill Customer PO
+          if (detail.hasCustomerPo) {
+            final matched = customerPoList.firstWhereOrNull(
+              (c) => c.id == detail.customerpoid.toString(),
+            );
+            if (matched != null) {
+              selectedCustomerPo = matched;
+              changed = true;
+              if (kDebugMode) {
+                print(
+                    '✅ Auto-filled CustomerPO from WorkOrder: ${matched.label}');
+              }
+            } else {
+              // Not yet in list — create a stub so it can be matched later
+              selectedCustomerPo = MrnDropdownOption(
+                id: detail.customerpoid.toString(),
+                label: '',
+              );
+              changed = true;
+            }
+          }
+
+          if (changed) update();
+        },
+      );
+    }
   }
 
   void toggleAttachmentType(MrnAttachmentType type) {
@@ -298,65 +379,52 @@ class MrnController extends AppBaseController {
   void _rematchEditSelections() {
     if (!isEditMode || editStockId == null) return;
 
-    // Godown
     if (selectedGodown != null && godownList.isNotEmpty) {
-      selectedGodown = godownList
-          .firstWhereOrNull((g) => g.id == selectedGodown!.id)
-          ?? selectedGodown;
+      selectedGodown =
+          godownList.firstWhereOrNull((g) => g.id == selectedGodown!.id) ??
+              selectedGodown;
     }
-
-    // Job Type
     if (selectedJobType != null && jobTypeList.isNotEmpty) {
-      selectedJobType = jobTypeList
-          .firstWhereOrNull((j) => j.id == selectedJobType!.id)
-          ?? selectedJobType;
+      selectedJobType =
+          jobTypeList.firstWhereOrNull((j) => j.id == selectedJobType!.id) ??
+              selectedJobType;
     }
-
-    // Series
     if (selectedSeriesType != null && seriesTypeList.isNotEmpty) {
       selectedSeriesType = seriesTypeList
-          .firstWhereOrNull((s) => s.id == selectedSeriesType!.id)
-          ?? selectedSeriesType;
+              .firstWhereOrNull((s) => s.id == selectedSeriesType!.id) ??
+          selectedSeriesType;
     }
-
-    // Customer PO
     if (selectedCustomerPo != null && customerPoList.isNotEmpty) {
       selectedCustomerPo = customerPoList
-          .firstWhereOrNull((c) => c.id == selectedCustomerPo!.id)
-          ?? selectedCustomerPo;
+              .firstWhereOrNull((c) => c.id == selectedCustomerPo!.id) ??
+          selectedCustomerPo;
     }
-
-    // Site
     if (selectedSite != null && siteList.isNotEmpty) {
-      selectedSite = siteList
-          .firstWhereOrNull((s) => s.id == selectedSite!.id)
-          ?? selectedSite;
+      selectedSite =
+          siteList.firstWhereOrNull((s) => s.id == selectedSite!.id) ??
+              selectedSite;
     }
-
-    // Party
     if (selectedParty != null && partyList.isNotEmpty) {
-      selectedParty = partyList
-          .firstWhereOrNull((p) => p.id == selectedParty!.id)
-          ?? selectedParty;
+      selectedParty =
+          partyList.firstWhereOrNull((p) => p.id == selectedParty!.id) ??
+              selectedParty;
     }
 
     update();
   }
 
-  // ── Financial year string (e.g. "2026-27") ────────────────────────────────
-  // ✅ FIXED — e.g. May 2026 → "2026-27"
+  // ── Financial year string ─────────────────────────────────────────────────
   String get currentYearId {
     final now = DateTime.now();
     final fyStart = now.month >= 4 ? now.year : now.year - 1;
     final fyEnd = fyStart + 1;
-    // Last 2 digits of fyEnd
     final fyEndShort = fyEnd.toString().substring(2);
-    return '$fyStart-$fyEndShort'; // "2026-27"
+    return '$fyStart-$fyEndShort';
   }
 
   void setPaidType(MrnDropdownOption? v) {
     selectedPaidType = v;
-    selectedPaidBy = null; // reset paid by on type change
+    selectedPaidBy = null;
     if (v?.id == 'Employee') {
       fetchPaidByEmployees();
     } else {
@@ -371,23 +439,14 @@ class MrnController extends AppBaseController {
   }
 
   void _prefillFromListItem(MrnListItem item) {
-
-    // Pre-fill what we have from the list
     mrnNumber = item.mrnNo;
     billNoCtrl.text = item.billNo;
-
-    // Parse mrnDate from dd-MM-yyyy to dd/MM/yyyy
     try {
       final date = DateFormat('dd-MM-yyyy').parse(item.mrnDate);
       mrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(date);
     } catch (_) {}
-
-    // Pre-fill party name as text (dropdown will be matched after parties load)
     partyNameCtrl.text = item.partyName;
-
     update();
-
-    // ✅ Fetch full MRN detail from API to fill remaining fields
     _fetchMrnDetail(item.id);
   }
 
@@ -405,6 +464,80 @@ class MrnController extends AppBaseController {
     }
   }
 
+  Future<void> fetchDocumentTypes() async {
+    isLoadingDocumentTypes = true;
+    update();
+    try {
+      final res = await api.getMrnDropdownList(
+        _mrnDropdownBody(
+          'documentlist',
+          partyId: int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        ),
+      );
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        documentTypeList = res.data!;
+        if (selectedDocumentTypeIds.isEmpty) {
+          selectedDocumentTypeIds = documentTypeList.map((d) => d.id).toSet();
+        }
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Document Type', '$e');
+    } finally {
+      isLoadingDocumentTypes = false;
+      update();
+    }
+  }
+
+  void toggleDocumentType(String id) {
+    if (selectedDocumentTypeIds.contains(id)) {
+      selectedDocumentTypeIds.remove(id);
+    } else {
+      selectedDocumentTypeIds.add(id);
+    }
+    update();
+  }
+
+  // ── ✅ NEW: Central dependent detail fetcher ───────────────────────────────
+  /// Calls getdependentalldetail and passes the result to [onResult].
+  /// Silently swallows errors — auto-fill is best-effort, never blocking.
+  Future<void> _fetchDependentDetail({
+    required String type,
+    required String dependentId,
+    required void Function(DependentDetail detail) onResult,
+  }) async {
+    if (dependentId.isEmpty || dependentId == '0') return;
+
+    try {
+      final req = DependentDetailRequest(
+        type: type,
+        compid: homeController.currentUserData?.compId ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
+        dependentid: dependentId,
+      );
+
+      if (kDebugMode) {
+        print(
+            '🔗 getDependentAllDetail ▶ type=$type  dependentid=$dependentId');
+      }
+
+      final res = await api.getDependentAllDetail(req);
+
+      if (kDebugMode) {
+        print(
+            '🔗 getDependentAllDetail ◀ status=${res.status}  data=${res.data?.toJson()}');
+      }
+
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        onResult(res.data!);
+      }
+    } catch (e) {
+      // Non-critical — log only, never show a snackbar for auto-fill failure
+      if (kDebugMode) print('⚠️ getDependentAllDetail error ($type): $e');
+    }
+  }
+
   Future<void> _fetchMrnDetail(int stockid) async {
     setBusy(true);
     try {
@@ -412,15 +545,10 @@ class MrnController extends AppBaseController {
         'stockid': stockid,
         'compid': homeController.currentUserData?.compId ?? 0,
         'branchid': homeController.currentUserData?.branchId ?? 0,
-        // ✅ NO userid — API doesn't use it
       };
-
       if (kDebugMode) print('🔍 MRN Detail Request: $body');
-
       final res = await api.getMrnDetail(body);
-
       if (kDebugMode) print('📥 MRN Detail: ${res.status} | ${res.message}');
-
       if ((res.status == 200 || res.success == true) && res.data != null) {
         _applyMrnDetail(res.data!);
       } else {
@@ -526,27 +654,20 @@ class MrnController extends AppBaseController {
     }
   }
 
-// ── Also fix gallery to support multiple images ────────────────────────────
   Future<void> _pickImageGallery(MrnAttachmentType type) async {
     try {
       final xfiles = await picker.pickMultiImage(imageQuality: 75);
       for (final f in xfiles) {
         final file = File(f.path);
         final bytes = await file.length();
-        _addAttachment(
-          f.path,
-          'image',
-          'Gallery',
-          type,
-          overrideSize: _formatBytes(bytes),
-        );
+        _addAttachment(f.path, 'image', 'Gallery', type,
+            overrideSize: _formatBytes(bytes));
       }
     } catch (e) {
       ShowMessage.showSnackBar('Gallery', 'Could not open gallery: $e');
     }
   }
 
-// ── Replace _fileSize with _formatBytes ────────────────────────────────────
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
@@ -559,13 +680,8 @@ class MrnController extends AppBaseController {
           await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
       if (xfile != null) {
         final bytes = await File(xfile.path).length();
-        _addAttachment(
-          xfile.path,
-          'image',
-          'Camera',
-          type,
-          overrideSize: _formatBytes(bytes),
-        );
+        _addAttachment(xfile.path, 'image', 'Camera', type,
+            overrideSize: _formatBytes(bytes));
       }
     } catch (e) {
       ShowMessage.showSnackBar('Camera', 'Could not open camera: $e');
@@ -593,56 +709,6 @@ class MrnController extends AppBaseController {
     }
     update();
   }
-
-  // ── Step 2: PO selection ───────────────────────────────────────────────────
-  // Future<void> togglePO(MrnPOItem po) async {
-  //   po.isSelected = !po.isSelected;
-  //   update();
-  //   if (po.isSelected) {
-  //     await _loadItemsForPO(po.poNumber);
-  //   } else {
-  //     itemLines.removeWhere((i) => i.orderNo == po.poNumber);
-  //     update();
-  //   }
-  // }
-  // Future<void> _loadItemsForPO(String poNumber) async {
-  //   // Find the matching PO from the list
-  //   final po = poList.firstWhereOrNull((p) => p.orderid.toString() == poNumber || p.orderno == poNumber);
-  //   if (po == null) return;
-  //
-  //   isLoadingItems = true;
-  //   update();
-  //   try {
-  //     final req = GetPendingPoRequest(
-  //       compid:   homeController.currentUserData?.compId ?? 0,
-  //       branchid: homeController.currentUserData?.branchId ?? 0,
-  //       userid:   homeController.currentUserData?.userid ?? 0,
-  //       partyid:  int.tryParse(selectedParty?.id ?? '0') ?? 0,
-  //       siteid:   int.tryParse(selectedSite?.id  ?? '0') ?? 0,
-  //       orderid:  po.orderid.toString(),
-  //       stockid:  po.stockid,
-  //     );
-  //     final res = await api.getPendingPoItems(req);
-  //     if ((res.status == 200 || res.success == true) &&
-  //         res.data != null && res.data!.isNotEmpty) {
-  //       final loaded = res.data!
-  //           .map((raw) => raw.toItemLine(poNumber: po.orderid.toString()))
-  //           .toList();
-  //       for (final item in loaded) {
-  //         if (!itemLines.any((i) => i.itemId == item.itemId)) {
-  //           itemLines.add(item);
-  //         }
-  //       }
-  //     } else {
-  //       ShowMessage.showSnackBar('Items', res.message ?? 'No items found for this PO');
-  //     }
-  //   } catch (e) {
-  //     ShowMessage.showSnackBar('Error', 'Failed to load items: $e');
-  //   } finally {
-  //     isLoadingItems = false;
-  //     update();
-  //   }
-  // }
 
   // ── Item interactions ──────────────────────────────────────────────────────
   void toggleItemExpanded(MrnItemLine item) {
@@ -708,7 +774,6 @@ class MrnController extends AppBaseController {
     return selectedGodown?.label ?? '—';
   }
 
-  // ── Direct purchase: add item ──────────────────────────────────────────────
   void addDirectItem({
     required String itemName,
     required String itemCode,
@@ -739,7 +804,7 @@ class MrnController extends AppBaseController {
           : (qty * rate) > 0
               ? (discount / (qty * rate) * 100)
               : 0,
-      discountAmount: discount, // ✅ store flat amount too
+      discountAmount: discount,
       gstPercent: gstPct,
       selectedGodownId: godownId,
       remarks: remarks,
@@ -747,15 +812,94 @@ class MrnController extends AppBaseController {
     update();
   }
 
+  // ── ✅ PO selected → fetch dependent detail for all selected PO ids ────────
   void togglePOSelection(PendingPoItem po) {
     for (final p in poList) {
       p.isSelected = false;
     }
     po.isSelected = true;
     processingPo = po;
-    // Clear any previously loaded items when user changes PO selection
     itemLines.clear();
+    _refreshWorkOrders();
     update();
+
+    // Auto-fill Job Type + Customer PO from the selected PO's orderid
+    _fetchDependentDetail(
+      type: 'po',
+      dependentId: po.orderid.toString(),
+      onResult: (detail) {
+        bool changed = false;
+
+        // Auto-fill Job Type
+        if (detail.hasJobType) {
+          final matched = jobTypeList.firstWhereOrNull(
+            (j) => j.id == detail.jobtypeid.toString(),
+          );
+          if (matched != null) {
+            selectedJobType = matched;
+            changed = true;
+            if (kDebugMode) {
+              print('✅ Auto-filled JobType from PO: ${matched.label}');
+            }
+          }
+        }
+
+        // Auto-fill Customer PO
+        if (detail.hasCustomerPo) {
+          final matched = customerPoList.firstWhereOrNull(
+            (c) => c.id == detail.customerpoid.toString(),
+          );
+          if (matched != null) {
+            selectedCustomerPo = matched;
+            changed = true;
+            if (kDebugMode) {
+              print('✅ Auto-filled CustomerPO from PO: ${matched.label}');
+            }
+          } else {
+            // Stub — will be resolved once customerPoList loads
+            selectedCustomerPo = MrnDropdownOption(
+              id: detail.customerpoid.toString(),
+              label: '',
+            );
+            changed = true;
+          }
+        }
+
+        if (changed) update();
+      },
+    );
+  }
+
+  /// Call this when MULTIPLE POs are involved (if you extend to multi-PO mode).
+  /// Passes comma-separated ids: "27658,27659"
+  void _fetchDependentForMultiplePOs(List<PendingPoItem> selectedPos) {
+    if (selectedPos.isEmpty) return;
+    final ids = selectedPos.map((p) => p.orderid.toString()).join(',');
+    _fetchDependentDetail(
+      type: 'po',
+      dependentId: ids,
+      onResult: (detail) {
+        bool changed = false;
+        if (detail.hasJobType) {
+          final matched = jobTypeList.firstWhereOrNull(
+            (j) => j.id == detail.jobtypeid.toString(),
+          );
+          if (matched != null) {
+            selectedJobType = matched;
+            changed = true;
+          }
+        }
+        if (detail.hasCustomerPo) {
+          final matched = customerPoList.firstWhereOrNull(
+            (c) => c.id == detail.customerpoid.toString(),
+          );
+          selectedCustomerPo = matched ??
+              MrnDropdownOption(id: detail.customerpoid.toString(), label: '');
+          changed = true;
+        }
+        if (changed) update();
+      },
+    );
   }
 
   Future<MrnItemDetail?> fetchItemDetail(int itemid) async {
@@ -781,50 +925,35 @@ class MrnController extends AppBaseController {
   // ── File upload helper ─────────────────────────────────────────────────────
   Future<String> _uploadAttachments(List<MrnDocument> docs) async {
     if (docs.isEmpty) return '';
-
     final List<String> uploadedNames = [];
-
     for (final doc in docs) {
-      // Skip mock/dummy files (no real path)
       if (doc.filePath.isEmpty) continue;
-
       try {
         final res =
             await ReimbursementRepo.uploadReimbursementFile(doc.filePath);
-
         if (res.status == true && res.statusCode == 200) {
           final jsonData = res.data as Map<String, dynamic>?;
-          // ✅ Same extraction pattern as PaymentRequestController
           String filename = jsonData?['data']?['filename'] as String? ??
               jsonData?['data']?['file_name'] as String? ??
               jsonData?['data']?['originalname'] as String? ??
               jsonData?['filename'] as String? ??
               jsonData?['file_name'] as String? ??
               '';
-
-          if (filename.contains('/')) {
-            filename = filename.split('/').last;
-          }
-
-          // ✅ If API returned empty but upload succeeded, fall back to original file name
-          if (filename.isEmpty) {
-            filename = doc.fileName; // e.g. "20250514_173201.jpg"
-          }
-
-          // ✅ Ensure extension is present — add from original if missing
+          if (filename.contains('/')) filename = filename.split('/').last;
+          if (filename.isEmpty) filename = doc.fileName;
           if (!filename.contains('.')) {
             final originalExt = doc.fileName.contains('.')
                 ? '.${doc.fileName.split('.').last}'
                 : '';
             filename = '$filename$originalExt';
           }
-
           if (filename.isNotEmpty) {
             uploadedNames.add(filename);
             if (kDebugMode) print('✅ Uploaded: $filename');
           }
         } else {
-          ShowMessage.showSnackBar('Upload Failed', 'Could not upload ${doc.fileName}');
+          ShowMessage.showSnackBar(
+              'Upload Failed', 'Could not upload ${doc.fileName}');
         }
       } catch (e) {
         if (kDebugMode) print('❌ Upload error for ${doc.fileName}: $e');
@@ -836,7 +965,6 @@ class MrnController extends AppBaseController {
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   Future<void> submitMRN() async {
-    // Validations
     if (partyNameCtrl.text.trim().isEmpty) {
       ShowMessage.showSnackBar('Validation', 'Please select a party');
       return;
@@ -856,16 +984,13 @@ class MrnController extends AppBaseController {
 
     setBusy(true);
     try {
-      // ── Step 1: Upload bill attachments ───────────────────────────────
       final billFileStr = billAttachments.isNotEmpty
           ? await _uploadAttachments(billAttachments)
-          : existingBillFiles.join(','); // ✅ keep existing if no new upload
-
+          : existingBillFiles.join(',');
       final challanFileStr = challanAttachments.isNotEmpty
           ? await _uploadAttachments(challanAttachments)
           : existingDcFiles.join(',');
 
-      // ── Parse dates to ISO ──────────────────────────────────────────────
       DateTime parseDate(String d) {
         try {
           return DateFormat('dd/MM/yyyy').parse(d);
@@ -874,7 +999,6 @@ class MrnController extends AppBaseController {
         }
       }
 
-      // ── Build items list ────────────────────────────────────────────────
       final items = itemLines
           .map((i) => {
                 'itemname': i.itemName,
@@ -909,7 +1033,6 @@ class MrnController extends AppBaseController {
               })
           .toList();
 
-      // ── Build request body ────────────────────────────────────────────
       final body = {
         'stockid': isEditMode ? (editStockId ?? 0) : 0,
         'type': selectedSource == MrnSourceType.purchaseOrder ? 'PO' : 'Direct',
@@ -947,7 +1070,7 @@ class MrnController extends AppBaseController {
         'mrntype': '',
         'gateentryNo': gateEntryNoCtrl.text.trim(),
         'billfile': billFileStr,
-        'filetypeId': billAttachments.isNotEmpty ? 1 : 0,
+        'filetypeid': selectedDocumentTypesString,
         'dcno': challanNoCtrl.text.trim(),
         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
         'dcfile': challanFileStr,
@@ -963,7 +1086,6 @@ class MrnController extends AppBaseController {
         'mrnitems': items,
       };
 
-// ── Pretty-print log matching exact API schema ────────────────────
       if (kDebugMode) {
         const encoder = JsonEncoder.withIndent('  ');
         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -1024,7 +1146,6 @@ class MrnController extends AppBaseController {
       fetchSeriesTypes(),
       fetchSites(),
       fetchGodowns(),
-      //  fetchPaidTypes(),
       fetchCustomerPOs(),
       fetchJobTypes(),
       fetchWorkOrders(),
@@ -1034,10 +1155,11 @@ class MrnController extends AppBaseController {
       fetchParties(),
       fetchAddresses(),
       _loadPOList(),
+      fetchDocumentTypes(),
     ]);
   }
 
-  // ── Individual fetch methods (real API) ────────────────────────────────────
+  // ── Individual fetch methods ───────────────────────────────────────────────
   Future<void> fetchSeriesTypes() async {
     isLoadingSeriesType = true;
     update();
@@ -1053,14 +1175,13 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Series', '$e');
     } finally {
       isLoadingSeriesType = false;
-      _rematchEditSelections(); // ✅
+      _rematchEditSelections();
       update();
     }
   }
 
   Future<void> fetchSites({int partyId = 0}) async {
     isLoadingSite = true;
-    // ✅ Only reset if NOT edit mode — don't wipe the prefilled site
     if (!isEditMode) selectedSite = null;
     update();
     try {
@@ -1074,41 +1195,54 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Site', '$e');
     } finally {
       isLoadingSite = false;
-      _rematchEditSelections(); // ✅
+      _rematchEditSelections();
       update();
     }
   }
 
-  Future<void> fetchGodowns() async {
+  Future<void> fetchGodowns({int siteId = 0}) async {
     isLoadingGodown = true;
+    selectedGodown = null;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('Godown'));
+      final res = await api.getMrnDropdownList(_mrnDropdownBody(
+        'Godown',
+        siteId: siteId,
+      ));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         godownList = res.data!;
+
+        if (godownList.isNotEmpty) {
+          selectedGodown = godownList.first;
+        }
       }
     } catch (e) {
       ShowMessage.showSnackBar('Godown', '$e');
     } finally {
       isLoadingGodown = false;
-      _rematchEditSelections(); // ✅ re-match after load
+      _rematchEditSelections();
       update();
     }
   }
 
-  Future<void> fetchCustomerPOs() async {
+  Future<void> fetchCustomerPOs({int siteId = 0}) async {
     isLoadingCustomerPo = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(_mrnDropdownBody('customerorder'));
+      final res = await api.getMrnDropdownList(
+          _mrnDropdownBody('customerorder', siteId: siteId));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         customerPoList = res.data!;
+        if (selectedCustomerPo != null) {
+          selectedCustomerPo = customerPoList
+                  .firstWhereOrNull((c) => c.id == selectedCustomerPo!.id) ??
+              selectedCustomerPo;
+        }
       }
     } catch (e) {
       ShowMessage.showSnackBar('CustomerPO', '$e');
     } finally {
       isLoadingCustomerPo = false;
-      _rematchEditSelections(); // ✅
       update();
     }
   }
@@ -1130,13 +1264,28 @@ class MrnController extends AppBaseController {
     }
   }
 
-  Future<void> fetchWorkOrders({int partyId = 0, int siteId = 0}) async {
+  Future<void> fetchWorkOrders({
+    int partyId = 0,
+    int siteId = 0,
+    int poId = 0,
+    int jobTypeId = 0,
+    int customerPoId = 0,
+  }) async {
     isLoadingWorkOrder = true;
     update();
     try {
-      final res = await api.getMrnDropdownList(
-        _mrnDropdownBody('workorder', partyId: partyId, siteId: siteId),
-      );
+      final body = {
+        'type': 'workorder',
+        'compid': homeController.currentUserData?.compId ?? 0,
+        'branchid': homeController.currentUserData?.branchId ?? 0,
+        'userid': homeController.currentUserData?.userid ?? 0,
+        'partyid': partyId,
+        'siteid': siteId,
+        'dependentid': poId > 0 ? poId : jobTypeId,
+        'customerpoid': customerPoId,
+        'jobtypeid': jobTypeId,
+      };
+      final res = await api.getMrnDropdownList(body);
       if ((res.status == 200 || res.success == true) && res.data != null) {
         workOrderList = res.data!;
       }
@@ -1210,7 +1359,7 @@ class MrnController extends AppBaseController {
       ShowMessage.showSnackBar('Party', '$e');
     } finally {
       isLoadingParty = false;
-      _rematchEditSelections(); // ✅
+      _rematchEditSelections();
       update();
     }
   }
@@ -1219,7 +1368,6 @@ class MrnController extends AppBaseController {
     isLoadingAddresses = true;
     update();
     try {
-      // TODO: Replace with real API call
       await Future.delayed(const Duration(milliseconds: 300));
       shippingAddress = MrnAddress(
         label: 'Shipping',
@@ -1248,7 +1396,6 @@ class MrnController extends AppBaseController {
     isLoadingPO = true;
     update();
     try {
-      // Using the real getPendingPoList API (stockid=0 = PO list)
       final req = GetPendingPoRequest(
         compid: homeController.currentUserData?.compId ?? 0,
         branchid: homeController.currentUserData?.branchId ?? 0,
@@ -1260,7 +1407,7 @@ class MrnController extends AppBaseController {
       );
       final res = await api.getPendingPoList(req);
       if ((res.status == 200 || res.success == true) && res.data != null) {
-        poList = res.data!; // List<PendingPoItem> ✅
+        poList = res.data!;
       } else {
         poList = [];
       }
@@ -1275,7 +1422,6 @@ class MrnController extends AppBaseController {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   void _setLoggedInUser() {
-    // TODO: Pull from session
     receivedByName = homeController.currentUserData?.name ?? 'User';
   }
 
@@ -1309,7 +1455,7 @@ class MrnController extends AppBaseController {
         partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
         siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
         orderid: '',
-        stockid: 0, // 0 = PO list, not items
+        stockid: 0,
       );
       final res = await api.getPendingPoList(req);
       if ((res.status == 200 || res.success == true) && res.data != null) {
@@ -1344,12 +1490,10 @@ class MrnController extends AppBaseController {
         userid: homeController.currentUserData?.userid ?? 0,
         partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
         siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
-        orderid: processingPo!.orderid.toString(), // ✅ "27658"
+        orderid: processingPo!.orderid.toString(),
         stockid: 0,
       );
-
       final res = await api.processPoItems(req);
-
       if ((res.status == 200 || res.success == true) &&
           res.data != null &&
           res.data!.isNotEmpty) {
@@ -1373,9 +1517,6 @@ class MrnController extends AppBaseController {
   }
 
   void _applyMrnDetail(MrnDetailData d) {
-    // ✅ REMOVED: mrnNumber = d.mrnno — field doesn't exist in API response
-    // mrnNumber is already set from MrnListItem.mrnNo in _prefillFromListItem
-
     billNoCtrl.text = d.billno;
     challanNoCtrl.text = d.dcno;
     lotNoCtrl.text = d.lotno;
@@ -1405,43 +1546,33 @@ class MrnController extends AppBaseController {
     _setDateCtrl(challanDateCtrl, d.dcdate);
     _setDateCtrl(grnDateCtrl, d.grndate);
 
-    // Party
     partyNameCtrl.text = d.partyname;
     if (d.partyid > 0) {
       selectedParty =
           partyList.firstWhereOrNull((p) => p.id == d.partyid.toString()) ??
               MrnDropdownOption(id: d.partyid.toString(), label: d.partyname);
     }
-
-    // Site
     if (d.siteid > 0) {
       selectedSite =
           siteList.firstWhereOrNull((s) => s.id == d.siteid.toString()) ??
               MrnDropdownOption(id: d.siteid.toString(), label: d.sitename);
+      fetchCustomerPOs(siteId: d.siteid);
     }
-
-    // Godown
     if (d.godownid > 0) {
       selectedGodown =
           godownList.firstWhereOrNull((g) => g.id == d.godownid.toString()) ??
               MrnDropdownOption(id: d.godownid.toString(), label: d.godownname);
     }
-
-    // Series
     if (d.seriesid > 0) {
       selectedSeriesType = seriesTypeList
               .firstWhereOrNull((s) => s.id == d.seriesid.toString()) ??
           MrnDropdownOption(id: d.seriesid.toString(), label: '');
     }
-
-    // Customer PO
     if (d.customerpoid > 0) {
       selectedCustomerPo = customerPoList
               .firstWhereOrNull((c) => c.id == d.customerpoid.toString()) ??
           MrnDropdownOption(id: d.customerpoid.toString(), label: '');
     }
-
-    // Paid type
     if (d.paidtype.isNotEmpty) {
       selectedPaidType =
           paidTypeList.firstWhereOrNull((p) => p.label == d.paidtype);
@@ -1450,20 +1581,15 @@ class MrnController extends AppBaseController {
             MrnDropdownOption(id: d.paidbyid.toString(), label: d.paidby);
       }
     }
-
-    // Job type
     if (d.jobtypeid > 0) {
       selectedJobType =
           jobTypeList.firstWhereOrNull((j) => j.id == d.jobtypeid.toString()) ??
               MrnDropdownOption(id: d.jobtypeid.toString(), label: '');
     }
-
-    // Source type
     selectedSource = d.type == 'PO'
         ? MrnSourceType.purchaseOrder
         : MrnSourceType.directPurchase;
 
-    // Items
     itemLines = d.items
         .map((i) => MrnItemLine(
               itemId: i.itemid.toString(),
@@ -1497,13 +1623,25 @@ class MrnController extends AppBaseController {
     if (raw.isEmpty) return;
     try {
       DateTime? dt;
-      // Try ISO first
       dt = DateTime.tryParse(raw);
-      // Try dd-MM-yyyy
       dt ??= DateFormat('dd-MM-yyyy').tryParseStrict(raw);
-      // Try dd/MM/yyyy already
       dt ??= DateFormat('dd/MM/yyyy').tryParseStrict(raw);
       if (dt != null) ctrl.text = DateFormat('dd/MM/yyyy').format(dt);
     } catch (_) {}
+  }
+
+  void _refreshWorkOrders() {
+    if (selectedSource == MrnSourceType.purchaseOrder) {
+      fetchWorkOrders(
+        partyId: int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        siteId: int.tryParse(selectedSite?.id ?? '0') ?? 0,
+        poId: processingPo?.orderid ?? 0,
+      );
+    } else {
+      fetchWorkOrders(
+        jobTypeId: int.tryParse(selectedJobType?.id ?? '0') ?? 0,
+        customerPoId: int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
+      );
+    }
   }
 }

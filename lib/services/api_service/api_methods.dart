@@ -278,6 +278,8 @@ class ApiMethods {
 
   String downloadSalarySleep = "Downloadsalaryslip/showsalarylist";
 
+
+
   ///MRN module
   String getMrnDropdownList   = 'Getmrndropdownlist';
   String getPendingPo         = 'getpendingpo';
@@ -286,6 +288,8 @@ class ApiMethods {
   String getItemDetail        = 'itemdetail';
   String getMrnList           = 'getmrnlist';
   String getMrnDetail         = 'mrnfulldetail';
+  String getDependentAllDetail = 'getdependentalldetail';
+
 
   ///GRN Module
   String getGrnDetail        = 'grnfulldetailController';

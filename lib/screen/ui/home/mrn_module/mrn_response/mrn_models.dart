@@ -1138,3 +1138,102 @@ class MrnItemDetail {
     return double.tryParse(v.toString()) ?? 0;
   }
 }
+
+class DependentDetailRequest {
+  final String type;
+  final int compid;
+  final int branchid;
+  final int partyid;
+  final int siteid;
+  final String dependentid; // single id OR comma-separated ids (for PO)
+
+  DependentDetailRequest({
+    required this.type,
+    required this.compid,
+    required this.branchid,
+    this.partyid = 0,
+    this.siteid = 0,
+    required this.dependentid,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'compid': compid,
+    'branchid': branchid,
+    'partyid': partyid,
+    'siteid': siteid,
+    'dependentid': dependentid,
+  };
+}
+
+class DependentDetailResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final DependentDetail? data;
+
+  DependentDetailResponse({
+    this.success,
+    this.status,
+    this.message,
+    this.data,
+  });
+
+  factory DependentDetailResponse.fromJson(Map<String, dynamic> json) {
+    DependentDetail? detail;
+    final raw = json['data'];
+    if (raw is List && raw.isNotEmpty) {
+      detail = DependentDetail.fromJson(raw.first as Map<String, dynamic>);
+    } else if (raw is Map<String, dynamic>) {
+      detail = DependentDetail.fromJson(raw);
+    }
+    return DependentDetailResponse(
+      success: json['success'],
+      status: json['status'],
+      message: json['message']?.toString(),
+      data: detail,
+    );
+  }
+}
+
+class DependentDetail {
+  final int godownid;
+  final int jobtypeid;
+  final int workorderid;
+  final int customerpoid;
+
+  DependentDetail({
+    this.godownid = 0,
+    this.jobtypeid = 0,
+    this.workorderid = 0,
+    this.customerpoid = 0,
+  });
+
+  factory DependentDetail.fromJson(Map<String, dynamic> json) {
+    return DependentDetail(
+      godownid: _i(json['godownid']),
+      jobtypeid: _i(json['jobtypeid']),
+      workorderid: _i(json['workorderid']),
+      customerpoid: _i(json['customerpoid']),
+    );
+  }
+
+  static int _i(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  Map<String, dynamic> toJson() => {
+    'godownid': godownid,
+    'jobtypeid': jobtypeid,
+    'workorderid': workorderid,
+    'customerpoid': customerpoid,
+  };
+
+  bool get hasJobType => jobtypeid > 0;
+  bool get hasCustomerPo => customerpoid > 0;
+  bool get hasWorkOrder => workorderid > 0;
+  bool get hasGodown => godownid > 0;
+}

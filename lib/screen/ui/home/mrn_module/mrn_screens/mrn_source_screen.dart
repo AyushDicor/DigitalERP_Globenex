@@ -59,32 +59,61 @@ class MrnSourceScreen extends StatelessWidget {
                 ]),
               ),
 
-              // ── Source selection (3 tiles only) ──────────────────────────
+              // ── Source selection ───────────────────────────────────────────
               MrnCard(
                 child: Column(children: [
-                  const MrnSectionHead('Select Item Source'),
-                  Row(children: [
-                    Expanded(
-                      child: _sourceChip(
-                          ctrl,
-                          MrnSourceType.purchaseOrder,
-                          '📄',
-                          'Purchase\nOrder',
-                          'From PO',
-                          newBlueLightColor),
+                  MrnSectionHead(
+                    'Select Item Source',
+                    trailing: ctrl.isEditMode
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                                color: newOrangeLightColor,
+                                borderRadius: BorderRadius.circular(6)),
+                            child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.lock_outline_rounded,
+                                      size: 10, color: newOrangeColor),
+                                  SizedBox(width: 4),
+                                  Text('Locked in edit mode',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: newOrangeColor)),
+                                ]),
+                          )
+                        : null,
+                  ),
+                  // Wrap chips in Opacity + AbsorbPointer when editing
+                  AbsorbPointer(
+                    absorbing: ctrl.isEditMode,
+                    child: Opacity(
+                      opacity: ctrl.isEditMode ? 0.5 : 1.0,
+                      child: Row(children: [
+                        Expanded(
+                          child: _sourceChip(
+                              ctrl,
+                              MrnSourceType.purchaseOrder,
+                              '📄',
+                              'Purchase\nOrder',
+                              'From PO',
+                              newBlueLightColor),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _sourceChip(
+                              ctrl,
+                              MrnSourceType.directPurchase,
+                              '🛒',
+                              'Direct\nPurchase',
+                              'Manual',
+                              newOrangeLightColor),
+                        ),
+                      ]),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _sourceChip(
-                          ctrl,
-                          MrnSourceType.directPurchase,
-                          '🛒',
-                          'Direct\nPurchase',
-                          'Manual',
-                          newOrangeLightColor),
-                    ),
-                    const SizedBox(width: 8),
-                  ]),
+                  ),
                 ]),
               ),
 
@@ -93,16 +122,22 @@ class MrnSourceScreen extends StatelessWidget {
                 child: Column(children: [
                   const MrnSectionHead('Party & Site Details'),
 
-                  // Party Name (free text)
-                  // ── Party Name (searchable dropdown) ──────────────────────────────────────
-                  MrnSearchableDropdown<MrnDropdownOption>(
-                    label: 'Party Name',
-                    value: ctrl.selectedParty,
-                    items: ctrl.partyList,
-                    isLoading: ctrl.isLoadingParty,
-                    itemLabel: (o) => o.label,
-                    onChanged: ctrl.setParty,
-                    hint: 'Search party / supplier…',
+                  // ── Party Name (searchable dropdown) ──────────────────────
+                  // Replace the party MrnSearchableDropdown with:
+                  AbsorbPointer(
+                    absorbing: ctrl.isEditMode,
+                    child: Opacity(
+                      opacity: ctrl.isEditMode ? 0.85 : 1.0,
+                      child: MrnSearchableDropdown<MrnDropdownOption>(
+                        label: ctrl.isEditMode ? 'Party Name 🔒' : 'Party Name',
+                        value: ctrl.selectedParty,
+                        items: ctrl.partyList,
+                        isLoading: ctrl.isLoadingParty,
+                        itemLabel: (o) => o.label,
+                        onChanged: ctrl.setParty,
+                        hint: 'Search party / supplier…',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
 
@@ -128,38 +163,7 @@ class MrnSourceScreen extends StatelessWidget {
                     onChanged: ctrl.setGodown,
                     hint: 'Search godown…',
                   ),
-
-                  // After existing Godown dropdown:
                   const SizedBox(height: 10),
-
-// Addresses (read-only, from backend)
-//                   if (ctrl.isLoadingAddresses)
-//                     const Center(
-//                       child: Padding(
-//                         padding: EdgeInsets.symmetric(vertical: 10),
-//                         child: CircularProgressIndicator(strokeWidth: 1.5, color: newBlueColor),
-//                       ),
-//                     )
-//                   else ...[
-//                     if (ctrl.shippingAddress != null)
-//                       _addressTile(
-//                         icon: Icons.local_shipping_outlined,
-//                         label: 'Shipping Address',
-//                         address: ctrl.shippingAddress!,
-//                         color: newBlueColor,
-//                         bg: newBlueLightColor,
-//                       ),
-//                     if (ctrl.shippingAddress != null && ctrl.billingAddress != null)
-//                       const SizedBox(height: 10),
-//                     if (ctrl.billingAddress != null)
-//                       _addressTile(
-//                         icon: Icons.receipt_long_outlined,
-//                         label: 'Billing Address',
-//                         address: ctrl.billingAddress!,
-//                         color: newGreenColor,
-//                         bg: newGreenLightColor,
-//                       ),
-//                   ],
 
                   // Bill No + Bill Date
                   Row(children: [
@@ -225,67 +229,7 @@ class MrnSourceScreen extends StatelessWidget {
                 ]),
               ),
 
-              // ── Attachments ───────────────────────────────────────────────
-              MrnCard(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const MrnSectionHead('Attachments'),
-
-                      // Attachment Type checklist dropdown
-                      _attachmentTypeChecklist(ctrl),
-                      const SizedBox(height: 12),
-
-                      // Bill Attachment (shown when Bill is checked)
-                      if (ctrl.selectedAttachmentTypes
-                          .contains(MrnAttachmentType.bill)) ...[
-                        _attachmentSection(
-                          context: context,
-                          label: 'Bill Attachment',
-                          docs: ctrl.billAttachments,
-                          existingUrls: ctrl.existingBillFiles, // ✅
-                          onCamera: ctrl.pickBillFromCamera,
-                          onGallery: ctrl.pickBillFromGallery,
-                          onFile: ctrl.pickBillFile,
-                          onRemove: ctrl.removeBillAttachment,
-                          onRemoveExisting: ctrl.removeExistingBillFile, // ✅
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Challan Attachment (shown when Challan is checked)
-                      if (ctrl.selectedAttachmentTypes
-                          .contains(MrnAttachmentType.challan)) ...[
-                        _attachmentSection(
-                          context: context,
-                          label: 'Challan Attachment',
-                          docs: ctrl.challanAttachments,
-                          existingUrls: ctrl.existingDcFiles, // ✅
-                          onCamera: ctrl.pickChallanFromCamera,
-                          onGallery: ctrl.pickChallanFromGallery,
-                          onFile: ctrl.pickChallanFile,
-                          onRemove: ctrl.removeChallanAttachment,
-                          onRemoveExisting: ctrl.removeExistingDcFile, // ✅
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Reason for N/A (shown when no attachments uploaded)
-                      if (ctrl.billAttachments.isEmpty &&
-                          ctrl.challanAttachments.isEmpty &&
-                          ctrl.existingBillFiles.isEmpty && // ✅
-                          ctrl.existingDcFiles.isEmpty) ...[
-                        MrnField(
-                          label: 'Reason for N/A Attachment',
-                          controller: ctrl.reasonNACtrl,
-                          hint: 'Explain why no attachment is available…',
-                          minLines: 3,
-                        ),
-                      ],
-                    ]),
-              ),
-
-              // ── Additional details ────────────────────────────────────────
+              // ── Additional details (Paid Type, QC, Lot, GRN) ─────────────
               MrnCard(
                 child: Column(children: [
                   const MrnSectionHead('Additional Details'),
@@ -302,7 +246,7 @@ class MrnSourceScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-// Paid By — only shown when Employee is selected
+                  // Paid By — only shown when Employee is selected
                   if (ctrl.selectedPaidType?.id == 'Employee') ...[
                     MrnSearchableDropdown<MrnDropdownOption>(
                       label: 'Paid By',
@@ -325,44 +269,7 @@ class MrnSourceScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // Customer PO (searchable)
-                  MrnSearchableDropdown<MrnDropdownOption>(
-                    label: 'Customer PO',
-                    value: ctrl.selectedCustomerPo,
-                    items: ctrl.customerPoList,
-                    isLoading: ctrl.isLoadingCustomerPo,
-                    itemLabel: (o) => o.label,
-                    onChanged: ctrl.setCustomerPo,
-                    hint: 'Search customer PO…',
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Job Type (searchable)
-                  MrnSearchableDropdown<MrnDropdownOption>(
-                    label: 'Job Type',
-                    value: ctrl.selectedJobType,
-                    items: ctrl.jobTypeList,
-                    isLoading: ctrl.isLoadingJobType,
-                    itemLabel: (o) => o.label,
-                    onChanged: ctrl.setJobType,
-                    hint: 'Search job type…',
-                  ),
-                  const SizedBox(height: 10),
-
-                  // // Work Order No. (searchable)
-                  // MrnSearchableDropdown<MrnDropdownOption>(
-                  //   label: 'Work Order No.',
-                  //   value: ctrl.selectedWorkOrder,
-                  //   items: ctrl.workOrderList,
-                  //   isLoading: ctrl.isLoadingWorkOrder,
-                  //   itemLabel: (o) => o.label,
-                  //   onChanged: ctrl.setWorkOrder,
-                  //   hint: 'Search work order…',
-                  // ),
-
-                  const SizedBox(height: 10),
-
-// Lot No + GRN No row
+                  // Lot No + GRN No row
                   Row(children: [
                     Expanded(
                       child: MrnField(
@@ -382,7 +289,7 @@ class MrnSourceScreen extends StatelessWidget {
                   ]),
                   const SizedBox(height: 10),
 
-// GRN Date + Gate Entry No row
+                  // GRN Date + Gate Entry No row
                   Row(children: [
                     Expanded(
                       child: MrnField(
@@ -419,7 +326,7 @@ class MrnSourceScreen extends StatelessWidget {
     });
   }
 
-  // ── Source chip (3-column horizontal layout) ──────────────────────────────
+  // ── Source chip ───────────────────────────────────────────────────────────
   Widget _sourceChip(MrnController ctrl, MrnSourceType type, String emoji,
       String title, String sub, Color iconBg) {
     final isSelected = ctrl.selectedSource == type;
@@ -460,204 +367,6 @@ class MrnSourceScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  // ── Attachment type checklist widget ──────────────────────────────────────
-  Widget _attachmentTypeChecklist(MrnController ctrl) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Attachment Type',
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: newTextPrimary)),
-      const SizedBox(height: 5),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: newSurfaceColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: newBorderColor),
-        ),
-        child: Column(children: [
-          _checkItem(
-            label: 'Bill',
-            checked:
-                ctrl.selectedAttachmentTypes.contains(MrnAttachmentType.bill),
-            onTap: () => ctrl.toggleAttachmentType(MrnAttachmentType.bill),
-          ),
-          const Divider(height: 1, color: newBorderColor),
-          _checkItem(
-            label: 'Challan',
-            checked: ctrl.selectedAttachmentTypes
-                .contains(MrnAttachmentType.challan),
-            onTap: () => ctrl.toggleAttachmentType(MrnAttachmentType.challan),
-          ),
-        ]),
-      ),
-    ]);
-  }
-
-  Widget _checkItem(
-      {required String label,
-      required bool checked,
-      required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              color: checked ? newBlueColor : Colors.white,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(
-                color: checked ? newBlueColor : newBorderColor,
-                width: 1.5,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: checked
-                ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
-                : null,
-          ),
-          const SizedBox(width: 10),
-          Text(label,
-              style: const TextStyle(fontSize: 13, color: newTextPrimary)),
-        ]),
-      ),
-    );
-  }
-
-  // ── Attachment section (files list + upload buttons) ──────────────────────
-  Widget _attachmentSection({
-    required BuildContext context,
-    required String label,
-    required List<MrnDocument> docs,
-    required List<String> existingUrls, // ✅ add this
-    required VoidCallback onCamera,
-    required VoidCallback onGallery,
-    required VoidCallback onFile,
-    required void Function(String id) onRemove,
-    required void Function(int index) onRemoveExisting, // ✅ add this
-  }) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: newTextPrimary)),
-      const SizedBox(height: 6),
-
-      // ── Existing server files ─────────────────────────────────────────────
-      if (existingUrls.isNotEmpty) ...[
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: newGreenLightColor,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Row(children: [
-            const Icon(Icons.cloud_done_rounded,
-                size: 12, color: newGreenColor),
-            const SizedBox(width: 5),
-            Text('${existingUrls.length} file(s) already on server',
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: newGreenColor)),
-          ]),
-        ),
-        const SizedBox(height: 6),
-        ...existingUrls.asMap().entries.map((e) => _ExistingFileChip(
-              url: e.value,
-              onRemove: () => onRemoveExisting(e.key),
-            )),
-        const SizedBox(height: 6),
-      ],
-
-      // ── Upload new files ──────────────────────────────────────────────────
-      Row(children: [
-        _uploadBtn(Icons.camera_alt_outlined, 'Camera', onCamera),
-        const SizedBox(width: 8),
-        _uploadBtn(Icons.photo_library_outlined, 'Gallery', onGallery),
-        const SizedBox(width: 8),
-        _uploadBtn(Icons.attach_file_rounded, 'File', onFile),
-      ]),
-
-      // New local files
-      if (docs.isNotEmpty) ...[
-        const SizedBox(height: 8),
-        ...docs.map((doc) => _fileChip(doc, onRemove)),
-      ],
-    ]);
-  }
-
-  Widget _uploadBtn(IconData icon, String label, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: newBlueLightColor,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: newBlueColor.withValues(alpha: 0.3)),
-          ),
-          child: Column(children: [
-            Icon(icon, size: 18, color: newBlueColor),
-            const SizedBox(height: 3),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: newBlueColor)),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _fileChip(MrnDocument doc, void Function(String) onRemove) {
-    final isPdf = doc.fileType == 'pdf';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: newSurfaceColor,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: newBorderColor),
-      ),
-      child: Row(children: [
-        Icon(
-          isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
-          size: 18,
-          color: isPdf ? Colors.redAccent : newBlueColor,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(doc.fileName,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: newTextPrimary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            Text(doc.fileSize,
-                style: const TextStyle(fontSize: 10, color: newTextSecondary)),
-          ]),
-        ),
-        GestureDetector(
-          onTap: () => onRemove(doc.id),
-          child: const Icon(Icons.close_rounded,
-              size: 16, color: newTextSecondary),
-        ),
-      ]),
     );
   }
 
@@ -751,125 +460,6 @@ class MrnSourceScreen extends StatelessWidget {
                       color: newTextSecondary)),
           ]),
         ),
-      ]),
-    );
-  }
-}
-
-// ── Existing server attachment chip (read-only) ────────────────────────────
-class _ExistingFileChip extends StatelessWidget {
-  final String url;
-  final VoidCallback onRemove;
-
-  const _ExistingFileChip({required this.url, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    final fileName = url.split('/').last;
-    final isPdf = fileName.toLowerCase().endsWith('.pdf');
-    final isImage = ['jpg', 'jpeg', 'png', 'webp']
-        .any((ext) => fileName.toLowerCase().endsWith(ext));
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: newGreenLightColor,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: newGreenColor.withValues(alpha: 0.4)),
-      ),
-      child: Column(children: [
-        // ── File row ──────────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Row(children: [
-            // Icon
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                  color: newGreenColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8)),
-              alignment: Alignment.center,
-              child: Icon(
-                isPdf
-                    ? Icons.picture_as_pdf_outlined
-                    : isImage
-                        ? Icons.image_outlined
-                        : Icons.attach_file_rounded,
-                size: 18,
-                color: newGreenColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // File info
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fileName.length > 30
-                          ? '${fileName.substring(0, 27)}…'
-                          : fileName,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: newTextPrimary),
-                    ),
-                    Row(children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                            color: newGreenColor,
-                            borderRadius: BorderRadius.circular(4)),
-                        child: const Text('SERVER',
-                            style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white)),
-                      ),
-                    ]),
-                  ]),
-            ),
-
-            // Remove button
-            GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                    color: newRedLightColor,
-                    borderRadius: BorderRadius.circular(7),
-                    border:
-                        Border.all(color: newRedColor.withValues(alpha: 0.3))),
-                child: const Icon(Icons.delete_outline_rounded,
-                    size: 14, color: newRedColor),
-              ),
-            ),
-          ]),
-        ),
-
-        // ── Image preview (if image URL) ──────────────────────────────────
-        if (isImage && url.startsWith('http'))
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(8)),
-            child: Image.network(
-              url,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 60,
-                color: newSurfaceColor,
-                alignment: Alignment.center,
-                child: const Text('Preview unavailable',
-                    style: TextStyle(fontSize: 11, color: newTextSecondary)),
-              ),
-            ),
-          ),
       ]),
     );
   }

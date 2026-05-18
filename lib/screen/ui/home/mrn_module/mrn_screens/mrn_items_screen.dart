@@ -2,6 +2,7 @@ import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../utils/show_message.dart';
 import '../mrn_controller/mrn_controller.dart';
@@ -34,6 +35,7 @@ class MrnItemsScreen extends StatelessWidget {
                   if (ctrl.selectedSource == MrnSourceType.directPurchase)
                     const MrnDirectItemForm(),
 
+                  // ── PO source — PO selection card ──────────────────────
                   if (ctrl.selectedSource == MrnSourceType.purchaseOrder)
                     MrnCard(
                       padding: EdgeInsets.zero,
@@ -88,7 +90,7 @@ class MrnItemsScreen extends StatelessWidget {
                       ]),
                     ),
 
-                  // ── PO / GRN items list ────────────────────────────────
+                  // ── PO items list ──────────────────────────────────────
                   if (ctrl.selectedSource == MrnSourceType.purchaseOrder &&
                       (ctrl.itemLines.isNotEmpty || ctrl.isLoadingItems))
                     MrnCard(
@@ -130,6 +132,15 @@ class MrnItemsScreen extends StatelessWidget {
                           _totalsFooter(ctrl),
                       ]),
                     ),
+
+                  // ── Job Type, Customer PO & Work Order card ────────────
+                  // Shown in both PO and Direct once items are present
+                  // (or always visible so user can fill before adding items)
+                  _OrderLinkCard(ctrl: ctrl),
+
+                  // ── Attachments card ───────────────────────────────────
+                  // Shown in both PO and Direct
+                  _AttachmentsCard(ctrl: ctrl, context: context),
                 ]),
               ),
             ),
@@ -186,7 +197,6 @@ class MrnItemsScreen extends StatelessWidget {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // PO number (orderno)
               Text(po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}',
                   style: const TextStyle(
                       fontSize: 13,
@@ -194,8 +204,6 @@ class MrnItemsScreen extends StatelessWidget {
                       color: newTextPrimary,
                       letterSpacing: .2)),
               const SizedBox(height: 3),
-
-              // Party name
               if (po.partyname.isNotEmpty)
                 Text(po.partyname,
                     style: const TextStyle(
@@ -204,10 +212,7 @@ class MrnItemsScreen extends StatelessWidget {
                         color: newTextPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
-
               const SizedBox(height: 3),
-
-              // Date + qty pill row
               Row(children: [
                 if (po.orderdate.isNotEmpty) ...[
                   const Icon(Icons.calendar_today_outlined,
@@ -241,14 +246,12 @@ class MrnItemsScreen extends StatelessWidget {
 
           // ── Amount column ─────────────────────────────────────────────────
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            // Grand total (incl GST)
             Text('₹${MrnUtils.inr(po.grandtotal)}',
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: newTextPrimary)),
             const SizedBox(height: 2),
-            // Subtotal label
             Text('₹${MrnUtils.inr(po.totalamount)} + GST',
                 style: const TextStyle(fontSize: 9, color: newTextSecondary)),
           ]),
@@ -321,7 +324,7 @@ class MrnItemsScreen extends StatelessWidget {
                 'No Items',
                 ctrl.selectedSource == MrnSourceType.purchaseOrder
                     ? 'Please select and process a PO'
-                    : 'Please add at least one item', // covers both Direct and GRN
+                    : 'Please add at least one item',
               );
               return;
             }
@@ -382,31 +385,554 @@ class MrnItemsScreen extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: newBlueColor)),
       );
+}
 
-  // ── REMOVE this entire broken _inr ────────────────────────────────────────
-  // ✅ Fixed Indian number formatter
-  static String _inr(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
+// ═══════════════════════════════════════════════════════════════════════════════
+// Order-link card: Job Type + Customer PO + Work Order
+// Shown below items in BOTH PO and Direct modes
+// ═══════════════════════════════════════════════════════════════════════════════
+class _OrderLinkCard extends StatelessWidget {
+  final MrnController ctrl;
+  const _OrderLinkCard({required this.ctrl});
 
-    final parts = v.toStringAsFixed(2).split('.');
-    final whole = parts[0];
-    final decimal = parts[1];
+  @override
+  Widget build(BuildContext context) {
+    final isPO = ctrl.selectedSource == MrnSourceType.purchaseOrder;
 
-    if (whole.length <= 3) return '₹$whole.$decimal';
+    return MrnCard(
+      child: Column(children: [
+        const MrnSectionHead('Order Linkage'),
 
-    // Indian format: last 3 digits, then groups of 2 from right
-    final last3 = whole.substring(whole.length - 3);
-    final rest = whole.substring(0, whole.length - 3);
-    final buf = StringBuffer();
-    for (int i = 0; i < rest.length; i++) {
-      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
-      buf.write(rest[i]);
-    }
-    return '₹$buf,$last3.$decimal';
+        // ── Customer PO ──────────────────────────────────────────────────
+        MrnSearchableDropdown<MrnDropdownOption>(
+          label: 'Customer PO',
+          value: ctrl.selectedCustomerPo,
+          items: ctrl.customerPoList,
+          isLoading: ctrl.isLoadingCustomerPo,
+          itemLabel: (o) => o.label,
+          onChanged: ctrl.setCustomerPo,
+          hint: 'Search customer PO…',
+        ),
+        const SizedBox(height: 10),
+
+        // ── Job Type ──────────────────────────────────────────────────────
+        MrnSearchableDropdown<MrnDropdownOption>(
+          label: 'Job Type',
+          value: ctrl.selectedJobType,
+          items: ctrl.jobTypeList,
+          isLoading: ctrl.isLoadingJobType,
+          itemLabel: (o) => o.label,
+          onChanged: ctrl.setJobType,
+          hint: 'Search job type…',
+        ),
+        const SizedBox(height: 10),
+
+        // ── Work Order ────────────────────────────────────────────────────
+        // In PO mode: contextual info shows the linked PO / Site
+        // In Direct mode: free-select Work Order dropdown
+        if (isPO) ...[
+          // For PO mode — show the processed PO as a read-only context chip
+          // and let user optionally link a Work Order
+          if (ctrl.processingPo != null) _PoContextChip(po: ctrl.processingPo!),
+          const SizedBox(height: 10),
+        ],
+
+        // MrnSearchableDropdown<MrnDropdownOption>(
+        //   label: 'Work Order No.',
+        //   value: ctrl.selectedWorkOrder,
+        //   items: ctrl.workOrderList,
+        //   isLoading: ctrl.isLoadingWorkOrder,
+        //   itemLabel: (o) => o.label,
+        //   onChanged: ctrl.setWorkOrder,
+        //   hint: isPO
+        //       ? 'Link work order to this PO…'
+        //       : 'Link work order to items…',
+        // ),
+      ]),
+    );
   }
 }
 
+// ── Compact PO context chip (PO mode only) ─────────────────────────────────
+class _PoContextChip extends StatelessWidget {
+  final PendingPoItem po;
+  const _PoContextChip({required this.po});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: newBlueLightColor,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: newBlueColor.withValues(alpha: 0.35)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.receipt_long_outlined, size: 14, color: newBlueColor),
+        const SizedBox(width: 8),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              'Linked PO: ${po.orderno.isNotEmpty ? po.orderno : '#${po.orderid}'}',
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: newBlueColor),
+            ),
+            if (po.partyname.isNotEmpty)
+              Text(po.partyname,
+                  style:
+                      const TextStyle(fontSize: 10, color: newTextSecondary)),
+          ]),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+              color: newBlueColor, borderRadius: BorderRadius.circular(4)),
+          child: const Text('PO',
+              style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white)),
+        ),
+      ]),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Attachments card — shown in BOTH PO and Direct modes
+// ═══════════════════════════════════════════════════════════════════════════════
+class _AttachmentsCard extends StatelessWidget {
+  final MrnController ctrl;
+  final BuildContext context;
+  const _AttachmentsCard({required this.ctrl, required this.context});
+
+  @override
+  Widget build(BuildContext context) {
+    return MrnCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const MrnSectionHead('Attachments'),
+
+        // Attachment Type checklist
+        _attachmentTypeChecklist(ctrl),
+        const SizedBox(height: 12),
+
+        // Bill Attachment
+        if (ctrl.selectedAttachmentTypes.contains(MrnAttachmentType.bill)) ...[
+          _attachmentSection(
+            context: context,
+            label: 'Bill Attachment',
+            docs: ctrl.billAttachments,
+            existingUrls: ctrl.existingBillFiles,
+            onCamera: ctrl.pickBillFromCamera,
+            onGallery: ctrl.pickBillFromGallery,
+            onFile: ctrl.pickBillFile,
+            onRemove: ctrl.removeBillAttachment,
+            onRemoveExisting: ctrl.removeExistingBillFile,
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Challan Attachment
+        if (ctrl.selectedAttachmentTypes
+            .contains(MrnAttachmentType.challan)) ...[
+          _attachmentSection(
+            context: context,
+            label: 'Challan Attachment',
+            docs: ctrl.challanAttachments,
+            existingUrls: ctrl.existingDcFiles,
+            onCamera: ctrl.pickChallanFromCamera,
+            onGallery: ctrl.pickChallanFromGallery,
+            onFile: ctrl.pickChallanFile,
+            onRemove: ctrl.removeChallanAttachment,
+            onRemoveExisting: ctrl.removeExistingDcFile,
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Reason for N/A
+        if (ctrl.billAttachments.isEmpty &&
+            ctrl.challanAttachments.isEmpty &&
+            ctrl.existingBillFiles.isEmpty &&
+            ctrl.existingDcFiles.isEmpty) ...[
+          MrnField(
+            label: 'Reason for N/A Attachment',
+            controller: ctrl.reasonNACtrl,
+            hint: 'Explain why no attachment is available…',
+            minLines: 3,
+          ),
+        ],
+      ]),
+    );
+  }
+
+  // ── Checklist ──────────────────────────────────────────────────────────────
+  Widget _attachmentTypeChecklist(MrnController ctrl) {
+    if (ctrl.isLoadingDocumentTypes) {
+      return const SizedBox(
+        height: 40,
+        child: Center(
+          child: SizedBox(
+            width: 16, height: 16,
+            child: CircularProgressIndicator(strokeWidth: 1.5, color: newBlueColor),
+          ),
+        ),
+      );
+    }
+
+    if (ctrl.documentTypeList.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Document Type',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: newTextPrimary)),
+      const SizedBox(height: 5),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: newSurfaceColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: newBorderColor),
+        ),
+        child: Column(
+          children: ctrl.documentTypeList.asMap().entries.map((entry) {
+            final i = entry.key;
+            final doc = entry.value;
+            final checked = ctrl.selectedDocumentTypeIds.contains(doc.id);
+            return Column(children: [
+              if (i > 0) const Divider(height: 1, color: newBorderColor),
+              _checkItem(
+                label: doc.label,
+                checked: checked,
+                onTap: () => ctrl.toggleDocumentType(doc.id),
+              ),
+            ]);
+          }).toList(),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _checkItem(
+      {required String label,
+      required bool checked,
+      required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: checked ? newBlueColor : Colors.white,
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: checked ? newBlueColor : newBorderColor,
+                width: 1.5,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: checked
+                ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Text(label,
+              style: const TextStyle(fontSize: 13, color: newTextPrimary)),
+        ]),
+      ),
+    );
+  }
+
+  // ── Attachment section (upload row + file chips) ───────────────────────────
+  Widget _attachmentSection({
+    required BuildContext context,
+    required String label,
+    required List<MrnDocument> docs,
+    required List<String> existingUrls,
+    required VoidCallback onCamera,
+    required VoidCallback onGallery,
+    required VoidCallback onFile,
+    required void Function(String id) onRemove,
+    required void Function(int index) onRemoveExisting,
+  }) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: newTextPrimary)),
+      const SizedBox(height: 6),
+
+      // Existing server files
+      if (existingUrls.isNotEmpty) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: newGreenLightColor,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Row(children: [
+            const Icon(Icons.cloud_done_rounded,
+                size: 12, color: newGreenColor),
+            const SizedBox(width: 5),
+            Text('${existingUrls.length} file(s) already on server',
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: newGreenColor)),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        ...existingUrls.asMap().entries.map((e) => _ExistingFileChip(
+              url: e.value,
+              onRemove: () => onRemoveExisting(e.key),
+            )),
+        const SizedBox(height: 6),
+      ],
+
+      // Upload buttons
+      Row(children: [
+        _uploadBtn(Icons.camera_alt_outlined, 'Camera', onCamera),
+        const SizedBox(width: 8),
+        _uploadBtn(Icons.photo_library_outlined, 'Gallery', onGallery),
+        const SizedBox(width: 8),
+        _uploadBtn(Icons.attach_file_rounded, 'File', onFile),
+      ]),
+
+      // New local files
+      if (docs.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        ...docs.map((doc) => _fileChip(doc, onRemove)),
+      ],
+    ]);
+  }
+
+  Widget _uploadBtn(IconData icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: newBlueLightColor,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: newBlueColor.withValues(alpha: 0.3)),
+          ),
+          child: Column(children: [
+            Icon(icon, size: 18, color: newBlueColor),
+            const SizedBox(height: 3),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: newBlueColor)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _fileChip(MrnDocument doc, void Function(String) onRemove) {
+    final isPdf = doc.fileType == 'pdf';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: newSurfaceColor,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: newBorderColor),
+      ),
+      child: Row(children: [
+        Icon(
+          isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
+          size: 18,
+          color: isPdf ? Colors.redAccent : newBlueColor,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(doc.fileName,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: newTextPrimary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            Text(doc.fileSize,
+                style: const TextStyle(fontSize: 10, color: newTextSecondary)),
+          ]),
+        ),
+        GestureDetector(
+          onTap: () => onRemove(doc.id),
+          child: const Icon(Icons.close_rounded,
+              size: 16, color: newTextSecondary),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Existing server attachment chip ────────────────────────────────────────
+class _ExistingFileChip extends StatelessWidget {
+  final String url;
+  final VoidCallback onRemove;
+
+  const _ExistingFileChip({required this.url, required this.onRemove});
+
+  Future<void> _openFile() async {
+    String fullUrl = url.trim();
+
+    // If it's just a filename or relative path, prepend the base
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      fullUrl = 'https://supportapi.digitalerp.biz/Images/$fullUrl';
+    }
+
+    final uri = Uri.tryParse(fullUrl);
+    if (uri == null) return;
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        debugPrint('❌ Could not launch: $fullUrl');
+      }
+    } catch (e) {
+      debugPrint('❌ launchUrl error: $e — url: $fullUrl');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fileName = url.split('/').last;
+    final isPdf = fileName.toLowerCase().endsWith('.pdf');
+    final isImage = ['jpg', 'jpeg', 'png', 'webp']
+        .any((ext) => fileName.toLowerCase().endsWith(ext));
+
+    return GestureDetector(               // ← wrap entire chip
+      onTap: _openFile,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: newGreenLightColor,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: newGreenColor.withValues(alpha: 0.4)),
+        ),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Row(children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                    color: newGreenColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8)),
+                alignment: Alignment.center,
+                child: Icon(
+                  isPdf
+                      ? Icons.picture_as_pdf_outlined
+                      : isImage
+                      ? Icons.image_outlined
+                      : Icons.attach_file_rounded,
+                  size: 18,
+                  color: newGreenColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName.length > 30
+                            ? '${fileName.substring(0, 27)}…'
+                            : fileName,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: newTextPrimary),
+                      ),
+                      Row(children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                              color: newGreenColor,
+                              borderRadius: BorderRadius.circular(4)),
+                          child: const Text('SERVER',
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white)),
+                        ),
+                        const SizedBox(width: 5),         // ← new
+                        const Icon(Icons.open_in_new_rounded,  // ← new
+                            size: 10, color: newTextSecondary),
+                        const SizedBox(width: 3),         // ← new
+                        const Text('Tap to open',         // ← new
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: newTextSecondary)),
+                      ]),
+                    ]),
+              ),
+              // ── Delete button stops propagation ──────────────────────
+              GestureDetector(
+                onTap: onRemove,           // does NOT bubble up to _openFile
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                      color: newRedLightColor,
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(
+                          color: newRedColor.withValues(alpha: 0.3))),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      size: 14, color: newRedColor),
+                ),
+              ),
+            ]),
+          ),
+          if (isImage && url.startsWith('http'))
+            GestureDetector(
+              onTap: _openFile,            // image preview also tappable
+              child: ClipRRect(
+                borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(8)),
+                child: Image.network(
+                  url,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 60,
+                    color: newSurfaceColor,
+                    alignment: Alignment.center,
+                    child: const Text('Preview unavailable',
+                        style:
+                        TextStyle(fontSize: 11, color: newTextSecondary)),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Process PO button
+// ═══════════════════════════════════════════════════════════════════════════════
 class _ProcessButton extends StatelessWidget {
   final MrnController ctrl;
   const _ProcessButton({required this.ctrl});
@@ -422,7 +948,6 @@ class _ProcessButton extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(12),
       child: Column(children: [
-        // ── Selected PO summary ─────────────────────────────────────────────
         Row(children: [
           const Icon(Icons.receipt_long_rounded, size: 16, color: newBlueColor),
           const SizedBox(width: 8),
@@ -456,10 +981,7 @@ class _ProcessButton extends StatelessWidget {
                 style: const TextStyle(fontSize: 10, color: newTextSecondary)),
           ]),
         ]),
-
         const SizedBox(height: 10),
-
-        // ── Process button ──────────────────────────────────────────────────
         SizedBox(
           width: double.infinity,
           height: 44,
@@ -489,26 +1011,6 @@ class _ProcessButton extends StatelessWidget {
       ]),
     );
   }
-
-  static String _inr(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
-
-    final parts = v.toStringAsFixed(2).split('.');
-    final whole = parts[0];
-    final decimal = parts[1];
-
-    if (whole.length <= 3) return '₹$whole.$decimal';
-
-    final last3 = whole.substring(whole.length - 3);
-    final rest = whole.substring(0, whole.length - 3);
-    final buf = StringBuffer();
-    for (int i = 0; i < rest.length; i++) {
-      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
-      buf.write(rest[i]);
-    }
-    return '₹$buf,$last3.$decimal';
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -534,11 +1036,9 @@ class _ItemCard extends StatelessWidget {
               ? newBlueLightColor.withValues(alpha: 0.4)
               : Colors.white,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Compact summary row (always visible) ─────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Index bubble
             Container(
               width: 26,
               height: 26,
@@ -553,8 +1053,6 @@ class _ItemCard extends StatelessWidget {
                       color: newBlueColor)),
             ),
             const SizedBox(width: 10),
-
-            // Item info + godown inline
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,17 +1072,11 @@ class _ItemCard extends StatelessWidget {
                           newBlueColor),
                     ]),
                     const SizedBox(height: 6),
-
-                    // ── Inline godown selector ────────────────────────────────
                     _InlineGodownSelector(ctrl: ctrl, item: item),
                   ]),
             ),
             const SizedBox(width: 8),
-
-            // Qty stepper
             _QtyField(ctrl: ctrl, item: item),
-
-            // Expand toggle
             const SizedBox(width: 6),
             GestureDetector(
               onTap: () => ctrl.toggleItemExpanded(item),
@@ -597,10 +1089,7 @@ class _ItemCard extends StatelessWidget {
             ),
           ]),
         ),
-
         const SizedBox(height: 10),
-
-        // ── Expanded detail panel ─────────────────────────────────────────────
         AnimatedCrossFade(
           firstChild: const SizedBox.shrink(),
           secondChild: _expandedPanel(context),
@@ -609,8 +1098,6 @@ class _ItemCard extends StatelessWidget {
               : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 220),
         ),
-
-        // ── Qty warning strip ─────────────────────────────────────────────────
         if (isOverReceived)
           Container(
             width: double.infinity,
@@ -635,15 +1122,12 @@ class _ItemCard extends StatelessWidget {
     );
   }
 
-  // ── Expanded detail panel ──────────────────────────────────────────────────
   Widget _expandedPanel(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Divider(height: 1, color: newBorderColor),
         const SizedBox(height: 12),
-
-        // ── Financial grid (read-only) ──────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             color: newSurfaceColor,
@@ -651,7 +1135,6 @@ class _ItemCard extends StatelessWidget {
             border: Border.all(color: newBorderColor),
           ),
           child: Column(children: [
-            // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -687,8 +1170,10 @@ class _ItemCard extends StatelessWidget {
             ),
             _finRow('Order No', item.orderNo, mono: true),
             _finRow('Rate', '₹${item.rate.toStringAsFixed(2)}'),
-            _finRow('Discount',
-                '${item.discountPercent.toStringAsFixed(1)}%  (₹${item.discountAmount.toStringAsFixed(2)})'),
+            _finRow(
+                'Discount',
+                '${item.discountPercent.toStringAsFixed(1)}%  '
+                    '(₹${item.discountAmount.toStringAsFixed(2)})'),
             _finRow('Amount', '₹${item.amount.toStringAsFixed(2)}'),
             _finRow('GST %', '${item.gstPercent.toStringAsFixed(1)}%'),
             _finRow('GST Amount', '₹${item.gstAmount.toStringAsFixed(2)}'),
@@ -696,10 +1181,7 @@ class _ItemCard extends StatelessWidget {
                 'Total Amount', '₹${item.totalAmount.toStringAsFixed(2)}'),
           ]),
         ),
-
         const SizedBox(height: 12),
-
-        // ── PO quantity summary ─────────────────────────────────────────────
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -722,10 +1204,7 @@ class _ItemCard extends StatelessWidget {
                 bold: true),
           ]),
         ),
-
         const SizedBox(height: 12),
-
-        // ── Remarks ─────────────────────────────────────────────────────────
         MrnField(
           label: 'Remarks',
           hint: 'Optional delivery note for this item…',
@@ -734,10 +1213,7 @@ class _ItemCard extends StatelessWidget {
           minLines: 2,
           onChanged: (v) => ctrl.setItemRemarks(item, v),
         ),
-
         const SizedBox(height: 10),
-
-        // ── Remove item ──────────────────────────────────────────────────────
         GestureDetector(
           onTap: () => ctrl.removeItem(item),
           child: Container(
@@ -762,7 +1238,6 @@ class _ItemCard extends StatelessWidget {
     );
   }
 
-  // ── Financial row helpers ──────────────────────────────────────────────────
   Widget _finRow(String label, String val, {bool mono = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -839,7 +1314,7 @@ class _ItemCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Inline Godown Selector (compact row — always visible)
+// Inline godown selector
 // ═══════════════════════════════════════════════════════════════════════════════
 class _InlineGodownSelector extends StatelessWidget {
   final MrnController ctrl;
@@ -849,7 +1324,6 @@ class _InlineGodownSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Resolved godown: item override > header godown > fallback text
     final resolvedGodown = item.selectedGodownId != null
         ? ctrl.godownList.firstWhereOrNull((g) => g.id == item.selectedGodownId)
         : ctrl.selectedGodown;
@@ -871,11 +1345,9 @@ class _InlineGodownSelector extends StatelessWidget {
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(
-            Icons.warehouse_outlined,
-            size: 12,
-            color: isOverridden ? newOrangeColor : newTextSecondary,
-          ),
+          Icon(Icons.warehouse_outlined,
+              size: 12,
+              color: isOverridden ? newOrangeColor : newTextSecondary),
           const SizedBox(width: 5),
           Flexible(
             child: Text(
@@ -890,11 +1362,9 @@ class _InlineGodownSelector extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Icon(
-            Icons.arrow_drop_down_rounded,
-            size: 16,
-            color: isOverridden ? newOrangeColor : newTextSecondary,
-          ),
+          Icon(Icons.arrow_drop_down_rounded,
+              size: 16,
+              color: isOverridden ? newOrangeColor : newTextSecondary),
         ]),
       ),
     );
@@ -911,7 +1381,7 @@ class _InlineGodownSelector extends StatelessWidget {
   }
 }
 
-// ── Godown picker bottom sheet ──────────────────────────────────────────────
+// ── Godown picker sheet ─────────────────────────────────────────────────────
 class _GodownPickerSheet extends StatefulWidget {
   final MrnController ctrl;
   final MrnItemLine item;
@@ -936,7 +1406,6 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        // Handle
         const SizedBox(height: 10),
         Container(
           width: 38,
@@ -945,7 +1414,6 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
               color: newBorderColor, borderRadius: BorderRadius.circular(2)),
         ),
         const SizedBox(height: 14),
-        // Title
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Align(
@@ -958,7 +1426,6 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
           ),
         ),
         const SizedBox(height: 10),
-        // Search field
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
@@ -986,14 +1453,12 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
           ),
         ),
         const SizedBox(height: 8),
-        // "Use header godown" option
         if (widget.ctrl.selectedGodown != null)
           _godownTile(
             godown: widget.ctrl.selectedGodown!,
             currentId: currentId,
             isDefault: true,
           ),
-        // List
         ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 260),
           child: ListView.builder(
@@ -1001,7 +1466,6 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
             itemCount: filtered.length,
             itemBuilder: (_, i) {
               final g = filtered[i];
-              // Skip if same as header (already shown above)
               if (widget.ctrl.selectedGodown?.id == g.id) {
                 return const SizedBox.shrink();
               }
@@ -1027,7 +1491,6 @@ class _GodownPickerSheetState extends State<_GodownPickerSheet> {
     return ListTile(
       dense: true,
       onTap: () {
-        // If tapping the header godown, clear item-level override
         if (isDefault) {
           widget.ctrl.setItemGodown(widget.item, null);
         } else {
@@ -1121,7 +1584,6 @@ class _QtyFieldState extends State<_QtyField> {
         borderRadius: BorderRadius.circular(9),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        // Minus
         GestureDetector(
           onTap: () {
             widget.ctrl.decreaseQty(widget.item);
@@ -1138,7 +1600,6 @@ class _QtyFieldState extends State<_QtyField> {
             child: const Icon(Icons.remove, size: 14, color: newBlueColor),
           ),
         ),
-        // Text input
         SizedBox(
           width: 40,
           child: TextField(
@@ -1158,7 +1619,6 @@ class _QtyFieldState extends State<_QtyField> {
             },
           ),
         ),
-        // Plus
         GestureDetector(
           onTap: () {
             widget.ctrl.increaseQty(widget.item);

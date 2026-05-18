@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-
 import '../../../../../repo/reimbursement_repo.dart';
 import '../../home_controller.dart';
+import '../../mrn_module/mrn_response/mrn_models.dart';
 import '../grn_response/grn_models.dart';
 import '../grn_screens/grn_list_screen.dart';
 import 'grn_list_contoller.dart';
@@ -20,7 +20,7 @@ class GrnController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
-  int currentStep = 0; // 0=Source  1=Items  2=Review
+  int currentStep = 0;
   final PageController pageController = PageController();
 
   // ── Step 1: Header ─────────────────────────────────────────────────────────
@@ -39,10 +39,16 @@ class GrnController extends AppBaseController {
   List<GrnDropdownOption> partyList = [];
   GrnDropdownOption? selectedParty;
   bool isLoadingParty = false;
+  bool get isSourceLocked => isEditMode;
+  bool get isPartyLocked => isEditMode;
 
   void setParty(GrnDropdownOption? v) {
     selectedParty = v;
     partyNameCtrl.text = v?.label ?? '';
+
+    selectedGodown = null;
+    godownList.clear();
+
     if (v != null) {
       fetchSites(partyId: int.tryParse(v.id) ?? 0);
       fetchWorkOrders(
@@ -112,10 +118,15 @@ class GrnController extends AppBaseController {
   GrnDropdownOption? selectedWorkOrder;
   bool isLoadingWorkOrder = false;
 
-  List<String> existingBillFiles = []; // URLs from server
+  List<String> existingBillFiles = [];
   List<String> existingDcFiles = [];
 
-  // Add these fields to GrnController:
+  List<GrnDropdownOption> documentTypeList = [];
+  bool isLoadingDocumentTypes = false;
+  Set<String> selectedDocumentTypeIds = {};
+
+  String get selectedDocumentTypesString => selectedDocumentTypeIds.join(',');
+
   final TextEditingController lotNoCtrl = TextEditingController();
   final TextEditingController grnNoCtrl = TextEditingController();
   final TextEditingController grnDateCtrl = TextEditingController();
@@ -134,7 +145,7 @@ class GrnController extends AppBaseController {
 
   bool isLoadingItemDetail = false;
 
-  //Edit
+  // ── Edit ───────────────────────────────────────────────────────────────────
   bool isEditMode = false;
   int? editStockId;
 
@@ -169,7 +180,6 @@ class GrnController extends AppBaseController {
     _fetchAllDropdowns();
     grnDisplayNoCtrl.text = GrnNumber;
 
-    // ✅ Check if opened from Grn List (edit mode)
     final args = Get.arguments;
     if (args is GrnListItem) {
       isEditMode = true;
@@ -205,7 +215,6 @@ class GrnController extends AppBaseController {
     currentStep = step;
     pageController.animateToPage(step,
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-
     update();
   }
 
@@ -218,7 +227,6 @@ class GrnController extends AppBaseController {
     itemLines.clear();
     existingBillFiles = [];
     existingDcFiles = [];
-    // ✅ Only PO needs the list fetch now
     update();
   }
 
@@ -230,11 +238,16 @@ class GrnController extends AppBaseController {
 
   void setSite(GrnDropdownOption? v) {
     selectedSite = v;
-    // Re-fetch work orders with both ids
-    fetchWorkOrders(
-      partyId: int.tryParse(selectedParty?.id ?? '0') ?? 0,
-      siteId: int.tryParse(v?.id ?? '0') ?? 0,
-    );
+    selectedCustomerPo = null;
+    selectedGodown = null; // reset previous godown
+
+    final siteId = int.tryParse(v?.id ?? '0') ?? 0;
+    final partyId = int.tryParse(selectedParty?.id ?? '0') ?? 0;
+
+    fetchWorkOrders(partyId: partyId, siteId: siteId);
+    fetchCustomerPOs(siteId: siteId);
+    fetchGodowns(siteId: siteId); // pass site id here
+
     update();
   }
 
@@ -248,19 +261,93 @@ class GrnController extends AppBaseController {
     update();
   }
 
+  // ── ✅ Customer PO selected → fetch dependent detail to auto-fill Job Type ──
   void setCustomerPo(GrnDropdownOption? v) {
     selectedCustomerPo = v;
     update();
+
+    if (v != null && v.id.isNotEmpty) {
+      _fetchDependentDetail(
+        type: 'customerpo',
+        dependentId: v.id,
+        onResult: (detail) {
+          // Customer PO selection → auto-fill Job Type only
+          if (detail.hasJobType) {
+            final matched = jobTypeList.firstWhereOrNull(
+              (j) => j.id == detail.jobtypeid.toString(),
+            );
+            if (matched != null) {
+              selectedJobType = matched;
+              if (kDebugMode) {
+                print(
+                    '✅ Auto-filled JobType from CustomerPO: ${matched.label}');
+              }
+              update();
+            }
+          }
+        },
+      );
+    }
   }
 
+  // ── ✅ Job Type selected (no dependent call needed) ────────────────────────
   void setJobType(GrnDropdownOption? v) {
     selectedJobType = v;
     update();
   }
 
+  // ── ✅ Work Order selected → fetch dependent detail to auto-fill Job Type + Customer PO ──
   void setWorkOrder(GrnDropdownOption? v) {
     selectedWorkOrder = v;
     update();
+
+    if (v != null && v.id.isNotEmpty) {
+      _fetchDependentDetail(
+        type: 'workorder',
+        dependentId: v.id,
+        onResult: (detail) {
+          bool changed = false;
+
+          // Auto-fill Job Type
+          if (detail.hasJobType) {
+            final matched = jobTypeList.firstWhereOrNull(
+              (j) => j.id == detail.jobtypeid.toString(),
+            );
+            if (matched != null) {
+              selectedJobType = matched;
+              changed = true;
+              if (kDebugMode) {
+                print('✅ Auto-filled JobType from WorkOrder: ${matched.label}');
+              }
+            }
+          }
+
+          // Auto-fill Customer PO
+          if (detail.hasCustomerPo) {
+            final matched = customerPoList.firstWhereOrNull(
+              (c) => c.id == detail.customerpoid.toString(),
+            );
+            if (matched != null) {
+              selectedCustomerPo = matched;
+              changed = true;
+              if (kDebugMode) {
+                print(
+                    '✅ Auto-filled CustomerPO from WorkOrder: ${matched.label}');
+              }
+            } else {
+              // Not yet in list — create a stub so it can be matched later
+              selectedCustomerPo = GrnDropdownOption(
+                id: detail.customerpoid.toString(),
+                label: '',
+              );
+              changed = true;
+            }
+          }
+
+          if (changed) update();
+        },
+      );
+    }
   }
 
   void toggleAttachmentType(GrnAttachmentType type) {
@@ -284,20 +371,18 @@ class GrnController extends AppBaseController {
     }).join(', ');
   }
 
-  // ── Financial year string (e.g. "2026-27") ────────────────────────────────
-  // ✅ FIXED — e.g. May 2026 → "2026-27"
+  // ── Financial year string ─────────────────────────────────────────────────
   String get currentYearId {
     final now = DateTime.now();
     final fyStart = now.month >= 4 ? now.year : now.year - 1;
     final fyEnd = fyStart + 1;
-    // Last 2 digits of fyEnd
     final fyEndShort = fyEnd.toString().substring(2);
-    return '$fyStart-$fyEndShort'; // "2026-27"
+    return '$fyStart-$fyEndShort';
   }
 
   void setPaidType(GrnDropdownOption? v) {
     selectedPaidType = v;
-    selectedPaidBy = null; // reset paid by on type change
+    selectedPaidBy = null;
     if (v?.id == 'Employee') {
       fetchPaidByEmployees();
     } else {
@@ -319,15 +404,13 @@ class GrnController extends AppBaseController {
       print('🔑 item.partyName: "${item.partyName}"');
     }
     GrnNumber = item.GrnNo;
-    grnDisplayNoCtrl.text = item.GrnNo; // ✅ THIS is what actually shows in UI
+    grnDisplayNoCtrl.text = item.GrnNo;
     billNoCtrl.text = item.billNo;
-    grnNoCtrl.text = item.GrnNo;        // ✅ Additional Details GRN No. field
-
+    grnNoCtrl.text = item.GrnNo;
     try {
       final date = DateFormat('dd-MM-yyyy').parse(item.GrnDate);
       GrnDateCtrl.text = DateFormat('dd/MM/yyyy').format(date);
     } catch (_) {}
-
     partyNameCtrl.text = item.partyName;
     update();
     _fetchGrnDetail(item.id);
@@ -347,6 +430,79 @@ class GrnController extends AppBaseController {
     }
   }
 
+  Future<void> fetchDocumentTypes() async {
+    isLoadingDocumentTypes = true;
+    update();
+    try {
+      final res = await api.getGrnDropdownList(
+        _GrnDropdownBody(
+          'documentlist',
+          partyId: int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        ),
+      );
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        documentTypeList = res.data!;
+        if (selectedDocumentTypeIds.isEmpty) {
+          selectedDocumentTypeIds = documentTypeList.map((d) => d.id).toSet();
+        }
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Document Type', '$e');
+    } finally {
+      isLoadingDocumentTypes = false;
+      update();
+    }
+  }
+
+  void toggleDocumentType(String id) {
+    if (selectedDocumentTypeIds.contains(id)) {
+      selectedDocumentTypeIds.remove(id);
+    } else {
+      selectedDocumentTypeIds.add(id);
+    }
+    update();
+  }
+
+  // ── ✅ NEW: Central dependent detail fetcher ───────────────────────────────
+  /// Calls getdependentalldetail and passes the result to [onResult].
+  /// Silently swallows errors — auto-fill is best-effort, never blocking.
+  Future<void> _fetchDependentDetail({
+    required String type,
+    required String dependentId,
+    required void Function(DependentDetail detail) onResult,
+  }) async {
+    if (dependentId.isEmpty || dependentId == '0') return;
+
+    try {
+      final req = DependentDetailRequest(
+        type: type,
+        compid: homeController.currentUserData?.compId ?? 0,
+        branchid: homeController.currentUserData?.branchId ?? 0,
+        partyid: int.tryParse(selectedParty?.id ?? '0') ?? 0,
+        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
+        dependentid: dependentId,
+      );
+
+      if (kDebugMode) {
+        print(
+            '🔗 getDependentAllDetail ▶ type=$type  dependentid=$dependentId');
+      }
+
+      final res = await api.getDependentAllDetail(req);
+
+      if (kDebugMode) {
+        print(
+            '🔗 getDependentAllDetail ◀ status=${res.status}  data=${res.data?.toJson()}');
+      }
+
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        onResult(res.data!);
+      }
+    } catch (e) {
+      if (kDebugMode) print('⚠️ getDependentAllDetail error ($type): $e');
+    }
+  }
+
   Future<void> _fetchGrnDetail(int stockid) async {
     setBusy(true);
     try {
@@ -354,15 +510,10 @@ class GrnController extends AppBaseController {
         'stockid': stockid,
         'compid': homeController.currentUserData?.compId ?? 0,
         'branchid': homeController.currentUserData?.branchId ?? 0,
-        // ✅ NO userid — API doesn't use it
       };
-
       if (kDebugMode) print('🔍 Grn Detail Request: $body');
-
       final res = await api.getGrnDetail(body);
-
       if (kDebugMode) print('📥 Grn Detail: ${res.status} | ${res.message}');
-
       if ((res.status == 200 || res.success == true) && res.data != null) {
         _applyGrnDetail(res.data!);
       } else {
@@ -468,27 +619,20 @@ class GrnController extends AppBaseController {
     }
   }
 
-// ── Also fix gallery to support multiple images ────────────────────────────
   Future<void> _pickImageGallery(GrnAttachmentType type) async {
     try {
       final xfiles = await picker.pickMultiImage(imageQuality: 75);
       for (final f in xfiles) {
         final file = File(f.path);
         final bytes = await file.length();
-        _addAttachment(
-          f.path,
-          'image',
-          'Gallery',
-          type,
-          overrideSize: _formatBytes(bytes),
-        );
+        _addAttachment(f.path, 'image', 'Gallery', type,
+            overrideSize: _formatBytes(bytes));
       }
     } catch (e) {
       ShowMessage.showSnackBar('Gallery', 'Could not open gallery: $e');
     }
   }
 
-// ── Replace _fileSize with _formatBytes ────────────────────────────────────
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
@@ -501,13 +645,8 @@ class GrnController extends AppBaseController {
           await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
       if (xfile != null) {
         final bytes = await File(xfile.path).length();
-        _addAttachment(
-          xfile.path,
-          'image',
-          'Camera',
-          type,
-          overrideSize: _formatBytes(bytes),
-        );
+        _addAttachment(xfile.path, 'image', 'Camera', type,
+            overrideSize: _formatBytes(bytes));
       }
     } catch (e) {
       ShowMessage.showSnackBar('Camera', 'Could not open camera: $e');
@@ -558,7 +697,7 @@ class GrnController extends AppBaseController {
       update();
     } else {
       ShowMessage.showSnackBar('Limit Reached',
-          'Cannot exceed PO balance of ${item.maxReceivable.toInt()} ${item.unit}');
+          'Cannot exceed balance of ${item.maxReceivable.toInt()} ${item.unit}');
     }
   }
 
@@ -600,7 +739,6 @@ class GrnController extends AppBaseController {
     return selectedGodown?.label ?? '—';
   }
 
-  // ── Direct purchase: add item ──────────────────────────────────────────────
   void addDirectItem({
     required String itemName,
     required String itemCode,
@@ -631,7 +769,7 @@ class GrnController extends AppBaseController {
           : (qty * rate) > 0
               ? (discount / (qty * rate) * 100)
               : 0,
-      discountAmount: discount, // ✅ store flat amount too
+      discountAmount: discount,
       gstPercent: gstPct,
       selectedGodownId: godownId,
       remarks: remarks,
@@ -663,47 +801,34 @@ class GrnController extends AppBaseController {
   Future<String> _uploadAttachments(List<GrnDocument> docs) async {
     if (docs.isEmpty) return '';
     final List<String> uploadedNames = [];
-
     for (final doc in docs) {
       if (doc.filePath.isEmpty) continue;
       try {
-        final res = await ReimbursementRepo.uploadReimbursementFile(doc.filePath);
-
+        final res =
+            await ReimbursementRepo.uploadReimbursementFile(doc.filePath);
         if (res.status == true && res.statusCode == 200) {
           final jsonData = res.data as Map<String, dynamic>?;
-
-          // ✅ Try all possible keys the API might return the filename under
           String filename = jsonData?['data']?['filename'] as String? ??
               jsonData?['data']?['file_name'] as String? ??
               jsonData?['data']?['originalname'] as String? ??
               jsonData?['filename'] as String? ??
               jsonData?['file_name'] as String? ??
               '';
-
-          // ✅ If API returns full path like "uploads/123456.pdf", extract just filename
-          if (filename.contains('/')) {
-            filename = filename.split('/').last;
-          }
-
-          // ✅ If API returned empty but upload succeeded, fall back to original file name
-          if (filename.isEmpty) {
-            filename = doc.fileName; // e.g. "20250514_173201.jpg"
-          }
-
-          // ✅ Ensure extension is present — add from original if missing
+          if (filename.contains('/')) filename = filename.split('/').last;
+          if (filename.isEmpty) filename = doc.fileName;
           if (!filename.contains('.')) {
             final originalExt = doc.fileName.contains('.')
                 ? '.${doc.fileName.split('.').last}'
                 : '';
             filename = '$filename$originalExt';
           }
-
           if (filename.isNotEmpty) {
             uploadedNames.add(filename);
             if (kDebugMode) print('✅ Uploaded: $filename');
           }
         } else {
-          ShowMessage.showSnackBar('Upload Failed', 'Could not upload ${doc.fileName}');
+          ShowMessage.showSnackBar(
+              'Upload Failed', 'Could not upload ${doc.fileName}');
         }
       } catch (e) {
         if (kDebugMode) print('❌ Upload error for ${doc.fileName}: $e');
@@ -714,165 +839,7 @@ class GrnController extends AppBaseController {
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-//   Future<void> submitGrn() async {
-//     // Validations
-//     if (partyNameCtrl.text.trim().isEmpty) {
-//       ShowMessage.showSnackBar('Validation', 'Please select a party');
-//       return;
-//     }
-//     if (selectedSite == null) {
-//       ShowMessage.showSnackBar('Validation', 'Please select a site');
-//       return;
-//     }
-//     if (itemLines.isEmpty) {
-//       ShowMessage.showSnackBar('Validation', 'Please add at least one item');
-//       return;
-//     }
-//     if (itemLines.any((i) => i.receiveNowQty <= 0)) {
-//       ShowMessage.showSnackBar('Validation', 'All items must have qty > 0');
-//       return;
-//     }
-//
-//     setBusy(true);
-//     try {
-//       // ── Step 1: Upload bill attachments ───────────────────────────────
-//       final billFileStr = billAttachments.isNotEmpty
-//           ? await _uploadAttachments(billAttachments)
-//           : existingBillFiles.join(','); // ✅ keep existing if no new upload
-//
-//       final challanFileStr = challanAttachments.isNotEmpty
-//           ? await _uploadAttachments(challanAttachments)
-//           : existingDcFiles.join(',');
-//
-//       // ── Parse dates to ISO ──────────────────────────────────────────────
-//       DateTime parseDate(String d) {
-//         try {
-//           return DateFormat('dd/MM/yyyy').parse(d);
-//         } catch (_) {
-//           return DateTime.now();
-//         }
-//       }
-//
-//       // ── Build items list ────────────────────────────────────────────────
-//       final items = itemLines
-//           .map((i) => {
-//         'itemname': i.itemName,
-//         'itemid': int.tryParse(i.itemId) ?? 0,
-//         'rate': i.rate,
-//         'quantity': i.receiveNowQty,
-//         'amount': i.amount,
-//         'gstpercent': i.gstPercent,
-//         'gstamount': i.gstAmount,
-//         'discountpercent': i.discountPercent,
-//         'discountamount': i.discountAmount,
-//         'specification': i.remarks,
-//         'make': i.make,
-//         'makeid': i.makeId,
-//         'unitid': i.unitId,
-//         'godownid': int.tryParse(
-//             i.selectedGodownId ?? selectedGodown?.id ?? '0') ??
-//             0,
-//         'poid':  0,
-//         'transid': i.transId,
-//         'stockqty': i.receiveNowQty,
-//         'sgst': 0,
-//         'sgstamt': 0,
-//         'cgst': 0,
-//         'cgstamt': 0,
-//         'igst': 0,
-//         'igstamt': 0,
-//         'batchno': i.batchNo,
-//         'expirydate': '',
-//         'manufacturedate': '',
-//         'uniqueid': i.uniqueId,
-//       })
-//           .toList();
-//
-//       // ── Build request body ────────────────────────────────────────────
-//       final body = {
-//         'stockid': isEditMode ? (editStockId ?? 0) : 0,
-//         'type': selectedSource == GrnSourceType.grn,
-//         'pono': 0,
-//         'seriesid': int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
-//         'receiptdate': parseDate(GrnDateCtrl.text).toIso8601String(),
-//         'partyname': partyNameCtrl.text.trim(),
-//         'partyid': int.tryParse(selectedParty?.id ?? '0') ?? 0,
-//         'billno': billNoCtrl.text.trim(),
-//         'godownid': int.tryParse(selectedGodown?.id ?? '0') ?? 0,
-//         'receivedby': receivedByName,
-//         'totalweight': 0,
-//         'description': reviewRemarksCtrl.text.trim(),
-//         'lotno': lotNoCtrl.text.trim(),
-//         'grnno': grnNoCtrl.text.trim(),
-//         'grndate': parseDate(grnDateCtrl.text).toIso8601String(),
-//         'totalamount': subtotal,
-//         'totalquantity': itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
-//         'poid':  0,
-//         'qcstatus': selectedQcRequired,
-//         'compid': homeController.currentUserData?.compId ?? 0,
-//         'branchid': homeController.currentUserData?.branchId ?? 0,
-//         'userid': homeController.currentUserData?.userid ?? 0,
-//         'yearid': currentYearId,
-//         'ledgertrans': '',
-//         'grandtotal': grandTotalRounded,
-//         'roundoff': roundOff,
-//         'menuid': 0,
-//         'totaltax': totalGst,
-//         'updateinvoiceid': 0,
-//         'freightmode': '',
-//         'freightmodeid': 0,
-//         'billdate': parseDate(billDateCtrl.text).toIso8601String(),
-//         'othervaluetaxxml': '',
-//         'Grntype': '',
-//         'gateentryNo': gateEntryNoCtrl.text.trim(),
-//         'billfile': billFileStr,
-//         'filetypeId': billAttachments.isNotEmpty ? 1 : 0,
-//         'dcno': challanNoCtrl.text.trim(),
-//         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
-//         'dcfile': challanFileStr,
-//         'reason': reasonNACtrl.text.trim(),
-//         'siteid': int.tryParse(selectedSite?.id ?? '0') ?? 0,
-//         'paidbyid': int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
-//         'paidby': selectedPaidBy?.label ?? '',
-//         'paidtype': selectedPaidType?.label ?? '',
-//         'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
-//         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
-//         'fromaddress': fromAddressCtrl.text.trim(),
-//         'toaddress': toAddressCtrl.text.trim(),
-//         'Grnitems': items,
-//       };
-//
-// // ── Pretty-print log matching exact API schema ────────────────────
-//       if (kDebugMode) {
-//         const encoder = JsonEncoder.withIndent('  ');
-//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-//         print('📦 Grn SUBMIT PAYLOAD');
-//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-//         print(encoder.convert(body));
-//         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-//       }
-//
-//       final res = await api.saveGrnEntry(body);
-//       if (res.status == 200 || res.success == true) {
-//         ShowMessage.showSnackBar(
-//             'Success', res.message ?? 'Grn saved successfully');
-//         Get.back(); // ✅ go back to list
-//         // ✅ refresh list if controller is still alive
-//         if (Get.isRegistered<GrnListController>()) {
-//           Get.find<GrnListController>().fetchGrnList();
-//         }
-//       } else {
-//         ShowMessage.showSnackBar('Error', res.message ?? 'Failed to save Grn');
-//       }
-//     } catch (e) {
-//       ShowMessage.showSnackBar('Error', '$e');
-//     } finally {
-//       setBusy(false);
-//     }
-//   }
-
   Future<void> submitGRN() async {
-    // ── Same validations as submitGrn ──────────────────────────────────────
     if (partyNameCtrl.text.trim().isEmpty) {
       ShowMessage.showSnackBar('Validation', 'Please select a party');
       return;
@@ -894,8 +861,7 @@ class GrnController extends AppBaseController {
     try {
       final billFileStr = billAttachments.isNotEmpty
           ? await _uploadAttachments(billAttachments)
-          : existingBillFiles.join(',');  // ✅ keep existing files in edit mode
-
+          : existingBillFiles.join(',');
       final challanFileStr = challanAttachments.isNotEmpty
           ? await _uploadAttachments(challanAttachments)
           : existingDcFiles.join(',');
@@ -944,7 +910,7 @@ class GrnController extends AppBaseController {
       final body = {
         'stockid': isEditMode ? (editStockId ?? 0) : 0,
         'type': 'GRN',
-        'pono': '',                          // ✅ ADD
+        'pono': '',
         'seriesid': int.tryParse(selectedSeriesType?.id ?? '0') ?? 0,
         'receiptdate': parseDate(GrnDateCtrl.text).toIso8601String(),
         'partyname': partyNameCtrl.text.trim(),
@@ -953,7 +919,7 @@ class GrnController extends AppBaseController {
         'billdate': parseDate(billDateCtrl.text).toIso8601String(),
         'godownid': int.tryParse(selectedGodown?.id ?? '0') ?? 0,
         'receivedby': receivedByName,
-        'totalweight': 0,                    // ✅ ADD
+        'totalweight': 0,
         'description': reviewRemarksCtrl.text.trim(),
         'lotno': lotNoCtrl.text.trim(),
         'grnno': grnNoCtrl.text.trim(),
@@ -961,8 +927,8 @@ class GrnController extends AppBaseController {
         'gateentryNo': gateEntryNoCtrl.text.trim(),
         'totalamount': subtotal,
         'totalquantity': itemLines.fold(0.0, (s, i) => s + i.receiveNowQty),
-        'poid': 0,                           // ✅ ADD
-        'qcstatus': selectedQcRequired,      // ✅ ADD
+        'poid': 0,
+        'qcstatus': selectedQcRequired,
         'grandtotal': grandTotalRounded,
         'roundoff': roundOff,
         'totaltax': totalGst,
@@ -971,13 +937,13 @@ class GrnController extends AppBaseController {
         'branchid': homeController.currentUserData?.branchId ?? 0,
         'userid': homeController.currentUserData?.userid ?? 0,
         'yearid': currentYearId,
-        'ledgertrans': '',                   // ✅ ADD
-        'menuid': 0,                         // ✅ ADD
-        'updateinvoiceid': 0,                // ✅ ADD
-        'freightmode': '',                   // ✅ ADD
-        'freightmodeid': 0,                  // ✅ ADD
-        'othervaluetaxxml': '',              // ✅ ADD
-        'filetypeId': billAttachments.isNotEmpty ? 1 : 0,  // ✅ ADD
+        'ledgertrans': '',
+        'menuid': 0,
+        'updateinvoiceid': 0,
+        'freightmode': '',
+        'freightmodeid': 0,
+        'othervaluetaxxml': '',
+        'filetypeid': selectedDocumentTypesString,
         'dcno': challanNoCtrl.text.trim(),
         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
         'dcfile': challanFileStr,
@@ -986,7 +952,7 @@ class GrnController extends AppBaseController {
         'paidbyid': int.tryParse(selectedPaidBy?.id ?? '0') ?? 0,
         'paidby': selectedPaidBy?.label ?? '',
         'paidtype': selectedPaidType?.label ?? '',
-        'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,  // ✅ ADD
+        'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
         'fromaddress': fromAddressCtrl.text.trim(),
         'toaddress': toAddressCtrl.text.trim(),
@@ -999,10 +965,10 @@ class GrnController extends AppBaseController {
         print(encoder.convert(body));
       }
 
-
       final res = await api.saveGrnEntry(body);
       if (res.status == 200 || res.success == true) {
-        ShowMessage.showSnackBar('Success', res.message ?? 'GRN saved successfully');
+        ShowMessage.showSnackBar(
+            'Success', res.message ?? 'GRN saved successfully');
         if (Get.isRegistered<GrnListController>()) {
           Get.find<GrnListController>().fetchGrnList();
         }
@@ -1021,7 +987,7 @@ class GrnController extends AppBaseController {
   String sourceLabel(GrnSourceType s) {
     switch (s) {
       case GrnSourceType.grn:
-        return 'GRN'; // ✅ add
+        return 'GRN';
     }
   }
 
@@ -1048,7 +1014,6 @@ class GrnController extends AppBaseController {
       fetchSeriesTypes(),
       fetchSites(),
       fetchGodowns(),
-      //  fetchPaidTypes(),
       fetchCustomerPOs(),
       fetchJobTypes(),
       fetchWorkOrders(),
@@ -1057,10 +1022,11 @@ class GrnController extends AppBaseController {
       fetchMakes(),
       fetchParties(),
       fetchAddresses(),
+      fetchDocumentTypes(),
     ]);
   }
 
-  // ── Individual fetch methods (real API) ────────────────────────────────────
+  // ── Individual fetch methods ───────────────────────────────────────────────
   Future<void> fetchSeriesTypes() async {
     isLoadingSeriesType = true;
     update();
@@ -1081,7 +1047,7 @@ class GrnController extends AppBaseController {
 
   Future<void> fetchSites({int partyId = 0}) async {
     isLoadingSite = true;
-    selectedSite = null; // reset on party change
+    selectedSite = null;
     update();
     try {
       final res = await api.getGrnDropdownList(
@@ -1098,13 +1064,23 @@ class GrnController extends AppBaseController {
     }
   }
 
-  Future<void> fetchGodowns() async {
+  Future<void> fetchGodowns({int siteId = 0}) async {
     isLoadingGodown = true;
+    selectedGodown = null;
     update();
+
     try {
-      final res = await api.getGrnDropdownList(_GrnDropdownBody('Godown'));
+      final res = await api.getGrnDropdownList(
+        _GrnDropdownBody('Godown', siteId: siteId),
+      );
+
       if ((res.status == 200 || res.success == true) && res.data != null) {
         godownList = res.data!;
+
+        // auto select first godown
+        if (godownList.isNotEmpty) {
+          selectedGodown = godownList.first;
+        }
       }
     } catch (e) {
       ShowMessage.showSnackBar('Godown', '$e');
@@ -1114,14 +1090,19 @@ class GrnController extends AppBaseController {
     }
   }
 
-  Future<void> fetchCustomerPOs() async {
+  Future<void> fetchCustomerPOs({int siteId = 0}) async {
     isLoadingCustomerPo = true;
     update();
     try {
-      final res =
-          await api.getGrnDropdownList(_GrnDropdownBody('customerorder'));
+      final res = await api.getGrnDropdownList(
+          _GrnDropdownBody('customerorder', siteId: siteId));
       if ((res.status == 200 || res.success == true) && res.data != null) {
         customerPoList = res.data!;
+        if (selectedCustomerPo != null) {
+          selectedCustomerPo = customerPoList
+                  .firstWhereOrNull((c) => c.id == selectedCustomerPo!.id) ??
+              selectedCustomerPo;
+        }
       }
     } catch (e) {
       ShowMessage.showSnackBar('CustomerPO', '$e');
@@ -1232,13 +1213,11 @@ class GrnController extends AppBaseController {
   }
 
   Future<void> fetchAddresses() async {
-    // ✅ Addresses now come from grnfulldetailController — nothing to fetch here
-    // They are applied in _applyGrnDetail when editing
+    // Addresses come from _applyGrnDetail when in edit mode
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   void _setLoggedInUser() {
-    // TODO: Pull from session
     receivedByName = homeController.currentUserData?.name ?? 'User';
   }
 
@@ -1260,9 +1239,6 @@ class GrnController extends AppBaseController {
   }
 
   void _applyGrnDetail(GrnDetailData d) {
-    // ✅ REMOVED: GrnNumber = d.Grnno — field doesn't exist in API response
-    // GrnNumber is already set from GrnListItem.GrnNo in _prefillFromListItem
-
     billNoCtrl.text = d.billno;
     challanNoCtrl.text = d.dcno;
     lotNoCtrl.text = d.lotno;
@@ -1276,19 +1252,19 @@ class GrnController extends AppBaseController {
     toAddressCtrl.text = d.toaddress;
     existingBillFiles = d.billfile.isNotEmpty
         ? d.billfile
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
-        .toList()
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
+            .toList()
         : [];
     existingDcFiles = d.dcfile.isNotEmpty
         ? d.dcfile
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
-        .toList()
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .map((s) => s.startsWith('http') ? s.split('/Images/').last : s)
+            .toList()
         : [];
 
     _setDateCtrl(GrnDateCtrl, d.receiptdate);
@@ -1296,43 +1272,33 @@ class GrnController extends AppBaseController {
     _setDateCtrl(challanDateCtrl, d.dcdate);
     _setDateCtrl(grnDateCtrl, d.grndate);
 
-    // Party
     partyNameCtrl.text = d.partyname;
     if (d.partyid > 0) {
       selectedParty =
           partyList.firstWhereOrNull((p) => p.id == d.partyid.toString()) ??
               GrnDropdownOption(id: d.partyid.toString(), label: d.partyname);
     }
-
-    // Site
     if (d.siteid > 0) {
       selectedSite =
           siteList.firstWhereOrNull((s) => s.id == d.siteid.toString()) ??
               GrnDropdownOption(id: d.siteid.toString(), label: d.sitename);
+      fetchCustomerPOs(siteId: d.siteid);
     }
-
-    // Godown
     if (d.godownid > 0) {
       selectedGodown =
           godownList.firstWhereOrNull((g) => g.id == d.godownid.toString()) ??
               GrnDropdownOption(id: d.godownid.toString(), label: d.godownname);
     }
-
-    // Series
     if (d.seriesid > 0) {
       selectedSeriesType = seriesTypeList
               .firstWhereOrNull((s) => s.id == d.seriesid.toString()) ??
           GrnDropdownOption(id: d.seriesid.toString(), label: '');
     }
-
-    // Customer PO
     if (d.customerpoid > 0) {
       selectedCustomerPo = customerPoList
               .firstWhereOrNull((c) => c.id == d.customerpoid.toString()) ??
           GrnDropdownOption(id: d.customerpoid.toString(), label: '');
     }
-
-    // Paid type
     if (d.paidtype.isNotEmpty) {
       selectedPaidType =
           paidTypeList.firstWhereOrNull((p) => p.label == d.paidtype);
@@ -1341,31 +1307,20 @@ class GrnController extends AppBaseController {
             GrnDropdownOption(id: d.paidbyid.toString(), label: d.paidby);
       }
     }
-
-    // Job type
     if (d.jobtypeid > 0) {
       selectedJobType =
           jobTypeList.firstWhereOrNull((j) => j.id == d.jobtypeid.toString()) ??
               GrnDropdownOption(id: d.jobtypeid.toString(), label: '');
     }
-    // ✅ NEW — apply real addresses from API
     if (d.fromaddress.isNotEmpty) {
-      shippingAddress = GrnAddress(
-        label: 'From Address',
-        line1: d.fromaddress,
-      );
+      shippingAddress = GrnAddress(label: 'From Address', line1: d.fromaddress);
     }
     if (d.toaddress.isNotEmpty) {
-      billingAddress = GrnAddress(
-        label: 'To Address',
-        line1: d.toaddress,
-      );
+      billingAddress = GrnAddress(label: 'To Address', line1: d.toaddress);
     }
 
-    // Source type
     selectedSource = GrnSourceType.grn;
 
-    // Items
     itemLines = d.items
         .map((i) => GrnItemLine(
               itemId: i.itemid.toString(),
@@ -1391,6 +1346,7 @@ class GrnController extends AppBaseController {
               batchNo: i.batchno,
             ))
         .toList();
+
     if (kDebugMode) print('📦 Items populated: ${itemLines.length}');
     update(['items_list']);
   }
@@ -1399,11 +1355,8 @@ class GrnController extends AppBaseController {
     if (raw.isEmpty) return;
     try {
       DateTime? dt;
-      // Try ISO first
       dt = DateTime.tryParse(raw);
-      // Try dd-MM-yyyy
       dt ??= DateFormat('dd-MM-yyyy').tryParseStrict(raw);
-      // Try dd/MM/yyyy already
       dt ??= DateFormat('dd/MM/yyyy').tryParseStrict(raw);
       if (dt != null) ctrl.text = DateFormat('dd/MM/yyyy').format(dt);
     } catch (_) {}

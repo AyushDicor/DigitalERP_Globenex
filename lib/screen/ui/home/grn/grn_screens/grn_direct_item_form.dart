@@ -139,7 +139,7 @@ class _GrnDirectItemFormState extends State<GrnDirectItemForm> {
               setState(() {
                 _selectedItem = v;
                 _selectedMake = null;
-                _gstFromApi = false; // reset lock when item changes
+               // _gstFromApi = false; // reset lock when item changes
                 _gstCtrl.clear(); // clear old GST value
               });
               if (v != null) {
@@ -152,7 +152,7 @@ class _GrnDirectItemFormState extends State<GrnDirectItemForm> {
                     _gstCtrl.text = detail.gstpercent % 1 == 0
                         ? detail.gstpercent.toInt().toString()
                         : detail.gstpercent.toString();
-                    _gstFromApi = true; // lock field after API fill
+                   // _gstFromApi = true; // lock field after API fill
                   });
                 }
                 // Load makes for this item
@@ -389,25 +389,25 @@ class _GstField extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: newTextPrimary)),
-        if (isLocked) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: newGreenLightColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.lock_rounded, size: 9, color: newGreenColor),
-              SizedBox(width: 3),
-              Text('Auto-filled',
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: newGreenColor)),
-            ]),
-          ),
-        ],
+        // if (isLocked) ...[
+        //   const SizedBox(width: 6),
+        //   Container(
+        //     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        //     decoration: BoxDecoration(
+        //       color: newGreenLightColor,
+        //       borderRadius: BorderRadius.circular(4),
+        //     ),
+        //     child: const Row(mainAxisSize: MainAxisSize.min, children: [
+        //       Icon(Icons.lock_rounded, size: 9, color: newGreenColor),
+        //       SizedBox(width: 3),
+        //       Text('Auto-filled',
+        //           style: TextStyle(
+        //               fontSize: 9,
+        //               fontWeight: FontWeight.w700,
+        //               color: newGreenColor)),
+        //     ]),
+        //   ),
+        // ],
       ]),
       const SizedBox(height: 5),
 

@@ -5015,4 +5015,30 @@ class Api {
     }
     return GrnItemDetailResponse(status: 500, message: 'No Internet');
   }
+
+  Future<DependentDetailResponse> getDependentAllDetail(
+      DependentDetailRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getDependentAllDetail, // 'api/getdependentalldetail'
+        body: jsonEncode(request.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return DependentDetailResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getDependentAllDetail parse error: $e');
+          return DependentDetailResponse(status: 500, message: e.toString());
+        }
+      }
+      return DependentDetailResponse(
+          status: 500, message: 'Something went wrong');
+    }
+    return DependentDetailResponse(status: 500, message: 'No Internet');
+  }
 }

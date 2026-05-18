@@ -21,7 +21,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   final _gstCtrl = TextEditingController();
   final _discCtrl = TextEditingController(text: '0');
   final _remarksCtrl = TextEditingController();
-  final _discPctCtrl = TextEditingController(text: '0'); // ← add this
+  final _discPctCtrl = TextEditingController(text: '0');
 
   // Selected values
   MrnDropdownOption? _selectedItem;
@@ -29,17 +29,11 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   MrnDropdownOption? _selectedMake;
   MrnDropdownOption? _selectedGodown;
 
-  // ── NEW: tracks whether GST was auto-filled from API (locks field) ────────
-  bool _gstFromApi = false;
-
   // Computed preview
   double get _qty => double.tryParse(_qtyCtrl.text) ?? 0;
   double get _rate => double.tryParse(_rateCtrl.text) ?? 0;
   double get _gstPct => double.tryParse(_gstCtrl.text) ?? 0;
   double get _discPct => double.tryParse(_discPctCtrl.text) ?? 0;
-  double get _disc => double.tryParse(_discCtrl.text) ?? 0;
-
-  // ✅ Replace existing _amount getter:
   double get _discAmt => double.tryParse(_discCtrl.text) ?? 0;
 
   double get _amount => (_qty * _rate) - _discAmt;
@@ -58,14 +52,13 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
       _rate > 0 &&
       _gstPct >= 0;
 
-  // ── Reset all form fields ─────────────────────────────────────────────────
+  // ── Reset all form fields ──────────────────────────────────────────────────
   void _resetForm() {
     setState(() {
       _selectedItem = null;
       _selectedUnit = null;
       _selectedMake = null;
       _selectedGodown = null;
-      _gstFromApi = false;
       _qtyCtrl.clear();
       _rateCtrl.clear();
       _gstCtrl.clear();
@@ -104,7 +97,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
       remarks: _remarksCtrl.text.trim(),
     );
 
-    _resetForm(); // ← uses _resetForm instead of inline setState
+    _resetForm();
   }
 
   @override
@@ -122,12 +115,12 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
   Widget build(BuildContext context) {
     final ctrl = Get.find<MrnController>();
     return Column(children: [
-      // ── Add item form card ──────────────────────────────────────────────
+      // ── Add item form card ────────────────────────────────────────────────
       MrnCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const MrnSectionHead('Add Item'),
 
-          // ── Item Name / Code ────────────────────────────────────────────
+          // ── Item Name / Code ──────────────────────────────────────────────
           _SearchableField(
             label: 'Item Name / Code *',
             value: _selectedItem,
@@ -138,11 +131,11 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
               setState(() {
                 _selectedItem = v;
                 _selectedMake = null;
-                _gstFromApi = false; // reset lock when item changes
-                _gstCtrl.clear(); // clear old GST value
+                // Clear old GST when item changes so user sees it refill
+                _gstCtrl.clear();
               });
               if (v != null) {
-                // Auto-fill GST % from item detail API
+                // Auto-fill GST % from item detail API — but user can still edit it
                 final detail = await ctrl.fetchItemDetail(
                   int.tryParse(v.id) ?? 0,
                 );
@@ -151,7 +144,6 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
                     _gstCtrl.text = detail.gstpercent % 1 == 0
                         ? detail.gstpercent.toInt().toString()
                         : detail.gstpercent.toString();
-                    _gstFromApi = true; // lock field after API fill
                   });
                 }
                 // Load makes for this item
@@ -163,7 +155,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ),
           const SizedBox(height: 10),
 
-          // ── Unit + Make ─────────────────────────────────────────────────
+          // ── Unit + Make ───────────────────────────────────────────────────
           Row(children: [
             Expanded(
               child: _SearchableField(
@@ -191,7 +183,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ]),
           const SizedBox(height: 10),
 
-          // ── Godown ──────────────────────────────────────────────────────
+          // ── Godown ────────────────────────────────────────────────────────
           _SearchableField(
             label: 'Godown *',
             value: _selectedGodown ?? ctrl.selectedGodown,
@@ -203,7 +195,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ),
           const SizedBox(height: 10),
 
-          // ── Qty + Rate ──────────────────────────────────────────────────
+          // ── Qty + Rate ────────────────────────────────────────────────────
           Row(children: [
             Expanded(
               child: _NumField(
@@ -228,17 +220,18 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ]),
           const SizedBox(height: 10),
 
-          // ── GST % (locked after API fill) + Discount ────────────────────
+          // ── GST % (always editable, auto-filled as a hint) + Discount % ──
           Row(children: [
             Expanded(
-                child: _GstField(
-              controller: _gstCtrl,
-              isLocked: _gstFromApi,
-              onChanged: (_) => setState(() {}),
-            )),
+              child: _NumField(
+                label: 'GST %',
+                controller: _gstCtrl,
+                hint: '0',
+                decimal: true,
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
             const SizedBox(width: 10),
-            // ✅ NEW: Discount %
-            // ── Replace the Discount % NumField onChanged ──────────────────────────────
             Expanded(
               child: _NumField(
                 label: 'Discount %',
@@ -247,7 +240,6 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
                 decimal: true,
                 onChanged: (v) {
                   setState(() {
-                    // ✅ Auto-fill flat ₹ discount field from %
                     final pct = double.tryParse(v) ?? 0;
                     if (pct > 0) {
                       final computed = (_qty * _rate) * pct / 100;
@@ -262,7 +254,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ]),
           const SizedBox(height: 10),
 
-// ✅ NEW: Discount ₹ (flat amount) on its own row
+          // ── Discount ₹ (flat amount) ──────────────────────────────────────
           _NumField(
             label: 'Discount (₹)',
             controller: _discCtrl,
@@ -270,14 +262,11 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
             decimal: true,
             onChanged: (v) {
               setState(() {
-                // ✅ If user manually types flat ₹, clear the % field
                 final flat = double.tryParse(v) ?? 0;
-                final pctComputed =
-                    (_qty * _rate) > 0 ? (flat / (_qty * _rate) * 100) : 0.0;
-                // Only clear % if it doesn't match the computed value
-                // (i.e. user is typing manually, not synced from % field)
+                final base = _qty * _rate;
+                final pctComputed = base > 0 ? (flat / base * 100) : 0.0;
                 final currentPct = double.tryParse(_discPctCtrl.text) ?? 0;
-                final expectedFlat = (_qty * _rate) * currentPct / 100;
+                final expectedFlat = base * currentPct / 100;
                 if ((flat - expectedFlat).abs() > 0.01) {
                   _discPctCtrl.text =
                       pctComputed > 0 ? pctComputed.toStringAsFixed(2) : '0';
@@ -287,7 +276,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ),
           const SizedBox(height: 10),
 
-          // ── Remarks ─────────────────────────────────────────────────────
+          // ── Remarks ───────────────────────────────────────────────────────
           MrnField(
             label: 'Remarks',
             controller: _remarksCtrl,
@@ -296,13 +285,13 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
           ),
           const SizedBox(height: 14),
 
-          // ── Live calculation preview ────────────────────────────────────
+          // ── Live calculation preview ──────────────────────────────────────
           if (_qty > 0 && _rate > 0)
             _CalcPreview(
               qty: _qty,
               rate: _rate,
               gstPct: _gstPct,
-              disc: _disc,
+              disc: _discAmt,
               discPct: _discPct,
               amount: _amount,
               gstAmt: _gstAmt,
@@ -311,7 +300,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
 
           if (_qty > 0 && _rate > 0) const SizedBox(height: 14),
 
-          // ── Add button ──────────────────────────────────────────────────
+          // ── Add button ────────────────────────────────────────────────────
           MrnPrimaryBtn(
             label: 'Add Item',
             icon: Icons.add_rounded,
@@ -321,7 +310,7 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
         ]),
       ),
 
-      // ── Added items list ────────────────────────────────────────────────
+      // ── Added items list ──────────────────────────────────────────────────
       GetBuilder<MrnController>(
         builder: (ctrl) => ctrl.itemLines.isEmpty
             ? const SizedBox.shrink()
@@ -358,95 +347,6 @@ class _MrnDirectItemFormState extends State<MrnDirectItemForm> {
                   _DirectTotalsFooter(ctrl: ctrl),
                 ]),
               ),
-      ),
-    ]);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GST field — read-only + green badge when auto-filled from API
-// ═══════════════════════════════════════════════════════════════════════════════
-class _GstField extends StatelessWidget {
-  final TextEditingController controller;
-  final bool isLocked;
-  final ValueChanged<String>? onChanged;
-
-  const _GstField({
-    required this.controller,
-    required this.isLocked,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Label row with optional lock badge
-      Row(children: [
-        const Text('GST % *',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: newTextPrimary)),
-        if (isLocked) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: newGreenLightColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.lock_rounded, size: 9, color: newGreenColor),
-              SizedBox(width: 3),
-              Text('Auto-filled',
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: newGreenColor)),
-            ]),
-          ),
-        ],
-      ]),
-      const SizedBox(height: 5),
-
-      // Text field
-      TextField(
-        controller: controller,
-        readOnly: isLocked, // ← can't edit when locked
-        keyboardType: TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-        ],
-        onChanged: isLocked ? null : onChanged,
-        style: const TextStyle(fontSize: 13, color: newTextPrimary),
-        decoration: InputDecoration(
-          hintText: '0',
-          hintStyle: const TextStyle(color: newTextHint),
-          filled: true,
-          // Green tint when locked, normal when editable
-          fillColor: isLocked ? newGreenLightColor : newSurfaceColor,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-          // Lock icon suffix when locked
-          suffixIcon: isLocked
-              ? const Padding(
-                  padding: EdgeInsets.all(13),
-                  child:
-                      Icon(Icons.lock_rounded, size: 15, color: newGreenColor))
-              : null,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  BorderSide(color: isLocked ? newGreenColor : newBorderColor)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                  color: isLocked ? newGreenColor : newBlueColor, width: 1.5)),
-        ),
       ),
     ]);
   }
@@ -499,7 +399,6 @@ class _CalcPreview extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        //_row('Qty × Rate', '${qty.toInt()} × ₹${rate.toStringAsFixed(2)}'),
         _row('Amount', '₹${amount.toStringAsFixed(2)}'),
         if (disc > 0)
           _row(
@@ -507,7 +406,6 @@ class _CalcPreview extends StatelessWidget {
                   ? 'Discount ${discPct.toStringAsFixed(1)}%'
                   : 'Discount',
               '- ₹${disc.toStringAsFixed(2)}'),
-
         _row('GST ${gstPct.toInt()}%', '₹${gstAmt.toStringAsFixed(2)}'),
         const Divider(color: newBlueColor, height: 16, thickness: 0.5),
         Row(

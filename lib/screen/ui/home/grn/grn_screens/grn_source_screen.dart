@@ -78,14 +78,20 @@ class GrnSourceScreen extends StatelessWidget {
 
                   // Party Name (free text)
                   // ── Party Name (searchable dropdown) ──────────────────────────────────────
-                  GrnSearchableDropdown<GrnDropdownOption>(
-                    label: 'Party Name',
-                    value: ctrl.selectedParty,
-                    items: ctrl.partyList,
-                    isLoading: ctrl.isLoadingParty,
-                    itemLabel: (o) => o.label,
-                    onChanged: ctrl.setParty,
-                    hint: 'Search party / supplier…',
+                  AbsorbPointer(
+                    absorbing: ctrl.isEditMode,
+                    child: Opacity(
+                      opacity: ctrl.isEditMode ? 0.85 : 1.0,
+                      child: GrnSearchableDropdown<GrnDropdownOption>(
+                        label: ctrl.isEditMode ? 'Party Name 🔒' : 'Party Name',
+                        value: ctrl.selectedParty,
+                        items: ctrl.partyList,
+                        isLoading: ctrl.isLoadingParty,
+                        itemLabel: (o) => o.label,
+                        onChanged: ctrl.setParty,
+                        hint: 'Search party / supplier…',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
 
@@ -203,64 +209,64 @@ class GrnSourceScreen extends StatelessWidget {
               ),
 
               // ── Attachments ───────────────────────────────────────────────
-              GrnCard(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const GrnSectionHead('Attachments'),
-
-                      // Attachment Type checklist dropdown
-                      _attachmentTypeChecklist(ctrl),
-                      const SizedBox(height: 12),
-
-                      // Bill Attachment (shown when Bill is checked)
-                      if (ctrl.selectedAttachmentTypes
-                          .contains(GrnAttachmentType.bill)) ...[
-                        _attachmentSection(
-                          context: context,
-                          label: 'Bill Attachment',
-                          docs: ctrl.billAttachments,
-                          existingUrls: ctrl.existingBillFiles, // ✅
-                          onCamera: ctrl.pickBillFromCamera,
-                          onGallery: ctrl.pickBillFromGallery,
-                          onFile: ctrl.pickBillFile,
-                          onRemove: ctrl.removeBillAttachment,
-                          onRemoveExisting: ctrl.removeExistingBillFile, // ✅
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Challan Attachment (shown when Challan is checked)
-                      if (ctrl.selectedAttachmentTypes
-                          .contains(GrnAttachmentType.challan)) ...[
-                        _attachmentSection(
-                          context: context,
-                          label: 'Challan Attachment',
-                          docs: ctrl.challanAttachments,
-                          existingUrls: ctrl.existingDcFiles, // ✅
-                          onCamera: ctrl.pickChallanFromCamera,
-                          onGallery: ctrl.pickChallanFromGallery,
-                          onFile: ctrl.pickChallanFile,
-                          onRemove: ctrl.removeChallanAttachment,
-                          onRemoveExisting: ctrl.removeExistingDcFile, // ✅
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Reason for N/A (shown when no attachments uploaded)
-                      if (ctrl.billAttachments.isEmpty &&
-                          ctrl.challanAttachments.isEmpty &&
-                          ctrl.existingBillFiles.isEmpty && // ✅
-                          ctrl.existingDcFiles.isEmpty) ...[
-                        GrnField(
-                          label: 'Reason for N/A Attachment',
-                          controller: ctrl.reasonNACtrl,
-                          hint: 'Explain why no attachment is available…',
-                          minLines: 3,
-                        ),
-                      ],
-                    ]),
-              ),
+              // GrnCard(
+              //   child: Column(
+              //       crossAxisAlignment: CrossAxisAlignment.start,
+              //       children: [
+              //         const GrnSectionHead('Attachments'),
+              //
+              //         // Attachment Type checklist dropdown
+              //         _attachmentTypeChecklist(ctrl),
+              //         const SizedBox(height: 12),
+              //
+              //         // Bill Attachment (shown when Bill is checked)
+              //         if (ctrl.selectedAttachmentTypes
+              //             .contains(GrnAttachmentType.bill)) ...[
+              //           _attachmentSection(
+              //             context: context,
+              //             label: 'Bill Attachment',
+              //             docs: ctrl.billAttachments,
+              //             existingUrls: ctrl.existingBillFiles, // ✅
+              //             onCamera: ctrl.pickBillFromCamera,
+              //             onGallery: ctrl.pickBillFromGallery,
+              //             onFile: ctrl.pickBillFile,
+              //             onRemove: ctrl.removeBillAttachment,
+              //             onRemoveExisting: ctrl.removeExistingBillFile, // ✅
+              //           ),
+              //           const SizedBox(height: 12),
+              //         ],
+              //
+              //         // Challan Attachment (shown when Challan is checked)
+              //         if (ctrl.selectedAttachmentTypes
+              //             .contains(GrnAttachmentType.challan)) ...[
+              //           _attachmentSection(
+              //             context: context,
+              //             label: 'Challan Attachment',
+              //             docs: ctrl.challanAttachments,
+              //             existingUrls: ctrl.existingDcFiles, // ✅
+              //             onCamera: ctrl.pickChallanFromCamera,
+              //             onGallery: ctrl.pickChallanFromGallery,
+              //             onFile: ctrl.pickChallanFile,
+              //             onRemove: ctrl.removeChallanAttachment,
+              //             onRemoveExisting: ctrl.removeExistingDcFile, // ✅
+              //           ),
+              //           const SizedBox(height: 12),
+              //         ],
+              //
+              //         // Reason for N/A (shown when no attachments uploaded)
+              //         if (ctrl.billAttachments.isEmpty &&
+              //             ctrl.challanAttachments.isEmpty &&
+              //             ctrl.existingBillFiles.isEmpty && // ✅
+              //             ctrl.existingDcFiles.isEmpty) ...[
+              //           GrnField(
+              //             label: 'Reason for N/A Attachment',
+              //             controller: ctrl.reasonNACtrl,
+              //             hint: 'Explain why no attachment is available…',
+              //             minLines: 3,
+              //           ),
+              //         ],
+              //       ]),
+              // ),
 
               // ── Additional details ────────────────────────────────────────
               GrnCard(
@@ -441,39 +447,39 @@ class GrnSourceScreen extends StatelessWidget {
   }
 
   // ── Attachment type checklist widget ──────────────────────────────────────
-  Widget _attachmentTypeChecklist(GrnController ctrl) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Attachment Type',
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: newTextPrimary)),
-      const SizedBox(height: 5),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: newSurfaceColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: newBorderColor),
-        ),
-        child: Column(children: [
-          _checkItem(
-            label: 'Bill',
-            checked:
-            ctrl.selectedAttachmentTypes.contains(GrnAttachmentType.bill),
-            onTap: () => ctrl.toggleAttachmentType(GrnAttachmentType.bill),
-          ),
-          const Divider(height: 1, color: newBorderColor),
-          _checkItem(
-            label: 'Challan',
-            checked: ctrl.selectedAttachmentTypes
-                .contains(GrnAttachmentType.challan),
-            onTap: () => ctrl.toggleAttachmentType(GrnAttachmentType.challan),
-          ),
-        ]),
-      ),
-    ]);
-  }
+  // Widget _attachmentTypeChecklist(GrnController ctrl) {
+  //   return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  //     const Text('Attachment Type',
+  //         style: TextStyle(
+  //             fontSize: 12,
+  //             fontWeight: FontWeight.w700,
+  //             color: newTextPrimary)),
+  //     const SizedBox(height: 5),
+  //     Container(
+  //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  //       decoration: BoxDecoration(
+  //         color: newSurfaceColor,
+  //         borderRadius: BorderRadius.circular(10),
+  //         border: Border.all(color: newBorderColor),
+  //       ),
+  //       child: Column(children: [
+  //         _checkItem(
+  //           label: 'Bill',
+  //           checked:
+  //           ctrl.selectedAttachmentTypes.contains(GrnAttachmentType.bill),
+  //           onTap: () => ctrl.toggleAttachmentType(GrnAttachmentType.bill),
+  //         ),
+  //         const Divider(height: 1, color: newBorderColor),
+  //         _checkItem(
+  //           label: 'Challan',
+  //           checked: ctrl.selectedAttachmentTypes
+  //               .contains(GrnAttachmentType.challan),
+  //           onTap: () => ctrl.toggleAttachmentType(GrnAttachmentType.challan),
+  //         ),
+  //       ]),
+  //     ),
+  //   ]);
+  // }
 
   Widget _checkItem(
       {required String label,
