@@ -12,11 +12,16 @@ import 'package:intl/intl.dart';
 import '../../../../../repo/reimbursement_repo.dart';
 import '../../home_controller.dart';
 import '../../mrn_module/mrn_response/mrn_models.dart';
+import '../grn_additional_charges_mixin.dart';
 import '../grn_response/grn_models.dart';
 import '../grn_screens/grn_list_screen.dart';
 import 'grn_list_contoller.dart';
 
-class GrnController extends AppBaseController {
+
+
+
+class GrnController extends AppBaseController
+   with GrnAdditionalChargesMixin{
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
@@ -144,6 +149,8 @@ class GrnController extends AppBaseController {
   bool isLoadingMake = false;
 
   bool isLoadingItemDetail = false;
+  //
+  List<GrnDropdownOption> taxType = [];
 
   // ── Edit ───────────────────────────────────────────────────────────────────
   bool isEditMode = false;
@@ -1023,6 +1030,7 @@ class GrnController extends AppBaseController {
       fetchParties(),
       fetchAddresses(),
       fetchDocumentTypes(),
+      fetchChargeHeads(),
     ]);
   }
 
