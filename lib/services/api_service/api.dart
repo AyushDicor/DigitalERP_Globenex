@@ -135,6 +135,7 @@ import '../../response/create_task_response.dart';
 import '../../response/save_followup_response.dart';
 import '../../screen/ui/home/grn/grn_response/grn_models.dart';
 import '../../screen/ui/home/mrn_module/mrn_response/mrn_models.dart';
+import '../../screen/ui/home/mrn_qc/mrn_qc_model/mrn_qc_models.dart';
 
 class Api {
   final ApiMethods _apiMethods = ApiMethods();
@@ -4734,7 +4735,7 @@ class Api {
 
   Future<MrnDetailResponse> getMrnDetail(Map<String, dynamic> body) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
       String res = await _apiClient.postMethodJson(
@@ -4889,11 +4890,10 @@ class Api {
     return MrnItemDetailResponse(status: 500, message: 'No Internet');
   }
 
-
-  //GRN APIs
+  ///GRN APIs-------------------------------------------------------------------
   Future<GrnSubmitResponse> saveGrnEntry(Map<String, dynamic> body) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
       String res = await _apiClient.postMethodJson(
@@ -4915,7 +4915,7 @@ class Api {
 
   Future<GrnDetailResponse> getGrnDetail(Map<String, dynamic> body) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
       String res = await _apiClient.postMethodJson(
@@ -4938,7 +4938,7 @@ class Api {
 
   Future<GrnListResponse> getGrnList(GrnListRequest request) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
 
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
@@ -4963,7 +4963,7 @@ class Api {
   Future<GrnDropdownResponse> getGrnDropdownList(
       Map<String, dynamic> body) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
 
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
@@ -4993,7 +4993,7 @@ class Api {
     required int itemid,
   }) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
       final body = jsonEncode({'compid': compid, 'itemid': itemid});
@@ -5019,12 +5019,13 @@ class Api {
   Future<DependentDetailResponse> getDependentAllDetail(
       DependentDetailRequest request) async {
     List<ConnectivityResult> connectivityResults =
-    await connectivity.checkConnectivity();
+        await connectivity.checkConnectivity();
 
     if (connectivityResults.contains(ConnectivityResult.wifi) ||
         connectivityResults.contains(ConnectivityResult.mobile)) {
       String res = await _apiClient.postMethodJson(
-        method: _apiMethods.getDependentAllDetail, // 'api/getdependentalldetail'
+        method:
+            _apiMethods.getDependentAllDetail, // 'api/getdependentalldetail'
         body: jsonEncode(request.toJson()),
         header: {'Content-Type': 'application/json'},
       );
@@ -5040,5 +5041,108 @@ class Api {
           status: 500, message: 'Something went wrong');
     }
     return DependentDetailResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<LedgerAddressResponse> getLedgerAddressAndValuePercent(
+      LedgerAddressRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+        await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getAddress,
+        body: jsonEncode(request.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+
+      if (res.isNotEmpty) {
+        try {
+          return LedgerAddressResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) {
+            print('getLedgerAddressAndValuePercent parse error: $e');
+          }
+          return LedgerAddressResponse(
+            status: 500,
+            message: e.toString(),
+          );
+        }
+      }
+
+      return LedgerAddressResponse(
+        status: 500,
+        message: 'Something went wrong',
+      );
+    }
+
+    return LedgerAddressResponse(
+      status: 500,
+      message: 'No Internet',
+    );
+  }
+
+  Future<MrnLedgerAddressResponse> getMrnLedgerAddressAndValuePercent(
+      MrnLedgerAddressRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getAddress,
+        body: jsonEncode(request.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+
+      if (res.isNotEmpty) {
+        try {
+          return MrnLedgerAddressResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) {
+            print('getLedgerAddressAndValuePercent parse error: $e');
+          }
+          return MrnLedgerAddressResponse(
+            status: 500,
+            message: e.toString(),
+          );
+        }
+      }
+
+      return MrnLedgerAddressResponse(
+        status: 500,
+        message: 'Something went wrong',
+      );
+    }
+
+    return MrnLedgerAddressResponse(
+      status: 500,
+      message: 'No Internet',
+    );
+  }
+
+  /// MRN QC APIS --------------------------------------------------------------
+  Future<MrnQcListResponse> getMrnQcList(MrnQcListRequest request) async {
+    List<ConnectivityResult> connectivityResults =
+        await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getMrnQcList, // add 'api/getmrnlist' to _apiMethods
+        body: jsonEncode(request.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return MrnQcListResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getMrnList parse error: $e');
+          return MrnQcListResponse(status: 500, message: e.toString());
+        }
+      }
+      return MrnQcListResponse(status: 500, message: 'Something went wrong');
+    }
+    return MrnQcListResponse(status: 500, message: 'No Internet');
   }
 }

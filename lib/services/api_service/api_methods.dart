@@ -292,10 +292,14 @@ class ApiMethods {
 
 
   ///GRN Module
-  String getGrnDetail        = 'grnfulldetailController';
-  String getGrnList          = 'getgrnlist';
-  String saveGrnEntry        = 'savegrnentry';
-  String getGrnDropdownList  = 'Getmrndropdownlist';
-  String getGrnItemDetail        = 'itemdetail';
+  String getGrnDetail       = 'grnfulldetailController';
+  String getGrnList         = 'getgrnlist';
+  String saveGrnEntry       = 'savegrnentry';
+  String getGrnDropdownList = 'Getmrndropdownlist';
+  String getGrnItemDetail   = 'itemdetail';
+  String getAddress         = 'getledgeraddressandvaluepercent';
+
+  ///MRN QC Module
+  String getMrnQcList        = 'getmrnlist';
 //  static const String getPendingPoItems = 'getpendingpo';
 }

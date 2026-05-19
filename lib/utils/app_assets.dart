@@ -1,27 +1,27 @@
 class AppAssets {
   // static const String appLogo = 'assets/images/app_logo.png';
-  static const String appLogo = 'assets/images/digitalerp_newlogo.png';
-  static const String splashBg = 'assets/images/splash_bg.png';
-  static const String splashScreen = 'assets/images/splash_screen.png';
-  static const String setupBg = 'assets/images/setup_bg.png';
-  static const String dashboardBg = 'assets/images/dashboard_bg.png';
-  static const String setupImage = 'assets/images/setup_profile_image.png';
-  static const String productImage = 'assets/images/product_image.png';
-  static const String drawerBg = 'assets/images/drawer_bg.png';
-  static const String cardImage = 'assets/images/card_image.jpg';
-  static const String successBg = 'assets/images/success_bg.png';
-  static const String otpBg = 'assets/images/otp_bg.png';
-  static const String successImage = 'assets/images/success_right_image.png';
-  static const String successCenterImage = 'assets/images/success_center_image.png';
-  static const String shoesImage = 'assets/images/shoes_image.png';
-  static const String medicineCategoryIcon = 'assets/images/medicine_image.png';
-  static const String productDetailsBg = 'assets/images/product_details_bg.png';
-  static const String executiveCardBg = 'assets/images/executive_card_bg.png';
-  static const String toproundImage = 'assets/images/topround_image.png';
+  static const String appLogo               = 'assets/images/digitalerp_newlogo.png';
+  static const String splashBg              = 'assets/images/splash_bg.png';
+  static const String splashScreen          = 'assets/images/splash_screen.png';
+  static const String setupBg               = 'assets/images/setup_bg.png';
+  static const String dashboardBg           = 'assets/images/dashboard_bg.png';
+  static const String setupImage            = 'assets/images/setup_profile_image.png';
+  static const String productImage          = 'assets/images/product_image.png';
+  static const String drawerBg              = 'assets/images/drawer_bg.png';
+  static const String cardImage             = 'assets/images/card_image.jpg';
+  static const String successBg             = 'assets/images/success_bg.png';
+  static const String otpBg                 = 'assets/images/otp_bg.png';
+  static const String successImage          = 'assets/images/success_right_image.png';
+  static const String successCenterImage    = 'assets/images/success_center_image.png';
+  static const String shoesImage            = 'assets/images/shoes_image.png';
+  static const String medicineCategoryIcon  = 'assets/images/medicine_image.png';
+  static const String productDetailsBg      = 'assets/images/product_details_bg.png';
+  static const String executiveCardBg       = 'assets/images/executive_card_bg.png';
+  static const String toproundImage         = 'assets/images/topround_image.png';
   static const String furnitureCategoryIcon = 'assets/images/furniture_image.png';
-  static const String shoesCategoryIcon = 'assets/images/shoes_image2.png';
-  static const String clothCategoryIcon = 'assets/images/cloth_image.png';
-  static const String addNewIcon= 'assets/images/add.png';
+  static const String shoesCategoryIcon     = 'assets/images/shoes_image2.png';
+  static const String clothCategoryIcon     = 'assets/images/cloth_image.png';
+  static const String addNewIcon            = 'assets/images/add.png';
 
 
   ///new icon/
@@ -45,6 +45,7 @@ class AppAssets {
   static const String mrnIcon                = 'assets/iconsnew/MRN.png';
   static const String mrnrIcon               = 'assets/iconsnew/MRNR.png';
   static const String grnIcon                = 'assets/iconsnew/grn.png';
+  static const String mrnQcIcon              = 'assets/iconsnew/MrnQc.png';
 
 
   static const String attendencenewIcon      = 'assets/iconsnew/Attendance.png';
@@ -58,28 +59,28 @@ class AppAssets {
 
   ///icon
   static const String documentManagementIcon='assets/icons/Document Management.png';
-  static const String followupIcon='assets/icons/Follow up.png';
-  static const String taskManagementIcon ='assets/icons/Task management.png';
-  static const String marketingIcon ='assets/icons/marketing module.png';
-  static const String approvalIcon ='assets/images/approval icon.png';
-  static const String gridIcon = 'assets/images/grid_icon.png';
-  static const String listIcon = 'assets/images/list_icon.png';
-  static const String backIcon = 'assets/icons/back_icon.png';
-  static const String misIcon = 'assets/icons/mis.png';
-  static const String leaveApprovalIcon = 'assets/icons/leave_approval.png';
-  static const String drawerIcon = 'assets/icons/drawer_icon.png';
-  static const String drawerIcon2 = 'assets/icons/drawer_icon2.png';
-  static const String callIcon = 'assets/icons/call_icon.png';
-  static const String dropdownIcon = 'assets/icons/dropdown_icon.png';
-  static const String navigationIcon = 'assets/icons/navigation_icon.png';
-  static const String calendarIcon = 'assets/icons/calender_icon.png';
-  static const String clockIcon = 'assets/icons/clock_icon.png';
+  static const String followupIcon          ='assets/icons/Follow up.png';
+  static const String taskManagementIcon    ='assets/icons/Task management.png';
+  static const String marketingIcon         ='assets/icons/marketing module.png';
+  static const String approvalIcon          ='assets/images/approval icon.png';
+  static const String gridIcon              = 'assets/images/grid_icon.png';
+  static const String listIcon              = 'assets/images/list_icon.png';
+  static const String backIcon              = 'assets/icons/back_icon.png';
+  static const String misIcon               = 'assets/icons/mis.png';
+  static const String leaveApprovalIcon     = 'assets/icons/leave_approval.png';
+  static const String drawerIcon            = 'assets/icons/drawer_icon.png';
+  static const String drawerIcon2           = 'assets/icons/drawer_icon2.png';
+  static const String callIcon              = 'assets/icons/call_icon.png';
+  static const String dropdownIcon          = 'assets/icons/dropdown_icon.png';
+  static const String navigationIcon        = 'assets/icons/navigation_icon.png';
+  static const String calendarIcon          = 'assets/icons/calender_icon.png';
+  static const String clockIcon             = 'assets/icons/clock_icon.png';
 
-  static const String coloredCloseIcon = 'assets/icons/colored_close_icon.png';
-  static const String closeIcon = 'assets/icons/close_icon.png';
-  static const String stockIcon = 'assets/icons/stock_icon.png';
-  static const String walletIcon = 'assets/icons/wallet_icon.png';
-  static const String wallet2Icon = 'assets/icons/wallet2_icon.png';
+  static const String coloredCloseIcon      = 'assets/icons/colored_close_icon.png';
+  static const String closeIcon             = 'assets/icons/close_icon.png';
+  static const String stockIcon             = 'assets/icons/stock_icon.png';
+  static const String walletIcon            = 'assets/icons/wallet_icon.png';
+  static const String wallet2Icon           = 'assets/icons/wallet2_icon.png';
 
 
   static const String cartIcon = 'assets/icons/cart_icon.png';

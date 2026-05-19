@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../utils/show_message.dart';
+import '../../grn/grn_response/additional_charge_model.dart';
 import '../mrn_controller/mrn_controller.dart';
 import '../mrn_response/mrn_models.dart';
 import '../mrn_widgets.dart';
@@ -141,6 +142,9 @@ class MrnItemsScreen extends StatelessWidget {
                   // ── Attachments card ───────────────────────────────────
                   // Shown in both PO and Direct
                   _AttachmentsCard(ctrl: ctrl, context: context),
+                  const SizedBox(height: 14),
+
+                  _AdditionalChargesCard(ctrl: ctrl),
                 ]),
               ),
             ),
@@ -387,6 +391,1071 @@ class MrnItemsScreen extends StatelessWidget {
       );
 }
 
+class _AdditionalChargesCard extends StatelessWidget {
+  final MrnController ctrl;
+  const _AdditionalChargesCard({super.key, required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return MrnCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Header row ──────────────────────────────────────────────────────
+        Row(children: [
+          const Expanded(
+            child: MrnSectionHead('Other Details / Additional Charges'),
+          ),
+          GestureDetector(
+            onTap: ctrl.addAdditionalCharge,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: newBlueColor,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.add_rounded, size: 14, color: Colors.white),
+                SizedBox(width: 5),
+                Text('Add Row',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 4),
+
+        // ── Subtitle ────────────────────────────────────────────────────────
+        const Text(
+          'Add freight, taxes, discounts or any other adjustments. '
+          'Each row is applied sequentially to compute the final total.',
+          style: TextStyle(fontSize: 11, color: newTextSecondary),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Empty state ─────────────────────────────────────────────────────
+        if (ctrl.additionalCharges.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            decoration: BoxDecoration(
+              color: newSurfaceColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: newBorderColor),
+            ),
+            child: Column(children: [
+              Icon(Icons.receipt_long_outlined,
+                  size: 32, color: newBorderColor),
+              const SizedBox(height: 8),
+              const Text('No additional charges added.',
+                  style: TextStyle(fontSize: 12, color: newTextSecondary)),
+              const SizedBox(height: 4),
+              const Text('Tap "Add Row" to add freight, taxes, discounts…',
+                  style: TextStyle(fontSize: 11, color: newTextHint)),
+            ]),
+          )
+        else ...[
+          // ── Column header ──────────────────────────────────────────────
+          _tableHeader(),
+          const SizedBox(height: 4),
+
+          // ── Charge rows ────────────────────────────────────────────────
+          ...ctrl.additionalCharges.asMap().entries.map((e) => _ChargeRow(
+                key: ValueKey(e.value.localId),
+                charge: e.value,
+                index: e.key,
+                ctrl: ctrl,
+              )),
+
+          const SizedBox(height: 10),
+
+          // ── Totals summary ─────────────────────────────────────────────
+          _chargeSummary(),
+        ],
+      ]),
+    );
+  }
+
+  // ── Column header ──────────────────────────────────────────────────────────
+  Widget _tableHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: newBlueLightColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: newBlueColor.withValues(alpha: 0.25)),
+      ),
+      child: const Row(children: [
+        SizedBox(width: 26), // index
+        SizedBox(width: 8),
+        Expanded(
+            flex: 3,
+            child: Text('Head',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor))),
+        SizedBox(
+            width: 42,
+            child: Text('Nature',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor))),
+        SizedBox(width: 4),
+        SizedBox(
+            width: 52,
+            child: Text('Value',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor))),
+        SizedBox(width: 4),
+        SizedBox(
+            width: 64,
+            child: Text('Amount',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor))),
+        SizedBox(width: 6),
+        SizedBox(
+            width: 48,
+            child: Text('Actions',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: newBlueColor))),
+      ]),
+    );
+  }
+
+  // ── Charges net summary ────────────────────────────────────────────────────
+  Widget _chargeSummary() {
+    final gross = ctrl.additionalChargesGross;
+    final deduct = ctrl.additionalChargesDeduct;
+    final net = ctrl.additionalChargesTotal;
+    final isNetPositive = net >= 0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: newSurfaceColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: newBorderColor),
+      ),
+      child: Column(children: [
+        _summaryRow(Icons.add_circle_outline_rounded, newGreenColor,
+            'Total Additions', '+${_inr(gross)}'),
+        const SizedBox(height: 6),
+        _summaryRow(Icons.remove_circle_outline_rounded, newRedColor,
+            'Total Deductions', '-${_inr(deduct)}'),
+        const Divider(height: 14, color: newBorderColor),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Net Adjustment',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: newTextPrimary)),
+            Text(
+              '${isNetPositive ? "+" : ""}${_inr(net)}',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isNetPositive ? newGreenColor : newRedColor),
+            ),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _summaryRow(IconData icon, Color color, String label, String val) =>
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: newTextSecondary)),
+          ]),
+          Text(val,
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+        ],
+      );
+
+  static String _inr(double v) {
+    if (v < 0) return '-${_inr(-v)}';
+    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(2)} Cr';
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(2)} L';
+    final parts = v.toStringAsFixed(2).split('.');
+    final whole = parts[0];
+    final decimal = parts[1];
+    if (whole.length <= 3) return '₹$whole.$decimal';
+    final last3 = whole.substring(whole.length - 3);
+    final rest = whole.substring(0, whole.length - 3);
+    final buf = StringBuffer();
+    for (int i = 0; i < rest.length; i++) {
+      if (i > 0 && (rest.length - i) % 2 == 0) buf.write(',');
+      buf.write(rest[i]);
+    }
+    return '₹$buf,$last3.$decimal';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Single charge row widget
+// ═══════════════════════════════════════════════════════════════════════════════
+class _ChargeRow extends StatelessWidget {
+  final AdditionalCharge charge;
+  final int index;
+  final MrnController ctrl;
+
+  const _ChargeRow({
+    super.key,
+    required this.charge,
+    required this.index,
+    required this.ctrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlus = charge.nature == ChargeNature.plus;
+    final amt = charge.calculatedAmount;
+    final hasHead = charge.head != null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: hasHead ? Colors.white : newSurfaceColor,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color:
+              hasHead ? newBorderColor : newBorderColor.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Compact summary row ──────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            // Index bubble
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                  color: newBlueLightColor,
+                  borderRadius: BorderRadius.circular(7)),
+              alignment: Alignment.center,
+              child: Text('${index + 1}',
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: newBlueColor)),
+            ),
+            const SizedBox(width: 8),
+
+            // Head name (or placeholder)
+            Expanded(
+              flex: 3,
+              child: GestureDetector(
+                onTap: () => _showEditSheet(context),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        charge.head?.label ?? '— Tap to configure —',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: hasHead ? newTextPrimary : newTextHint),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (charge.dependsOnLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          const Icon(Icons.link_rounded,
+                              size: 10, color: newTextSecondary),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              'On: ${charge.dependsOnLabel}',
+                              style: const TextStyle(
+                                  fontSize: 9, color: newTextSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ]),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Nature badge
+            SizedBox(
+              width: 42,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isPlus ? newGreenLightColor : newRedLightColor,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    isPlus ? '+ADD' : '−LESS',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: isPlus ? newGreenColor : newRedColor),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+
+            // Value display
+            SizedBox(
+              width: 52,
+              child: Text(
+                charge.calcType == ChargeCalcType.percentage
+                    ? '${charge.value.toStringAsFixed(1)}%'
+                    : '₹${charge.value.toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: newTextPrimary),
+              ),
+            ),
+            const SizedBox(width: 4),
+
+            // Computed amount
+            SizedBox(
+              width: 64,
+              child: Text(
+                '${isPlus ? "+" : "−"}₹${amt.toStringAsFixed(2)}',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: isPlus ? newGreenColor : newRedColor),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Action buttons
+            SizedBox(
+              width: 48,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => _showEditSheet(context),
+                    child: Container(
+                      width: 22,
+                      height: 26,
+                      decoration: BoxDecoration(
+                          color: newBlueLightColor,
+                          borderRadius: BorderRadius.circular(6)),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.edit_rounded,
+                          size: 12, color: newBlueColor),
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  GestureDetector(
+                    onTap: () => ctrl.removeAdditionalCharge(charge.localId),
+                    child: Container(
+                      width: 22,
+                      height: 26,
+                      decoration: BoxDecoration(
+                          color: newRedLightColor,
+                          borderRadius: BorderRadius.circular(6)),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.delete_outline_rounded,
+                          size: 12, color: newRedColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ChargeEditSheet(
+        ctrl: ctrl,
+        charge: charge,
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Bottom sheet for adding / editing a charge row
+// ═══════════════════════════════════════════════════════════════════════════════
+class _ChargeEditSheet extends StatefulWidget {
+  final MrnController ctrl;
+  final AdditionalCharge charge;
+
+  const _ChargeEditSheet({required this.ctrl, required this.charge});
+
+  @override
+  State<_ChargeEditSheet> createState() => _ChargeEditSheetState();
+}
+
+class _ChargeEditSheetState extends State<_ChargeEditSheet> {
+  late AdditionalChargeHead? _head;
+  late ChargeNature _nature;
+  late ChargeCalcType _calcType;
+  late String? _dependsOnLocalId;
+  late String? _dependsOnLabel;
+  double _lockedPercentage = 0;
+  double _lockedDiscount = 0;
+
+  final TextEditingController _valuCtrl = TextEditingController();
+  String _headSearch = '';
+
+  bool get _isPercentLocked =>
+      _head != null &&
+      !_head!.label.toLowerCase().contains('discount') &&
+      (double.tryParse(_valuCtrl.text) ?? 0) > 0 &&
+      _calcType == ChargeCalcType.percentage;
+
+  bool get _isFixedLocked =>
+      _head != null &&
+      _head!.label.toLowerCase().contains('discount') &&
+      (double.tryParse(_valuCtrl.text) ?? 0) > 0 &&
+      _calcType == ChargeCalcType.fixed;
+
+  bool get _isApiValueLocked =>
+      _head != null && (double.tryParse(_valuCtrl.text) ?? 0) > 0;
+  bool _isApiFixedLocked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.charge;
+    _head = c.head;
+    _nature = c.nature;
+    _calcType = c.calcType;
+    _dependsOnLocalId = c.dependsOnLocalId;
+    _dependsOnLabel = c.dependsOnLabel;
+    _valuCtrl.text = c.value > 0 ? c.value.toStringAsFixed(2) : '';
+  }
+
+  @override
+  void dispose() {
+    _valuCtrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final val = double.tryParse(_valuCtrl.text) ?? 0.0;
+    final updated = widget.charge.copyWith(
+      head: _head,
+      nature: _nature,
+      calcType: _calcType,
+      value: val,
+      dependsOnLocalId: _dependsOnLocalId,
+      dependsOnLabel: _dependsOnLabel,
+    );
+    widget.ctrl.updateAdditionalCharge(updated);
+    Get.back();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, scrollCtrl) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(children: [
+            // Handle
+            const SizedBox(height: 10),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: newBorderColor,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 14),
+            // Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(children: [
+                const Expanded(
+                  child: Text('Configure Charge',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: newTextPrimary)),
+                ),
+                GestureDetector(
+                  onTap: Get.back,
+                  child: const Icon(Icons.close_rounded,
+                      size: 20, color: newTextSecondary),
+                ),
+              ]),
+            ),
+            const Divider(height: 18, color: newBorderColor),
+
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  MediaQuery.of(context).viewInsets.bottom +
+                      MediaQuery.of(context).padding.bottom +
+                      80, // extra breathing room for the Save button
+                ),
+                children: [
+                  // ── Step 1: Select charge head ─────────────────────────
+                  _sectionLabel('1. Charge Head'),
+                  const SizedBox(height: 6),
+                  _headSelector(),
+                  const SizedBox(height: 16),
+
+                  // ── Step 2: Nature ──────────────────────────────────────
+                  _sectionLabel('2. Nature'),
+                  const SizedBox(height: 6),
+                  _natureToggle(),
+                  const SizedBox(height: 16),
+
+                  // ── Step 3: Calculation type ────────────────────────────
+                  _sectionLabel('3. Calculation Type'),
+                  const SizedBox(height: 6),
+                  _calcTypeToggle(),
+                  const SizedBox(height: 16),
+
+                  // ── Step 4: Value ───────────────────────────────────────
+                  _sectionLabel(
+                    _calcType == ChargeCalcType.percentage
+                        ? '4. Percentage (%)'
+                        : '4. Fixed Amount (₹)',
+                  ),
+                  const SizedBox(height: 6),
+                  _valueField(),
+                  const SizedBox(height: 16),
+
+                  // ── Step 5: Depends On (only for %) ────────────────────
+                  if (_calcType == ChargeCalcType.percentage) ...[
+                    _sectionLabel('5. Apply % On (Depends On)'),
+                    const SizedBox(height: 6),
+                    _dependsOnSelector(),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Preview ─────────────────────────────────────────────
+                  _previewCard(),
+                  const SizedBox(height: 20),
+
+                  // ── Save ────────────────────────────────────────────────
+                  GestureDetector(
+                    onTap: _save,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: newBlueColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text('Save Charge',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+
+  // ── Head selector ──────────────────────────────────────────────────────────
+  Widget _headSelector() {
+    if (widget.ctrl.isLoadingChargeHeads) {
+      return const Center(
+          child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 1.5, color: newBlueColor)));
+    }
+
+    final filtered = widget.ctrl.chargeHeadList
+        .where((h) => h.label.toLowerCase().contains(_headSearch.toLowerCase()))
+        .toList();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Search
+      TextField(
+        onChanged: (v) => setState(() => _headSearch = v),
+        decoration: InputDecoration(
+          hintText: 'Search charge head…',
+          hintStyle: const TextStyle(fontSize: 13, color: newTextHint),
+          prefixIcon:
+              const Icon(Icons.search, size: 18, color: newTextSecondary),
+          filled: true,
+          fillColor: newSurfaceColor,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: newBorderColor)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: newBorderColor)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: newBlueColor, width: 1.5)),
+        ),
+      ),
+      const SizedBox(height: 8),
+      // Head list
+      Container(
+        decoration: BoxDecoration(
+          color: newSurfaceColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: newBorderColor),
+        ),
+        child: Column(
+          children: filtered.asMap().entries.map((e) {
+            final h = e.value;
+            final isSelected = _head?.id == h.id;
+            return Column(children: [
+              if (e.key > 0) const Divider(height: 1, color: newBorderColor),
+              InkWell(
+                onTap: () async {
+                  setState(() {
+                    _head = h;
+                    _isApiFixedLocked = false;
+                    _valuCtrl.clear();
+                  });
+
+                  final percentage =
+                      await widget.ctrl.fetchChargeHeadPercentage(h.id);
+
+                  final isDiscount = h.label.toLowerCase().contains('discount');
+
+                  setState(() {
+                    if (isDiscount) {
+                      _calcType = ChargeCalcType.fixed;
+
+                      if (percentage != null && percentage > 0) {
+                        _valuCtrl.text = percentage.toStringAsFixed(2);
+                        _isApiFixedLocked = true;
+                      }
+                    } else {
+                      _calcType = ChargeCalcType.percentage;
+
+                      if (percentage != null) {
+                        _valuCtrl.text = percentage.toStringAsFixed(2);
+                      }
+                    }
+                  });
+                },
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(children: [
+                    Container(
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: isSelected ? newBlueLightColor : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: newBorderColor)),
+                      alignment: Alignment.center,
+                      child: Text(
+                        h.id, // ← remove padLeft entirely, show raw ID
+                        style: TextStyle(
+                            fontSize: 9, // ← slightly smaller to fit long IDs
+                            fontWeight: FontWeight.w700,
+                            color:
+                                isSelected ? newBlueColor : newTextSecondary),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(h.label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color:
+                                  isSelected ? newBlueColor : newTextPrimary)),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle_rounded,
+                          size: 18, color: newBlueColor),
+                  ]),
+                ),
+              ),
+            ]);
+          }).toList(),
+        ),
+      ),
+    ]);
+  }
+
+  // ── Nature toggle ──────────────────────────────────────────────────────────
+  Widget _natureToggle() {
+    return Row(children: [
+      _toggleOption(
+        label: '+ Add (Plus)',
+        icon: Icons.add_circle_outline_rounded,
+        selected: _nature == ChargeNature.plus,
+        selectedColor: newGreenColor,
+        selectedBg: newGreenLightColor,
+        onTap: () => setState(() => _nature = ChargeNature.plus),
+      ),
+      const SizedBox(width: 10),
+      _toggleOption(
+        label: '− Less (Deduct)',
+        icon: Icons.remove_circle_outline_rounded,
+        selected: _nature == ChargeNature.less,
+        selectedColor: newRedColor,
+        selectedBg: newRedLightColor,
+        onTap: () => setState(() => _nature = ChargeNature.less),
+      ),
+    ]);
+  }
+
+  // ── Calc type toggle ───────────────────────────────────────────────────────
+  Widget _calcTypeToggle() {
+    final isLocked = _isApiValueLocked;
+    if (isLocked) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: newSurfaceColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: newBorderColor),
+        ),
+        child: Text(
+          _calcType == ChargeCalcType.percentage
+              ? 'Percentage auto-filled from charge head'
+              : 'Fixed amount auto-filled from discount charge head',
+          style: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    return Row(children: [
+      _toggleOption(
+        label: 'Fixed Amount',
+        icon: Icons.currency_rupee_rounded,
+        selected: _calcType == ChargeCalcType.fixed,
+        selectedColor: newBlueColor,
+        selectedBg: newBlueLightColor,
+        onTap: () => setState(() {
+          _calcType = ChargeCalcType.fixed;
+          _dependsOnLocalId = null;
+          _dependsOnLabel = null;
+        }),
+      ),
+      const SizedBox(width: 10),
+      _toggleOption(
+        label: 'Percentage (%)',
+        icon: Icons.percent_rounded,
+        selected: _calcType == ChargeCalcType.percentage,
+        selectedColor: newOrangeColor,
+        selectedBg: newOrangeLightColor,
+        onTap: () => setState(() => _calcType = ChargeCalcType.percentage),
+      ),
+    ]);
+  }
+
+  Widget _toggleOption({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required Color selectedColor,
+    required Color selectedBg,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? selectedBg : newSurfaceColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? selectedColor : newBorderColor,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 16, color: selected ? selectedColor : newTextSecondary),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? selectedColor : newTextSecondary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Value field ────────────────────────────────────────────────────────────
+  Widget _valueField() {
+    final isLocked =
+        _calcType == ChargeCalcType.percentage || _isApiFixedLocked;
+
+    return TextField(
+      controller: _valuCtrl,
+      readOnly: isLocked,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,4}')),
+      ],
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: _calcType == ChargeCalcType.percentage
+            ? 'e.g. 2.5  (for 2.5%)'
+            : 'e.g. 100  (for ₹100)',
+        hintStyle: const TextStyle(fontSize: 13, color: newTextHint),
+        prefixIcon: Icon(
+          _calcType == ChargeCalcType.percentage
+              ? Icons.percent_rounded
+              : Icons.currency_rupee_rounded,
+          size: 18,
+          color: newTextSecondary,
+        ),
+        filled: true,
+        fillColor: newSurfaceColor,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: newBorderColor)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: newBorderColor)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: newBlueColor, width: 1.5)),
+      ),
+    );
+  }
+
+  // ── Depends On selector (only for %) ──────────────────────────────────────
+  Widget _dependsOnSelector() {
+    // Build available bases: item subtotal + all previously added charges
+    final prevCharges = widget.ctrl.additionalCharges
+        .where((c) => c.localId != widget.charge.localId && c.head != null)
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: newSurfaceColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: newBorderColor),
+      ),
+      child: Column(children: [
+        // Option: Item Subtotal
+        _dependsOption(
+          id: null,
+          label: 'Item Subtotal (Base)',
+          subtitle: '₹${widget.ctrl.subtotal.toStringAsFixed(2)}',
+          icon: Icons.inventory_2_outlined,
+          color: newBlueColor,
+        ),
+        if (prevCharges.isNotEmpty) ...[
+          const Divider(height: 1, color: newBorderColor),
+          // Previously added charges
+          ...prevCharges.asMap().entries.map((e) {
+            final c = e.value;
+            final isPlus = c.nature == ChargeNature.plus;
+            return Column(children: [
+              if (e.key > 0) const Divider(height: 1, color: newBorderColor),
+              _dependsOption(
+                id: c.localId,
+                label: c.head?.label ?? '—',
+                subtitle:
+                    '${isPlus ? "+" : "−"}₹${c.calculatedAmount.toStringAsFixed(2)}',
+                icon: isPlus
+                    ? Icons.add_circle_outline_rounded
+                    : Icons.remove_circle_outline_rounded,
+                color: isPlus ? newGreenColor : newRedColor,
+              ),
+            ]);
+          }),
+        ],
+      ]),
+    );
+  }
+
+  Widget _dependsOption({
+    required String? id,
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isSelected = _dependsOnLocalId == id;
+    return InkWell(
+      onTap: () => setState(() {
+        _dependsOnLocalId = id;
+        _dependsOnLabel = id == null ? 'Item Subtotal' : label;
+      }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+                color:
+                    isSelected ? color.withValues(alpha: 0.12) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isSelected ? color : newBorderColor)),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? color : newTextPrimary)),
+              Text(subtitle,
+                  style:
+                      const TextStyle(fontSize: 10, color: newTextSecondary)),
+            ]),
+          ),
+          if (isSelected)
+            Icon(Icons.check_circle_rounded, size: 18, color: color),
+        ]),
+      ),
+    );
+  }
+
+  // ── Preview card ───────────────────────────────────────────────────────────
+  Widget _previewCard() {
+    final val = double.tryParse(_valuCtrl.text) ?? 0.0;
+
+    // Compute preview amount.
+    double base = widget.ctrl.subtotal;
+    if (_calcType == ChargeCalcType.percentage && _dependsOnLocalId != null) {
+      final dep = widget.ctrl.additionalCharges
+          .firstWhereOrNull((c) => c.localId == _dependsOnLocalId);
+      if (dep != null) base = dep.calculatedAmount;
+    }
+    // FIXED
+    double computed;
+    if (_calcType == ChargeCalcType.percentage) {
+      computed = (val / 100.0) * base;
+    } else {
+      computed = val; // fixed is always just the entered value
+    }
+    final isPlus = _nature == ChargeNature.plus;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isPlus ? newGreenLightColor : newRedLightColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isPlus
+              ? newGreenColor.withValues(alpha: 0.4)
+              : newRedColor.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(children: [
+        Icon(
+          isPlus ? Icons.add_circle_rounded : Icons.remove_circle_rounded,
+          color: isPlus ? newGreenColor : newRedColor,
+          size: 24,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              _head?.label ?? 'Preview',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isPlus ? newGreenColor : newRedColor),
+            ),
+            if (_calcType == ChargeCalcType.percentage)
+              Text(
+                '$val% of ₹${base.toStringAsFixed(2)} = ₹${computed.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 10, color: newTextSecondary),
+              ),
+          ]),
+        ),
+        Text(
+          '${isPlus ? "+" : "−"}₹${computed.toStringAsFixed(2)}',
+          style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isPlus ? newGreenColor : newRedColor),
+        ),
+      ]),
+    );
+  }
+
+  // ── Helper ─────────────────────────────────────────────────────────────────
+  Widget _sectionLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w800, color: newTextPrimary),
+      );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Order-link card: Job Type + Customer PO + Work Order
 // Shown below items in BOTH PO and Direct modes
@@ -575,8 +1644,10 @@ class _AttachmentsCard extends StatelessWidget {
         height: 40,
         child: Center(
           child: SizedBox(
-            width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 1.5, color: newBlueColor),
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 1.5, color: newBlueColor),
           ),
         ),
       );
@@ -586,7 +1657,10 @@ class _AttachmentsCard extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Document Type',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: newTextPrimary)),
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: newTextPrimary)),
       const SizedBox(height: 5),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -816,7 +1890,8 @@ class _ExistingFileChip extends StatelessWidget {
     final isImage = ['jpg', 'jpeg', 'png', 'webp']
         .any((ext) => fileName.toLowerCase().endsWith(ext));
 
-    return GestureDetector(               // ← wrap entire chip
+    return GestureDetector(
+      // ← wrap entire chip
       onTap: _openFile,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
@@ -840,8 +1915,8 @@ class _ExistingFileChip extends StatelessWidget {
                   isPdf
                       ? Icons.picture_as_pdf_outlined
                       : isImage
-                      ? Icons.image_outlined
-                      : Icons.attach_file_rounded,
+                          ? Icons.image_outlined
+                          : Icons.attach_file_rounded,
                   size: 18,
                   color: newGreenColor,
                 ),
@@ -874,20 +1949,20 @@ class _ExistingFileChip extends StatelessWidget {
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white)),
                         ),
-                        const SizedBox(width: 5),         // ← new
-                        const Icon(Icons.open_in_new_rounded,  // ← new
-                            size: 10, color: newTextSecondary),
-                        const SizedBox(width: 3),         // ← new
-                        const Text('Tap to open',         // ← new
+                        const SizedBox(width: 5), // ← new
+                        const Icon(Icons.open_in_new_rounded, // ← new
+                            size: 10,
+                            color: newTextSecondary),
+                        const SizedBox(width: 3), // ← new
+                        const Text('Tap to open', // ← new
                             style: TextStyle(
-                                fontSize: 9,
-                                color: newTextSecondary)),
+                                fontSize: 9, color: newTextSecondary)),
                       ]),
                     ]),
               ),
               // ── Delete button stops propagation ──────────────────────
               GestureDetector(
-                onTap: onRemove,           // does NOT bubble up to _openFile
+                onTap: onRemove, // does NOT bubble up to _openFile
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   padding: const EdgeInsets.all(6),
@@ -904,10 +1979,10 @@ class _ExistingFileChip extends StatelessWidget {
           ),
           if (isImage && url.startsWith('http'))
             GestureDetector(
-              onTap: _openFile,            // image preview also tappable
+              onTap: _openFile, // image preview also tappable
               child: ClipRRect(
                 borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(8)),
+                    const BorderRadius.vertical(bottom: Radius.circular(8)),
                 child: Image.network(
                   url,
                   height: 120,
@@ -919,7 +1994,7 @@ class _ExistingFileChip extends StatelessWidget {
                     alignment: Alignment.center,
                     child: const Text('Preview unavailable',
                         style:
-                        TextStyle(fontSize: 11, color: newTextSecondary)),
+                            TextStyle(fontSize: 11, color: newTextSecondary)),
                   ),
                 ),
               ),

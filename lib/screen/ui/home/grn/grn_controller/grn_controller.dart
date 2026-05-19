@@ -12,16 +12,13 @@ import 'package:intl/intl.dart';
 import '../../../../../repo/reimbursement_repo.dart';
 import '../../home_controller.dart';
 import '../../mrn_module/mrn_response/mrn_models.dart';
-import '../grn_additional_charges_mixin.dart';
+import '../grn_response/additional_charge_model.dart';
+import 'grn_additional_charges_mixin.dart';
 import '../grn_response/grn_models.dart';
 import '../grn_screens/grn_list_screen.dart';
 import 'grn_list_contoller.dart';
 
-
-
-
-class GrnController extends AppBaseController
-   with GrnAdditionalChargesMixin{
+class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
@@ -60,6 +57,8 @@ class GrnController extends AppBaseController
         partyId: int.tryParse(v.id) ?? 0,
         siteId: int.tryParse(selectedSite?.id ?? '0') ?? 0,
       );
+
+      fetchLedgerAddresses();
     }
     update();
   }
@@ -254,6 +253,7 @@ class GrnController extends AppBaseController
     fetchWorkOrders(partyId: partyId, siteId: siteId);
     fetchCustomerPOs(siteId: siteId);
     fetchGodowns(siteId: siteId); // pass site id here
+    fetchLedgerAddresses();
 
     update();
   }
@@ -522,7 +522,7 @@ class GrnController extends AppBaseController
       final res = await api.getGrnDetail(body);
       if (kDebugMode) print('📥 Grn Detail: ${res.status} | ${res.message}');
       if ((res.status == 200 || res.success == true) && res.data != null) {
-        _applyGrnDetail(res.data!);
+        await _applyGrnDetail(res.data!);
       } else {
         ShowMessage.showSnackBar(
             'Detail', res.message ?? 'Could not load Grn details');
@@ -963,6 +963,7 @@ class GrnController extends AppBaseController
         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
         'fromaddress': fromAddressCtrl.text.trim(),
         'toaddress': toAddressCtrl.text.trim(),
+        'mrnother': additionalChargesPayload,
         'mrnitems': items,
       };
 
@@ -1035,6 +1036,62 @@ class GrnController extends AppBaseController
   }
 
   // ── Individual fetch methods ───────────────────────────────────────────────
+  Future<void> fetchLedgerAddresses() async {
+    final partyId = int.tryParse(selectedParty?.id ?? '0') ?? 0;
+    final siteId = int.tryParse(selectedSite?.id ?? '0') ?? 0;
+
+    if (partyId == 0) return;
+
+    try {
+      final req = LedgerAddressRequest(
+        compid: homeController.currentUserData?.compId ?? 0,
+        partyid: partyId,
+        siteid: siteId,
+      );
+
+      final res = await api.getLedgerAddressAndValuePercent(req);
+
+      if ((res.status == 200 || res.success == true) && res.data.isNotEmpty) {
+        final data = res.data.first;
+
+        fromAddressCtrl.text = data.fromaddress;
+        toAddressCtrl.text = data.toaddress;
+
+        if (kDebugMode) {
+          print('Addresses loaded successfully');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('fetchLedgerAddresses error: $e');
+      }
+    }
+
+    update();
+  }
+
+  Future<double?> fetchChargeHeadPercentage(String chargeHeadId) async {
+    try {
+      final request = LedgerAddressRequest(
+        compid: homeController.currentUserData?.compId ?? 0,
+        partyid: int.tryParse(chargeHeadId) ?? 0,
+        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
+      );
+
+      final response =
+      await api.getLedgerAddressAndValuePercent(request);
+
+      if (response.data != null && response.data!.isNotEmpty) {
+        return response.data!.first.gstpercent;
+      }
+    } catch (e) {
+      debugPrint('Charge percentage error: $e');
+    }
+
+    return null;
+  }
+
+
   Future<void> fetchSeriesTypes() async {
     isLoadingSeriesType = true;
     update();
@@ -1204,6 +1261,38 @@ class GrnController extends AppBaseController
     }
   }
 
+  Future<void> fetchTax() async {
+    isLoadingChargeHeads = true;
+    update();
+    try {
+      final res = await api.getGrnDropdownList(_GrnDropdownBody('Otherdetail'));
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        // Map GrnDropdownOption list → AdditionalChargeHead list.
+        // GrnDropdownOption has .id and .label; taxpercent comes from extra
+        // fields if the API returns them, otherwise defaults to 0.
+        chargeHeadList = res.data!
+            .map((o) => AdditionalChargeHead(
+                  id: o.id,
+                  label: o.label,
+                  // TODO(backend): if the API attaches taxpercent to each
+                  // option, switch to AdditionalChargeHead.fromJson(o.toJson())
+                  // For now taxPercent defaults to 0 until backend confirms.
+                  taxPercent: 0,
+                ))
+            .toList();
+
+        if (kDebugMode) {
+          print('✅ fetchTax → ${chargeHeadList.length} charge heads loaded');
+        }
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Charge Heads', '$e');
+    } finally {
+      isLoadingChargeHeads = false;
+      update();
+    }
+  }
+
   Future<void> fetchParties() async {
     isLoadingParty = true;
     update();
@@ -1246,7 +1335,7 @@ class GrnController extends AppBaseController
     }
   }
 
-  void _applyGrnDetail(GrnDetailData d) {
+  Future<void> _applyGrnDetail(GrnDetailData d) async {
     billNoCtrl.text = d.billno;
     challanNoCtrl.text = d.dcno;
     lotNoCtrl.text = d.lotno;
@@ -1325,6 +1414,12 @@ class GrnController extends AppBaseController
     }
     if (d.toaddress.isNotEmpty) {
       billingAddress = GrnAddress(label: 'To Address', line1: d.toaddress);
+    }
+    if (d.grnother.isNotEmpty) {
+      if (chargeHeadList.isEmpty) await fetchTax(); // guard: heads must be loaded
+      prefillAdditionalChargesFromOther(d.grnother);
+    } else {
+      resetAdditionalCharges();
     }
 
     selectedSource = GrnSourceType.grn;

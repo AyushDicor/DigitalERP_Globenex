@@ -51,6 +51,8 @@ class MrnListController extends AppBaseController {
         compid: homeController.currentUserData?.compId ?? 0,
         branchid: homeController.currentUserData?.branchId ?? 0,
         userid: homeController.currentUserData?.userid ?? 0,
+        jobtypeid: 0,   // ← wire up when filter exists
+        filtertype: 'mrn',
       );
       final res = await api.getMrnList(req);
       if (res.status == 200 || res.success == true) {

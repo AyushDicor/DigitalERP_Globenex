@@ -91,6 +91,11 @@ class AppRoutes {
   //GRN Module
   static const grnScreen = '/grn';
 
+  //MRN QC module
+  static const mrnQcScreen = '/mrnQc';
+  static const mrnQcList = '/mrnQcList';
+
+
   static const String approvalHub = '/approvalHubDashboard';  // ← ADD
 
 }

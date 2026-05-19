@@ -51,6 +51,7 @@ class GrnListController extends AppBaseController {
         compid: homeController.currentUserData?.compId ?? 0,
         branchid: homeController.currentUserData?.branchId ?? 0,
         userid: homeController.currentUserData?.userid ?? 0,
+        filtertype: 'grn',
       );
       final res = await api.getGrnList(request);
       if (res.status == 200 || res.success == true) {

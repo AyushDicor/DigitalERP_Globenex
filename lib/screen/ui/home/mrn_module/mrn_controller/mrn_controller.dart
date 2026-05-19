@@ -11,12 +11,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../repo/reimbursement_repo.dart';
+import '../../grn/grn_response/additional_charge_model.dart';
 import '../../home_controller.dart';
 import '../mrn_response/mrn_models.dart';
 import '../mrn_screens/mrn_list_screen.dart';
+import 'mrn_additional_charges_mixin.dart';
 import 'mrn_list_controller.dart';
 
-class MrnController extends AppBaseController {
+class MrnController extends AppBaseController with MrnAdditionalChargesMixin {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Step tracking ──────────────────────────────────────────────────────────
@@ -144,6 +146,8 @@ class MrnController extends AppBaseController {
   bool isLoadingMake = false;
 
   bool isLoadingItemDetail = false;
+
+  List<MrnDropdownOption> taxType = [];
 
   // ── Edit ───────────────────────────────────────────────────────────────────
   bool isEditMode = false;
@@ -1070,7 +1074,7 @@ class MrnController extends AppBaseController {
         'mrntype': '',
         'gateentryNo': gateEntryNoCtrl.text.trim(),
         'billfile': billFileStr,
-        'filetypeid': selectedDocumentTypesString,
+        'filetypeId': selectedDocumentTypesString,  // ← FIX: was 'filetypeid'
         'dcno': challanNoCtrl.text.trim(),
         'dcdate': parseDate(challanDateCtrl.text).toIso8601String(),
         'dcfile': challanFileStr,
@@ -1081,8 +1085,10 @@ class MrnController extends AppBaseController {
         'paidtype': selectedPaidType?.label ?? '',
         'customerpoid': int.tryParse(selectedCustomerPo?.id ?? '0') ?? 0,
         'jobtypeid': int.tryParse(selectedJobType?.id ?? '0') ?? 0,
+        'orderid': processingPo?.orderid ?? 0,      // ← ADD: was missing
         'fromaddress': '',
         'toaddress': '',
+        'mrnother': additionalChargesPayload,        // ← ADD: was missing
         'mrnitems': items,
       };
 
@@ -1156,6 +1162,7 @@ class MrnController extends AppBaseController {
       fetchAddresses(),
       _loadPOList(),
       fetchDocumentTypes(),
+      fetchTax(),
     ]);
   }
 
@@ -1346,6 +1353,64 @@ class MrnController extends AppBaseController {
       update();
     }
   }
+
+  Future<void> fetchTax() async {
+    isLoadingChargeHeads = true;
+    update();
+    try {
+      final res = await api.getMrnDropdownList(_mrnDropdownBody('Otherdetail'));
+
+      // ── ADD THIS DEBUG PRINT ──────────────────────────────────────────
+      if (kDebugMode) {
+        print('🔍 Otherdetail raw response: status=${res.status}');
+        print('🔍 Otherdetail data count: ${res.data?.length}');
+        if (res.data != null && res.data!.isNotEmpty) {
+          print('🔍 First item id="${res.data!.first.id}" label="${res.data!.first.label}"');
+        } else {
+          print('🔍 Otherdetail data is NULL or EMPTY');
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────
+
+      if ((res.status == 200 || res.success == true) && res.data != null) {
+        chargeHeadList = res.data!
+            .map((o) => AdditionalChargeHead(
+          id: o.id,
+          label: o.label,
+          taxPercent: 0,
+        ))
+            .toList();
+      }
+    } catch (e) {
+      ShowMessage.showSnackBar('Charge Heads', '$e');
+    } finally {
+      isLoadingChargeHeads = false;
+      update();
+    }
+  }
+
+
+  Future<double?> fetchChargeHeadPercentage(String chargeHeadId) async {
+    try {
+      final request = MrnLedgerAddressRequest(
+        compid: homeController.currentUserData?.compId ?? 0,
+        partyid: int.tryParse(chargeHeadId) ?? 0,
+        siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
+      );
+
+      final response =
+      await api.getMrnLedgerAddressAndValuePercent(request);
+
+      if (response.data != null && response.data!.isNotEmpty) {
+        return response.data!.first.gstpercent;
+      }
+    } catch (e) {
+      debugPrint('Charge percentage error: $e');
+    }
+
+    return null;
+  }
+
 
   Future<void> fetchParties() async {
     isLoadingParty = true;
@@ -1615,6 +1680,12 @@ class MrnController extends AppBaseController {
               batchNo: i.batchno,
             ))
         .toList();
+    if (d.mrnother.isNotEmpty) {
+      prefillAdditionalChargesFromOther(d.mrnother);
+      // AFTER
+    } else {
+      resetAdditionalCharges();
+    }
 
     update();
   }

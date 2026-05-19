@@ -21,6 +21,7 @@ class MrnListRequest {
   final int partyid;
   final int siteid;
   final int jobtypeid;
+  final String filtertype;
 
   MrnListRequest({
     required this.fromdate,
@@ -31,6 +32,7 @@ class MrnListRequest {
     this.partyid = 0,
     this.siteid = 0,
     this.jobtypeid = 0,
+    this.filtertype = 'mrn',
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +44,7 @@ class MrnListRequest {
         'partyid': partyid,
         'siteid': siteid,
         'jobtypeid': jobtypeid,
+        'filtertype': filtertype,
       };
 }
 
@@ -324,6 +327,7 @@ class MrnDetailData {
   final String billfile;
   final String dcfile;
   final List<MrnDetailItem> items;
+  final List<MrnOtherItem> mrnother;
 
   MrnDetailData({
     this.stockid = 0,
@@ -357,6 +361,7 @@ class MrnDetailData {
     this.billfile = '',
     this.dcfile = '',
     this.items = const [],
+    required this.mrnother,
   });
 
   factory MrnDetailData.fromJson(Map<String, dynamic> json) {
@@ -399,6 +404,9 @@ class MrnDetailData {
               .map((e) => MrnDetailItem.fromJson(e as Map<String, dynamic>))
               .toList()
           : [],
+      mrnother: (json['mrnother'] as List<dynamic>? ?? [])
+          .map((e) => MrnOtherItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -502,6 +510,8 @@ class MrnDropdownResponse {
   MrnDropdownResponse({this.status, this.success, this.message, this.data});
 
   factory MrnDropdownResponse.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) print('🔍 MrnDropdownOption raw json: $json');
+
     return MrnDropdownResponse(
       status: json['status'],
       success: json['success'],
@@ -830,6 +840,7 @@ class MrnDropdownOption {
   MrnDropdownOption({required this.id, required this.label});
 
   factory MrnDropdownOption.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) print('🔍 MrnDropdownOption raw json: $json');
     return MrnDropdownOption(
       id: json['id']?.toString() ?? '',
       label: json['name'] ?? json['label'] ?? '',
@@ -1157,13 +1168,13 @@ class DependentDetailRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'type': type,
-    'compid': compid,
-    'branchid': branchid,
-    'partyid': partyid,
-    'siteid': siteid,
-    'dependentid': dependentid,
-  };
+        'type': type,
+        'compid': compid,
+        'branchid': branchid,
+        'partyid': partyid,
+        'siteid': siteid,
+        'dependentid': dependentid,
+      };
 }
 
 class DependentDetailResponse {
@@ -1226,14 +1237,104 @@ class DependentDetail {
   }
 
   Map<String, dynamic> toJson() => {
-    'godownid': godownid,
-    'jobtypeid': jobtypeid,
-    'workorderid': workorderid,
-    'customerpoid': customerpoid,
-  };
+        'godownid': godownid,
+        'jobtypeid': jobtypeid,
+        'workorderid': workorderid,
+        'customerpoid': customerpoid,
+      };
 
   bool get hasJobType => jobtypeid > 0;
   bool get hasCustomerPo => customerpoid > 0;
   bool get hasWorkOrder => workorderid > 0;
   bool get hasGodown => godownid > 0;
+}
+
+class MrnLedgerAddressRequest {
+  final int compid;
+  final int partyid;
+  final int siteid;
+
+  MrnLedgerAddressRequest({
+    required this.compid,
+    required this.partyid,
+    required this.siteid,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'compid': compid,
+        'partyid': partyid,
+        'siteid': siteid,
+      };
+}
+
+class MrnLedgerAddressResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final List<MrnLedgerAddressData> data;
+
+  MrnLedgerAddressResponse({
+    this.success,
+    this.status,
+    this.message,
+    this.data = const [],
+  });
+
+  factory MrnLedgerAddressResponse.fromJson(Map<String, dynamic> json) {
+    return MrnLedgerAddressResponse(
+      success: json['success'],
+      status: json['status'],
+      message: json['message'],
+      data: json['data'] is List
+          ? (json['data'] as List)
+              .map((e) => MrnLedgerAddressData.fromJson(e))
+              .toList()
+          : [],
+    );
+  }
+}
+
+class MrnLedgerAddressData {
+  final double gstpercent;
+  final String fromaddress;
+  final String toaddress;
+
+  MrnLedgerAddressData({
+    this.gstpercent = 0,
+    this.fromaddress = '',
+    this.toaddress = '',
+  });
+
+  factory MrnLedgerAddressData.fromJson(Map<String, dynamic> json) {
+    return MrnLedgerAddressData(
+      gstpercent: (json['gstpercent'] ?? 0).toDouble(),
+      fromaddress: json['fromaddress']?.toString() ?? '',
+      toaddress: json['toaddress']?.toString() ?? '',
+    );
+  }
+}
+
+// ── New model for mrnother rows ─────────────────────────────────────────────
+class MrnOtherItem {
+  final int accountid;
+  final double amount;
+  final String nature;
+  final double percentage;
+  final String dependid;
+
+  const MrnOtherItem({
+    required this.accountid,
+    required this.amount,
+    required this.nature,
+    required this.percentage,
+    required this.dependid,
+  });
+
+  factory MrnOtherItem.fromJson(Map<String, dynamic> json) => MrnOtherItem(
+        accountid: (json['accountid'] as num?)?.toInt() ?? 0,
+        amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+        nature: (json['nature'] as String?) ?? '+',
+        percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
+        dependid: (json['dependid'] as String?) ?? '',
+      );
 }

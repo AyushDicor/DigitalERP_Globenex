@@ -21,6 +21,7 @@ class GrnListRequest {
   final int partyid;
   final int siteid;
   final int jobtypeid;
+  final String filtertype;
 
   GrnListRequest({
     required this.fromdate,
@@ -31,6 +32,7 @@ class GrnListRequest {
     this.partyid = 0,
     this.siteid = 0,
     this.jobtypeid = 0,
+    this.filtertype = 'grn',
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +44,7 @@ class GrnListRequest {
     'partyid': partyid,
     'siteid': siteid,
     'jobtypeid': jobtypeid,
+    'filtertype': filtertype,
   };
 }
 
@@ -241,9 +244,9 @@ class GrnListItem {
       GrnNo: json['Grnno']?.toString() ??
           json['grnno']?.toString() ??
           json['GrnNo']?.toString() ??
-          json['MRNNo']?.toString() ??
-          json['mrnno']?.toString() ??
-          json['Mrnno']?.toString() ??
+          json['GrnNo']?.toString() ??
+          json['grnno']?.toString() ??
+          json['Grnno']?.toString() ??
           json['GRNNo']?.toString() ??
           '',
       billNo: json['BillNo']?.toString() ?? json['billno']?.toString() ?? '',
@@ -335,6 +338,7 @@ class GrnDetailData {
   final List<GrnDetailItem> items;
   final String fromaddress;
   final String toaddress;
+  final List<GrnOtherItem> grnother;
 
   GrnDetailData({
     this.stockid = 0,
@@ -370,6 +374,7 @@ class GrnDetailData {
     this.items = const [],
     this.fromaddress = '',
     this.toaddress = '',
+    required this.grnother,
   });
 
   factory GrnDetailData.fromJson(Map<String, dynamic> json) {
@@ -414,6 +419,9 @@ class GrnDetailData {
           .map((e) => GrnDetailItem.fromJson(e as Map<String, dynamic>))
           .toList()
           : [],
+      grnother: (json['mrnother'] as List<dynamic>? ?? [])
+          .map((e) => GrnOtherItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -738,4 +746,90 @@ class GrnItemLine {
   double get totalAmount => amount + gstAmount;
   double get lineTotal => totalAmount;
 }
+class LedgerAddressRequest {
+  final int compid;
+  final int partyid;
+  final int siteid;
 
+  LedgerAddressRequest({
+    required this.compid,
+    required this.partyid,
+    required this.siteid,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'compid': compid,
+    'partyid': partyid,
+    'siteid': siteid,
+  };
+}
+class LedgerAddressResponse {
+  final bool? success;
+  final int? status;
+  final String? message;
+  final List<LedgerAddressData> data;
+
+  LedgerAddressResponse({
+    this.success,
+    this.status,
+    this.message,
+    this.data = const [],
+  });
+
+  factory LedgerAddressResponse.fromJson(Map<String, dynamic> json) {
+    return LedgerAddressResponse(
+      success: json['success'],
+      status: json['status'],
+      message: json['message'],
+      data: json['data'] is List
+          ? (json['data'] as List)
+          .map((e) => LedgerAddressData.fromJson(e))
+          .toList()
+          : [],
+    );
+  }
+}
+
+class LedgerAddressData {
+  final double gstpercent;
+  final String fromaddress;
+  final String toaddress;
+
+  LedgerAddressData({
+    this.gstpercent = 0,
+    this.fromaddress = '',
+    this.toaddress = '',
+  });
+
+  factory LedgerAddressData.fromJson(Map<String, dynamic> json) {
+    return LedgerAddressData(
+      gstpercent: (json['gstpercent'] ?? 0).toDouble(),
+      fromaddress: json['fromaddress']?.toString() ?? '',
+      toaddress: json['toaddress']?.toString() ?? '',
+    );
+  }
+}
+// ── New model for mrnother rows ─────────────────────────────────────────────
+class GrnOtherItem {
+  final int accountid;
+  final double amount;
+  final String nature;
+  final double percentage;
+  final String dependid;
+
+  const GrnOtherItem({
+    required this.accountid,
+    required this.amount,
+    required this.nature,
+    required this.percentage,
+    required this.dependid,
+  });
+
+  factory GrnOtherItem.fromJson(Map<String, dynamic> json) => GrnOtherItem(
+    accountid: (json['accountid'] as num?)?.toInt() ?? 0,
+    amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+    nature: (json['nature'] as String?) ?? '+',
+    percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
+    dependid: (json['dependid'] as String?) ?? '',
+  );
+}
