@@ -163,7 +163,7 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
             onTap: () {
               if (ctrl.activeTab == MrnQcTab.pending) {
                 // TODO: replace with QC entry page when ready
-                Get.to(() => const MrnEntryView(), arguments: item);
+                Get.to(() => const MrnQcScreen(), arguments: item);
               } else {
                 // TODO: replace with QC detail/view page when ready
                 Get.to(() => const MrnQcScreen(), arguments: item);

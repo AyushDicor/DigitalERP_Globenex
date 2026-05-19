@@ -90,6 +90,7 @@ class AdditionalCharge {
   ///   fixed      → fixed value is ADDED ON TOP of this charge's amount
   String? dependsOnLocalId;
   String? dependsOnLabel;
+  String? dependsOnAccountId;
 
   /// Filled in by the recalculation engine — never set directly.
   double calculatedAmount = 0.0;
@@ -103,6 +104,7 @@ class AdditionalCharge {
     this.calculatedAmount = 0.0,
     this.dependsOnLocalId,
     this.dependsOnLabel,
+    this.dependsOnAccountId,
   });
 
   // ── Lock helpers ────────────────────────────────────────────────────────────
@@ -128,6 +130,7 @@ class AdditionalCharge {
     double? value,
     String? dependsOnLocalId,
     String? dependsOnLabel,
+    String? dependsOnAccountId,
   }) =>
       AdditionalCharge(
         localId: localId,
@@ -137,6 +140,7 @@ class AdditionalCharge {
         value: value ?? this.value,
         dependsOnLocalId: dependsOnLocalId ?? this.dependsOnLocalId,
         dependsOnLabel: dependsOnLabel ?? this.dependsOnLabel,
+        dependsOnAccountId : dependsOnAccountId ?? this.dependsOnAccountId,
       );
 
   // ── API serialisation ──────────────────────────────────────────────────────
@@ -147,7 +151,7 @@ class AdditionalCharge {
     'amount': calculatedAmount,
     'nature': nature == ChargeNature.plus ? '+' : '-',
     'percentage': calcType == ChargeCalcType.percentage ? value : 0.0,
-    'dependid': dependsOnLocalId ?? '0',
+    'dependid'   : dependsOnAccountId ?? '0',
   };
 
   // ── Prefill from edit detail API ────────────────────────────────────────────

@@ -873,13 +873,23 @@ class _ChargeEditSheetState extends State<_ChargeEditSheet> {
 
   void _save() {
     final val = double.tryParse(_valuCtrl.text) ?? 0.0;
+
+    // Resolve accountid of the charge this row depends on
+    String? resolvedDependsOnAccountId;
+    if (_dependsOnLocalId != null) {
+      final depCharge = widget.ctrl.additionalCharges
+          .firstWhereOrNull((c) => c.localId == _dependsOnLocalId);
+      resolvedDependsOnAccountId = depCharge?.head?.id;
+    }
+
     final updated = widget.charge.copyWith(
-      head: _head,
-      nature: _nature,
-      calcType: _calcType,
-      value: val,
-      dependsOnLocalId: _dependsOnLocalId,
-      dependsOnLabel: _dependsOnLabel,
+      head               : _head,
+      nature             : _nature,
+      calcType           : _calcType,
+      value              : val,
+      dependsOnLocalId   : _dependsOnLocalId,
+      dependsOnLabel     : _dependsOnLabel,
+      dependsOnAccountId : resolvedDependsOnAccountId,  // ← was bare 'dependsOnAccountId'
     );
     widget.ctrl.updateAdditionalCharge(updated);
     Get.back();

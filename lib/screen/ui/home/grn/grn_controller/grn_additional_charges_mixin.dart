@@ -193,6 +193,9 @@ mixin GrnAdditionalChargesMixin on GetxController {
           value: value,
           dependsOnLocalId: dependsOnLocalId,
           dependsOnLabel: dependsOnLabel,
+          dependsOnAccountId : (o.dependid.isNotEmpty && o.dependid != '0')
+              ? o.dependid   // ← dependid from API IS the accountid
+              : null,
         ),
       );
     }

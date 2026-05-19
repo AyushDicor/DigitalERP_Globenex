@@ -143,6 +143,9 @@ mixin MrnAdditionalChargesMixin on GetxController {
           value: value,
           dependsOnLocalId: dependsOnLocalId,
           dependsOnLabel: dependsOnLocalId != null ? label : null,
+          dependsOnAccountId : (o.dependid.isNotEmpty && o.dependid != '0')
+              ? o.dependid   // ← dependid from API IS the accountid
+              : null,
         ),
       );
     }
