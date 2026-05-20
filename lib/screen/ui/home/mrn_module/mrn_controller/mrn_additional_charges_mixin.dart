@@ -100,51 +100,65 @@ mixin MrnAdditionalChargesMixin on GetxController {
     additionalCharges.clear();
 
     for (final o in others) {
-      // Find the matching head in chargeHeadList by accountid
+      // ── Match head by accountid ──────────────────────────────────────────
       final head = chargeHeadList.firstWhereOrNull(
             (h) => h.id == o.accountid.toString(),
       );
 
-      // Resolve nature
+      if (kDebugMode) {
+        print('🔍 Prefill: accountid=${o.accountid} → head=${head?.label ?? "NOT FOUND"} | dependid="${o.dependid}"');
+      }
+
       final nature = (o.nature == '+' || o.nature.toLowerCase() == 'plus')
           ? ChargeNature.plus
           : ChargeNature.less;
 
-      // Resolve calc type: if percentage > 0 → percentage mode, else fixed
       final calcType = o.percentage > 0
           ? ChargeCalcType.percentage
           : ChargeCalcType.fixed;
 
-      // Resolve value: percentage mode uses the percentage field, fixed uses amount
       final value = calcType == ChargeCalcType.percentage
           ? o.percentage
           : o.amount;
 
-      // Resolve dependsOn — '0' or '' means "item subtotal" (null)
-      final dependsOnLocalId = (o.dependid.isNotEmpty && o.dependid != '0')
-          ? o.dependid
-          : null;
+      // ── Resolve dependsOn by matching accountid of ALREADY-ADDED charges ─
+      // dependid from API is the accountid of the charge this row depends on.
+      // We need to find the localId of that already-added charge.
+      String? dependsOnLocalId;
+      String? dependsOnLabel;
 
-      final label = dependsOnLocalId != null
-          ? (additionalCharges
-          .firstWhereOrNull((c) => c.localId == dependsOnLocalId)
-          ?.head
-          ?.label ??
-          'Previous charge')
-          : 'Item Subtotal';
+      if (o.dependid.isNotEmpty && o.dependid != '0') {
+        // Find the previously added charge whose head.id == dependid
+        final depCharge = additionalCharges.firstWhereOrNull(
+              (c) => c.head?.id == o.dependid,
+        );
+        if (depCharge != null) {
+          dependsOnLocalId = depCharge.localId;
+          dependsOnLabel = depCharge.head?.label ?? 'Previous charge';
+        } else {
+          // Head not found in already-added list (shouldn't happen if API order is correct)
+          // Store the accountid as a fallback label
+          dependsOnLocalId = null;
+          dependsOnLabel = null;
+          if (kDebugMode) {
+            print('⚠️  dependid="${o.dependid}" not found in already-added charges');
+          }
+        }
+      }
+
+      final localId = '${DateTime.now().millisecondsSinceEpoch}_${additionalCharges.length}';
 
       additionalCharges.add(
         AdditionalCharge(
-          localId: DateTime.now().millisecondsSinceEpoch.toString() +
-              '_${additionalCharges.length}',
+          localId: localId,
           head: head,
           nature: nature,
           calcType: calcType,
           value: value,
           dependsOnLocalId: dependsOnLocalId,
-          dependsOnLabel: dependsOnLocalId != null ? label : null,
-          dependsOnAccountId : (o.dependid.isNotEmpty && o.dependid != '0')
-              ? o.dependid   // ← dependid from API IS the accountid
+          dependsOnLabel: dependsOnLabel,
+          dependsOnAccountId: (o.dependid.isNotEmpty && o.dependid != '0')
+              ? o.dependid
               : null,
         ),
       );

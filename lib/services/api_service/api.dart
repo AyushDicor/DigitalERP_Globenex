@@ -5145,4 +5145,58 @@ class Api {
     }
     return MrnQcListResponse(status: 500, message: 'No Internet');
   }
+
+  Future<MrnQcDetailResponse> getMrnQcDetail(MrnQcDetailRequest req) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getMrnQcDetail, // add 'api/mrnandqcdetail' to _apiMethods
+        body: jsonEncode(req.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return MrnQcDetailResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getMrnQcDetail parse error: $e');
+          return MrnQcDetailResponse(
+              success: false, status: 500, message: e.toString());
+        }
+      }
+      return MrnQcDetailResponse(
+          success: false, status: 500, message: 'Something went wrong');
+    }
+    return MrnQcDetailResponse(
+        success: false, status: 500, message: 'No Internet');
+  }
+
+  Future<SaveQcEntryResponse> saveQcEntry(SaveQcEntryRequest req) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.saveQcEntry, // add 'api/saveqcentry' to _apiMethods
+        body: jsonEncode(req.toJson()),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return SaveQcEntryResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('saveQcEntry parse error: $e');
+          return SaveQcEntryResponse(
+              success: false, status: 500, message: e.toString());
+        }
+      }
+      return SaveQcEntryResponse(
+          success: false, status: 500, message: 'Something went wrong');
+    }
+    return SaveQcEntryResponse(
+        success: false, status: 500, message: 'No Internet');
+  }
 }

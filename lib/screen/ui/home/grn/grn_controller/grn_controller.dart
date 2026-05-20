@@ -1078,8 +1078,7 @@ class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
         siteid: int.tryParse(selectedSite?.id ?? '0') ?? 0,
       );
 
-      final response =
-      await api.getLedgerAddressAndValuePercent(request);
+      final response = await api.getLedgerAddressAndValuePercent(request);
 
       if (response.data != null && response.data!.isNotEmpty) {
         return response.data!.first.gstpercent;
@@ -1090,7 +1089,6 @@ class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
 
     return null;
   }
-
 
   Future<void> fetchSeriesTypes() async {
     isLoadingSeriesType = true;
@@ -1273,6 +1271,7 @@ class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
         chargeHeadList = res.data!
             .map((o) => AdditionalChargeHead(
                   id: o.id,
+                  accountId: o.id,
                   label: o.label,
                   // TODO(backend): if the API attaches taxpercent to each
                   // option, switch to AdditionalChargeHead.fromJson(o.toJson())
@@ -1412,11 +1411,37 @@ class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
     if (d.fromaddress.isNotEmpty) {
       shippingAddress = GrnAddress(label: 'From Address', line1: d.fromaddress);
     }
-    if (d.toaddress.isNotEmpty) {
-      billingAddress = GrnAddress(label: 'To Address', line1: d.toaddress);
-    }
+
+
+    itemLines = d.items
+        .map((i) => GrnItemLine(
+      itemId: i.itemid.toString(),
+      itemName: i.itemname,
+      itemCode: i.itemid.toString(),
+      unit: i.unitname,
+      source: d.type,
+      orderNo: d.pono == '0' ? '' : d.pono,
+      poQty: i.quantity,
+      previouslyReceivedQty: 0,
+      receiveNowQty: i.quantity,
+      rate: i.rate,
+      discountPercent: i.discountpercent,
+      discountAmount: i.discountamount,
+      gstPercent: i.gstpercent,
+      selectedGodownId: i.godownid > 0 ? i.godownid.toString() : null,
+      remarks: i.specification,
+      unitId: i.unitid,
+      transId: i.transid,
+      uniqueId: i.uniqueid,
+      makeId: i.makeid,
+      make: i.make,
+      batchNo: i.batchno,
+    ))
+        .toList();
+
+
     if (d.grnother.isNotEmpty) {
-      if (chargeHeadList.isEmpty) await fetchTax(); // guard: heads must be loaded
+      if (chargeHeadList.isEmpty) await fetchTax();
       prefillAdditionalChargesFromOther(d.grnother);
     } else {
       resetAdditionalCharges();
@@ -1424,31 +1449,7 @@ class GrnController extends AppBaseController with GrnAdditionalChargesMixin {
 
     selectedSource = GrnSourceType.grn;
 
-    itemLines = d.items
-        .map((i) => GrnItemLine(
-              itemId: i.itemid.toString(),
-              itemName: i.itemname,
-              itemCode: i.itemid.toString(),
-              unit: i.unitname,
-              source: d.type,
-              orderNo: d.pono == '0' ? '' : d.pono,
-              poQty: i.quantity,
-              previouslyReceivedQty: 0,
-              receiveNowQty: i.quantity,
-              rate: i.rate,
-              discountPercent: i.discountpercent,
-              discountAmount: i.discountamount,
-              gstPercent: i.gstpercent,
-              selectedGodownId: i.godownid > 0 ? i.godownid.toString() : null,
-              remarks: i.specification,
-              unitId: i.unitid,
-              transId: i.transid,
-              uniqueId: i.uniqueid,
-              makeId: i.makeid,
-              make: i.make,
-              batchNo: i.batchno,
-            ))
-        .toList();
+
 
     if (kDebugMode) print('📦 Items populated: ${itemLines.length}');
     update(['items_list']);

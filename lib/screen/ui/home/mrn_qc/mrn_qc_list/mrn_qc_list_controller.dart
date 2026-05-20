@@ -41,6 +41,7 @@ class MrnQcListController extends AppBaseController {
     fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(from);
     toDateCtrl.text = DateFormat('yyyy-MM-dd').format(today);
     fetchMrnQcList(); // fetch active tab on init
+
   }
 
   @override

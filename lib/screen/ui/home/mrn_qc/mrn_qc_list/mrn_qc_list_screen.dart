@@ -158,15 +158,15 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
           final item = ctrl.activeItems[i];
           // ── Pending taps go to MrnEntryView (or QC entry — change later)
           // ── Completed taps go to QC detail page — wire up when ready
+          // In _tabContent, change the card instantiation:
           return _MrnCard(
             item: item,
+            isCompleted: ctrl.activeTab == MrnQcTab.completed,  // ← NEW
             onTap: () {
               if (ctrl.activeTab == MrnQcTab.pending) {
-                // TODO: replace with QC entry page when ready
-                Get.to(() => const MrnQcScreen(), arguments: item);
+                Get.to(() => const MrnQcScreen(), arguments: {'item': item, 'docname': 'mrn'});
               } else {
-                // TODO: replace with QC detail/view page when ready
-                Get.to(() => const MrnQcScreen(), arguments: item);
+                Get.to(() => const MrnQcScreen(), arguments: {'item': item, 'docname': 'qc'});
               }
             },
           );
@@ -177,7 +177,7 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
 
   // Widget _summaryBar(MrnQcListController ctrl) {
   //   final totalAmt = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalAmt);
-  //   final totalQty = ctrl.mrnItems.fold(0.0, (s, i) => s + i.totalQty);
+  //   final totalQty = ctrl.mrnItems.fold(0.0, (s, i) =>   s + i.totalQty);
   //   return Container(
   //     color: Colors.white,
   //     padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
@@ -367,8 +367,13 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
 class _MrnCard extends StatelessWidget {
   final MrnQcListItem item;
   final VoidCallback? onTap;
+  final bool isCompleted;   // ← NEW
 
-  const _MrnCard({required this.item, this.onTap});
+  const _MrnCard({
+    required this.item,
+    this.onTap,
+    this.isCompleted = false,   // ← NEW
+  });
 
 
   Future<void> _openUrl(String url) async {
@@ -391,23 +396,22 @@ class _MrnCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,                     // ← USE onTap instead of hardcoded nav
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: newBorderColor)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Blue header ──────────────────────────────────────────────────
+
+          // ── Header ────────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             decoration: BoxDecoration(
                 color: newBlueLightColor,
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(13))),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(13))),
             child: Row(children: [
-              const Icon(Icons.receipt_long_rounded,
-                  size: 15, color: newBlueColor),
+              const Icon(Icons.receipt_long_rounded, size: 15, color: newBlueColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(item.MrnNo,
@@ -417,15 +421,30 @@ class _MrnCard extends StatelessWidget {
                         color: newBlueColor,
                         letterSpacing: .2)),
               ),
+              // ── Show QC badge for completed ──────────────────────────
+              if (isCompleted && item.qcNo.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: newGreenLightColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: newGreenColor.withValues(alpha: 0.3))),
+                  child: Text('QC# ${item.qcNo}',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: newGreenColor)),
+                ),
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                        color: newBlueColor.withValues(alpha: 0.3))),
-                child: Text(item.MrnDate,
+                    border: Border.all(color: newBlueColor.withValues(alpha: 0.3))),
+                child: Text(
+                  // Show QC date for completed, MRN date for pending
+                    isCompleted && item.qcDate.isNotEmpty ? item.qcDate : item.MrnDate,
                     style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -434,60 +453,84 @@ class _MrnCard extends StatelessWidget {
             ]),
           ),
 
-          // ── Body ────────────────────────────────────────────────────────
+          // ── Body (unchanged) ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Party
-                  Text(item.partyName,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: newTextPrimary)),
-                  const SizedBox(height: 8),
-
-                  // Site + Job Type
-                  Row(children: [
-                    _pill(Icons.location_on_outlined, item.siteName,
-                        newSurfaceColor, newTextSecondary),
-                    const SizedBox(width: 6),
-                    if (item.jobType.isNotEmpty)
-                      _pill(Icons.work_outline_rounded, item.jobType,
-                          newOrangeLightColor, newOrangeColor),
-                  ]),
-                  const SizedBox(height: 10),
-
-                  // Bottom row
-                  Row(children: [
-                    if (item.billNo.isNotEmpty) ...[
-                      const Icon(Icons.receipt_outlined,
-                          size: 12, color: newTextSecondary),
-                      const SizedBox(width: 4),
-                      Text('Bill: ${item.billNo}',
-                          style: const TextStyle(
-                              fontSize: 11, color: newTextSecondary)),
-                      const SizedBox(width: 12),
-                    ],
-                    const Icon(Icons.inventory_2_outlined,
-                        size: 12, color: newTextSecondary),
-                    const SizedBox(width: 4),
-                    Text('${item.totalQty.toInt()} items',
-                        style: const TextStyle(
-                            fontSize: 11, color: newTextSecondary)),
-                    const Spacer(),
-                    Text('₹${_inr(item.totalAmt)}',
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: newTextPrimary)),
-                  ]),
-                ]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.partyName,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: newTextPrimary)),
+              const SizedBox(height: 8),
+              Row(children: [
+                _pill(Icons.location_on_outlined, item.siteName,
+                    newSurfaceColor, newTextSecondary),
+                const SizedBox(width: 6),
+                if (item.jobType.isNotEmpty)
+                  _pill(Icons.work_outline_rounded, item.jobType,
+                      newOrangeLightColor, newOrangeColor),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                if (item.billNo.isNotEmpty) ...[
+                  const Icon(Icons.receipt_outlined, size: 12, color: newTextSecondary),
+                  const SizedBox(width: 4),
+                  Text('Bill: ${item.billNo}',
+                      style: const TextStyle(fontSize: 11, color: newTextSecondary)),
+                  const SizedBox(width: 12),
+                ],
+                const Icon(Icons.inventory_2_outlined, size: 12, color: newTextSecondary),
+                const SizedBox(width: 4),
+                Text('${item.totalQty.toInt()} items',
+                    style: const TextStyle(fontSize: 11, color: newTextSecondary)),
+                const Spacer(),
+                // Show grandTotal for completed, totalAmt for pending
+                Text(
+                    '₹${_inr(isCompleted && item.grandTotal > 0 ? item.grandTotal : item.totalAmt)}',
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: newTextPrimary)),
+              ]),
+            ]),
           ),
 
+          // ── Print button for COMPLETED items ─────────────────────────
+          if (isCompleted && item.printUrl.isNotEmpty)
+            Container(
+              decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: newBorderColor))),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: GestureDetector(
+                onTap: () => _openUrl(item.printUrl),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                      color: newGreenLightColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: newGreenColor.withValues(alpha: 0.3))),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.print_rounded, size: 14, color: newGreenColor),
+                      SizedBox(width: 6),
+                      Text('Print QC Report',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: newGreenColor)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // ── Print buttons ────────────────────────────────────────────────
-          if (item.withRateUrl.isNotEmpty || item.withoutRateUrl.isNotEmpty)
+          if (!isCompleted &&
+          item.withRateUrl.isNotEmpty || item.withoutRateUrl.isNotEmpty)
             Container(
               decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: newBorderColor))),

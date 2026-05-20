@@ -2631,21 +2631,20 @@ class _ChargeRow extends StatelessWidget {
     final hasHead = charge.head != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: hasHead ? Colors.white : newSurfaceColor,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color:
-              hasHead ? newBorderColor : newBorderColor.withValues(alpha: 0.5),
+          color: hasHead ? newBorderColor : newBorderColor.withValues(alpha: 0.5),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Index bubble
+      child: GestureDetector(
+        onTap: () => _showEditSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            // ── Index bubble ─────────────────────────────────────────────
             Container(
               width: 26,
               height: 26,
@@ -2659,183 +2658,136 @@ class _ChargeRow extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       color: newBlueColor)),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
 
-            // Head name
+            // ── Head name + depends on — takes all available space ────────
             Expanded(
-              flex: 3,
-              child: GestureDetector(
-                onTap: () => _showEditSheet(context),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      charge.head?.label ?? '— Tap to configure —',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: hasHead ? newTextPrimary : newTextHint),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    // ── Second line: nature badge + value + amount ────────
+                    Row(children: [
+                      // Nature badge — fixed, no wrapping
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isPlus ? newGreenLightColor : newRedLightColor,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          isPlus ? '+ADD' : '−LESS',
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: isPlus ? newGreenColor : newRedColor),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Value
                       Text(
-                        charge.head?.label ?? '— Tap to configure —',
+                        charge.calcType == ChargeCalcType.percentage
+                            ? '${charge.value.toStringAsFixed(1)}%'
+                            : '₹${charge.value.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: newTextSecondary),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('→',
+                          style: TextStyle(
+                              fontSize: 10, color: newTextSecondary)),
+                      const SizedBox(width: 6),
+                      // Computed amount
+                      Text(
+                        '${isPlus ? "+" : "−"}₹${amt.toStringAsFixed(2)}',
                         style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: hasHead ? newTextPrimary : newTextHint),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                            fontWeight: FontWeight.w800,
+                            color: isPlus ? newGreenColor : newRedColor),
                       ),
-                      // Depends-on badge (shown for both % and fixed when set)
-                      if (charge.dependsOnLabel != null) ...[
-                        const SizedBox(height: 2),
-                        Row(children: [
-                          const Icon(Icons.link_rounded,
-                              size: 10, color: newTextSecondary),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              'On: ${charge.dependsOnLabel}',
-                              style: const TextStyle(
-                                  fontSize: 9, color: newTextSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                      ],
-                      // Lock indicator badges
-                      if (charge.isPercentLocked) ...[
-                        const SizedBox(height: 2),
-                        _lockBadge('% Locked by head'),
-                      ],
                     ]),
-              ),
+                    // Depends-on label if present
+                    if (charge.dependsOnLabel != null) ...[
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        const Icon(Icons.link_rounded,
+                            size: 10, color: newTextSecondary),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            'On: ${charge.dependsOnLabel}',
+                            style: const TextStyle(
+                                fontSize: 9, color: newTextSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ],
+                  ]),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
 
-            // Nature badge
-            SizedBox(
-              width: 42,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isPlus ? newGreenLightColor : newRedLightColor,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    isPlus ? '+ADD' : '−LESS',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: isPlus ? newGreenColor : newRedColor),
+            // ── Action buttons ───────────────────────────────────────────
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => _showEditSheet(context),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: newBlueLightColor,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.edit_rounded,
+                        size: 14, color: newBlueColor),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 4),
-
-            // Value display
-            SizedBox(
-              width: 52,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (charge.isPercentLocked)
-                    const Icon(Icons.lock_rounded,
-                        size: 9, color: newTextSecondary),
-                  const SizedBox(width: 2),
-                  Flexible(
-                    child: Text(
-                      charge.calcType == ChargeCalcType.percentage
-                          ? '${charge.value.toStringAsFixed(1)}%'
-                          : '₹${charge.value.toStringAsFixed(2)}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: newTextPrimary),
-                    ),
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () => ctrl.removeAdditionalCharge(charge.localId),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: newRedLightColor,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.delete_outline_rounded,
+                        size: 14, color: newRedColor),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 4),
-
-            // Computed amount
-            SizedBox(
-              width: 64,
-              child: Text(
-                '${isPlus ? "+" : "−"}₹${amt.toStringAsFixed(2)}',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: isPlus ? newGreenColor : newRedColor),
-              ),
-            ),
-            const SizedBox(width: 6),
-
-            // Action buttons
-            SizedBox(
-              width: 48,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: () => _showEditSheet(context),
-                    child: Container(
-                      width: 22,
-                      height: 26,
-                      decoration: BoxDecoration(
-                          color: newBlueLightColor,
-                          borderRadius: BorderRadius.circular(6)),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.edit_rounded,
-                          size: 12, color: newBlueColor),
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  GestureDetector(
-                    onTap: () => ctrl.removeAdditionalCharge(charge.localId),
-                    child: Container(
-                      width: 22,
-                      height: 26,
-                      decoration: BoxDecoration(
-                          color: newRedLightColor,
-                          borderRadius: BorderRadius.circular(6)),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.delete_outline_rounded,
-                          size: 12, color: newRedColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ]),
         ),
       ),
     );
   }
-
-  Widget _lockBadge(String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        decoration: BoxDecoration(
-          color: newOrangeLightColor,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.lock_rounded, size: 8, color: newOrangeColor),
-          const SizedBox(width: 3),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  color: newOrangeColor)),
-        ]),
-      );
 
   void _showEditSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ChargeEditSheet(ctrl: ctrl, charge: charge),
+      builder: (_) => _ChargeEditSheet(
+        ctrl: ctrl,
+        charge: charge,
+      ),
     );
   }
 }

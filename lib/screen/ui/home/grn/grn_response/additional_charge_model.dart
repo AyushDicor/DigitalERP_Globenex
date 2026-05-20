@@ -14,11 +14,13 @@ enum ChargeCalcType { fixed, percentage }
 // ─────────────────────────────────────────────────────────────────────────────
 class AdditionalChargeHead {
   final String id;
+  final String accountId;
   final String label;
   final double taxPercent;
 
   const AdditionalChargeHead({
     required this.id,
+    this.accountId = '',
     required this.label,
     this.taxPercent = 0,
   });

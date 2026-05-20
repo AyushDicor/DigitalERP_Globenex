@@ -480,57 +480,32 @@ class _AdditionalChargesCard extends StatelessWidget {
   // ── Column header ──────────────────────────────────────────────────────────
   Widget _tableHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: newBlueLightColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: newBlueColor.withValues(alpha: 0.25)),
       ),
       child: const Row(children: [
-        SizedBox(width: 26), // index
-        SizedBox(width: 8),
+        SizedBox(width: 26), // index bubble width
+        SizedBox(width: 10),
         Expanded(
-            flex: 3,
-            child: Text('Head',
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor))),
+          child: Text('Head  ·  Nature  ·  Value  →  Amount',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: newBlueColor)),
+        ),
+        SizedBox(width: 8),
         SizedBox(
-            width: 42,
-            child: Text('Nature',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor))),
-        SizedBox(width: 4),
-        SizedBox(
-            width: 52,
-            child: Text('Value',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor))),
-        SizedBox(width: 4),
-        SizedBox(
-            width: 64,
-            child: Text('Amount',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor))),
-        SizedBox(width: 6),
-        SizedBox(
-            width: 48,
-            child: Text('Actions',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: newBlueColor))),
+          width: 70, // edit + delete buttons width
+          child: Text('Actions',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: newBlueColor)),
+        ),
       ]),
     );
   }
@@ -634,21 +609,20 @@ class _ChargeRow extends StatelessWidget {
     final hasHead = charge.head != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: hasHead ? Colors.white : newSurfaceColor,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color:
-              hasHead ? newBorderColor : newBorderColor.withValues(alpha: 0.5),
+          color: hasHead ? newBorderColor : newBorderColor.withValues(alpha: 0.5),
         ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Compact summary row ──────────────────────────────────────────────
-        Padding(
+      child: GestureDetector(
+        onTap: () => _showEditSheet(context),
+        child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            // Index bubble
+            // ── Index bubble ─────────────────────────────────────────────
             Container(
               width: 26,
               height: 26,
@@ -662,140 +636,124 @@ class _ChargeRow extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       color: newBlueColor)),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
 
-            // Head name (or placeholder)
+            // ── Head name + depends on — takes all available space ────────
             Expanded(
-              flex: 3,
-              child: GestureDetector(
-                onTap: () => _showEditSheet(context),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      charge.head?.label ?? '— Tap to configure —',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: hasHead ? newTextPrimary : newTextHint),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    // ── Second line: nature badge + value + amount ────────
+                    Row(children: [
+                      // Nature badge — fixed, no wrapping
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isPlus ? newGreenLightColor : newRedLightColor,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          isPlus ? '+ADD' : '−LESS',
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: isPlus ? newGreenColor : newRedColor),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Value
                       Text(
-                        charge.head?.label ?? '— Tap to configure —',
+                        charge.calcType == ChargeCalcType.percentage
+                            ? '${charge.value.toStringAsFixed(1)}%'
+                            : '₹${charge.value.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: newTextSecondary),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('→',
+                          style: TextStyle(
+                              fontSize: 10, color: newTextSecondary)),
+                      const SizedBox(width: 6),
+                      // Computed amount
+                      Text(
+                        '${isPlus ? "+" : "−"}₹${amt.toStringAsFixed(2)}',
                         style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: hasHead ? newTextPrimary : newTextHint),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                            fontWeight: FontWeight.w800,
+                            color: isPlus ? newGreenColor : newRedColor),
                       ),
-                      if (charge.dependsOnLabel != null) ...[
-                        const SizedBox(height: 2),
-                        Row(children: [
-                          const Icon(Icons.link_rounded,
-                              size: 10, color: newTextSecondary),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              'On: ${charge.dependsOnLabel}',
-                              style: const TextStyle(
-                                  fontSize: 9, color: newTextSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                      ],
                     ]),
-              ),
+                    // Depends-on label if present
+                    if (charge.dependsOnLabel != null) ...[
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        const Icon(Icons.link_rounded,
+                            size: 10, color: newTextSecondary),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            'On: ${charge.dependsOnLabel}',
+                            style: const TextStyle(
+                                fontSize: 9, color: newTextSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ],
+                  ]),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
 
-            // Nature badge
-            SizedBox(
-              width: 42,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isPlus ? newGreenLightColor : newRedLightColor,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    isPlus ? '+ADD' : '−LESS',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: isPlus ? newGreenColor : newRedColor),
+            // ── Action buttons ───────────────────────────────────────────
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => _showEditSheet(context),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: newBlueLightColor,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.edit_rounded,
+                        size: 14, color: newBlueColor),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 4),
-
-            // Value display
-            SizedBox(
-              width: 52,
-              child: Text(
-                charge.calcType == ChargeCalcType.percentage
-                    ? '${charge.value.toStringAsFixed(1)}%'
-                    : '₹${charge.value.toStringAsFixed(2)}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: newTextPrimary),
-              ),
-            ),
-            const SizedBox(width: 4),
-
-            // Computed amount
-            SizedBox(
-              width: 64,
-              child: Text(
-                '${isPlus ? "+" : "−"}₹${amt.toStringAsFixed(2)}',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: isPlus ? newGreenColor : newRedColor),
-              ),
-            ),
-            const SizedBox(width: 6),
-
-            // Action buttons
-            SizedBox(
-              width: 48,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: () => _showEditSheet(context),
-                    child: Container(
-                      width: 22,
-                      height: 26,
-                      decoration: BoxDecoration(
-                          color: newBlueLightColor,
-                          borderRadius: BorderRadius.circular(6)),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.edit_rounded,
-                          size: 12, color: newBlueColor),
-                    ),
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () => ctrl.removeAdditionalCharge(charge.localId),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: newRedLightColor,
+                        borderRadius: BorderRadius.circular(8)),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.delete_outline_rounded,
+                        size: 14, color: newRedColor),
                   ),
-                  const SizedBox(width: 3),
-                  GestureDetector(
-                    onTap: () => ctrl.removeAdditionalCharge(charge.localId),
-                    child: Container(
-                      width: 22,
-                      height: 26,
-                      decoration: BoxDecoration(
-                          color: newRedLightColor,
-                          borderRadius: BorderRadius.circular(6)),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.delete_outline_rounded,
-                          size: 12, color: newRedColor),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ]),
         ),
-      ]),
+      ),
     );
   }
 

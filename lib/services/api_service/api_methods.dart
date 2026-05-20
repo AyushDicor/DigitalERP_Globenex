@@ -202,13 +202,13 @@ class ApiMethods {
   String getapprovername        = 'approvername/getapprovername';
 
   ///Payment Request
-  //String paymentrequestentry = 'paymentrequest/paymentrequestentry';
-  //String paymentRequestList = 'paymentrequest/paymentrequestlist';
+  //String paymentrequestentry        = 'paymentrequest/paymentrequestentry';
+  //String paymentRequestList         = 'paymentrequest/paymentrequestlist';
   //String updatePaymentRequestStatus = 'paymentrequest/updatepaymentrequest';
 
-  String paymentRequestList = 'GetPaymentRequestList';
-  String paymentrequestentry = 'SavePaymentRequest';
-  String paymentRequestDropdown = 'PaymentRequestDropdown';
+  String paymentRequestList         = 'GetPaymentRequestList';
+  String paymentrequestentry        = 'SavePaymentRequest';
+  String paymentRequestDropdown     = 'PaymentRequestDropdown';
   String updatePaymentRequestStatus = 'SavePaymentRequest';
 
   String updateCustomerLocation = 'updatepartylocation/updatelocation';
@@ -232,10 +232,10 @@ class ApiMethods {
   String journalEntry       = 'journalentry/userjournalentry';
   String debitCreditAccount = 'debitandcreditledger/showdebitandcreditledger';
 
-  String transactionList =
+  String transactionList    =
       'Partylistoftransaction/showlistoftransactionofparty';
-  String partyOutstanding = 'Partyoutstadinglist/showpartyoutstanding';
-  String printPartyLedger = 'printledger/printledgerreport';
+  String partyOutstanding   = 'Partyoutstadinglist/showpartyoutstanding';
+  String printPartyLedger   = 'printledger/printledgerreport';
 
   String voucherEntrySubmit = 'Voucherentry/uservoucherentry';
 
@@ -268,11 +268,11 @@ class ApiMethods {
   /// category catalouge
 
   String categoryCatalouge = 'categorywisecatalogue/showcategorywisecatalogue';
-  String categoryNewList = "categorywithbranch/categorylistwithbranch";
+  String categoryNewList   = "categorywithbranch/categorylistwithbranch";
 
   /// sales invoice
 
-  String salesInvoice = "salesinvoicemis/getsalesinvoicelist";
+  String salesInvoice      = "salesinvoicemis/getsalesinvoicelist";
 
   /// Salary Sleep
 
@@ -281,13 +281,13 @@ class ApiMethods {
 
 
   ///MRN module
-  String getMrnDropdownList   = 'Getmrndropdownlist';
-  String getPendingPo         = 'getpendingpo';
-  String processPendingPoList = 'processpendingpolist';
-  String saveMrnEntry         = 'savemrnentry';
-  String getItemDetail        = 'itemdetail';
-  String getMrnList           = 'getmrnlist';
-  String getMrnDetail         = 'mrnfulldetail';
+  String getMrnDropdownList    = 'Getmrndropdownlist';
+  String getPendingPo          = 'getpendingpo';
+  String processPendingPoList  = 'processpendingpolist';
+  String saveMrnEntry          = 'savemrnentry';
+  String getItemDetail         = 'itemdetail';
+  String getMrnList            = 'getmrnlist';
+  String getMrnDetail          = 'mrnfulldetail';
   String getDependentAllDetail = 'getdependentalldetail';
 
 
@@ -301,5 +301,7 @@ class ApiMethods {
 
   ///MRN QC Module
   String getMrnQcList        = 'getmrnlist';
+  String getMrnQcDetail      = 'mrnandqcdetail';
+  String saveQcEntry         = 'saveqcentry';
 //  static const String getPendingPoItems = 'getpendingpo';
 }

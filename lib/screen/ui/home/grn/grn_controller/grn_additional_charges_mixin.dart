@@ -152,6 +152,10 @@ mixin GrnAdditionalChargesMixin on GetxController {
       final head = chargeHeadList.firstWhereOrNull(
             (h) => h.id == o.accountid.toString(),
       );
+      if (kDebugMode) {
+        print('🔍 Prefill row: accountid=${o.accountid} → head=${head?.label ?? "NOT FOUND"}');
+      }
+
 
       // Nature
       final nature = (o.nature == '+' || o.nature.toLowerCase() == 'plus')
