@@ -28,7 +28,7 @@ class SplashView extends StatelessWidget {
 
 
               const Text(
-                'Digital ERP',
+                'Globenex Projects',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
