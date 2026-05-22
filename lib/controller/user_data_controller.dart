@@ -28,7 +28,7 @@ class UserDataController extends GetxController {
     userData.userId = profileData.id.toString();
     userData.name = profileData.name;
     userData.email = profileData.email;
-    userData.token = currentUser.token;
+    use rData.token = currentUser.token;
     userData.isEmailVerified = '1';
     userData.isCategorySelected = currentUser.isCategorySelected.toString();
     userData.isTopicSelected = currentUser.isTopicSelected.toString();
