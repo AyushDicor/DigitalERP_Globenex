@@ -20,7 +20,7 @@ class SplashView extends StatelessWidget {
             children: [
               //  Stacked layers logo 
               Image.asset(
-                'assets/images/digitalerp_newlogo.png',
+                'assets/images/Globenex_Logo.jpeg',
                 width: 100,
                 height: 100,
               ),

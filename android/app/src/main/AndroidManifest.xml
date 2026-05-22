@@ -110,7 +110,7 @@
     </queries>
 
     <application
-        android:label="DigitalERP"
+        android:label="Globenex"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
