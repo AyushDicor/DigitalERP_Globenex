@@ -438,6 +438,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../../utils/show_message.dart';
 import '../grn_controller/grn_list_contoller.dart';
 import '../grn_entry_view.dart';
+import '../grn_filter/grn_filter_sheet.dart';
 import '../grn_response/grn_models.dart';
 
 class GrnListScreen extends StatefulWidget {
@@ -485,6 +486,42 @@ class _GrnListScreenState extends State<GrnListScreen> {
               preferredSize: const Size.fromHeight(1),
               child: Container(height: 1, color: newBorderColor),
             ),
+
+            actions: [
+              GestureDetector(
+                onTap: () => _showFilterSheet(context, ctrl),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: purpleLightest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      const Center(
+                        child: Icon(Icons.filter_list_rounded,
+                            color: purpleColor, size: 20),
+                      ),
+                      if (ctrl.hasActiveFilter)
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                                color: newOrangeColor, shape: BoxShape.circle),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
@@ -499,12 +536,12 @@ class _GrnListScreenState extends State<GrnListScreen> {
           ),
           body: Column(children: [
             _filterBar(context, ctrl),
-            if (!ctrl.isLoadingList && ctrl.GrnItems.isNotEmpty)
+            if (!ctrl.isLoadingList && ctrl.filteredItems.isNotEmpty)
            //   _summaryBar(ctrl),
             Expanded(
               child: ctrl.isLoadingList
                   ? _shimmer()
-                  : ctrl.GrnItems.isEmpty
+                  : ctrl.filteredItems.isEmpty
                   ? _emptyState()
                   : RefreshIndicator(
                 color: newBlueColor,
@@ -512,11 +549,11 @@ class _GrnListScreenState extends State<GrnListScreen> {
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-                  itemCount: ctrl.GrnItems.length,
+                  itemCount: ctrl.filteredItems.length,
                   separatorBuilder: (_, __) =>
                   const SizedBox(height: 10),
                   itemBuilder: (_, i) =>
-                      _GrnCard(item: ctrl.GrnItems[i]),
+                      _GrnCard(item: ctrl.filteredItems[i]),
                 ),
               ),
             ),
@@ -726,6 +763,24 @@ class _GrnListScreenState extends State<GrnListScreen> {
           color: newBorderColor, borderRadius: BorderRadius.circular(10)),
     ),
   );
+
+  void _showFilterSheet(BuildContext context, GrnListController ctrl) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MrnGrnFilterSheet.forGrn(
+        items: ctrl.GrnItems,
+        activeFilter: ctrl.activeFilter,
+        onApply: ctrl.applyFilter,
+        onReset: ctrl.resetFilter,
+        partyName: (e) => e.partyName,
+        siteName: (e) => e.siteName,
+        jobType: (e) => e.jobType,
+        totalAmt: (e) => e.totalAmt,
+      ),
+    );
+  }
 }
 
 class _GrnCard extends StatelessWidget {

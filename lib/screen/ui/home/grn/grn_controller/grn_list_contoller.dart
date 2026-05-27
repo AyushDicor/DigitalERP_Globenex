@@ -6,16 +6,28 @@ import 'package:intl/intl.dart';
 
 import '../../../../../screen/base/base_controller.dart';
 import '../../home_controller.dart';
+import '../grn_filter/grn_filter_sheet.dart';
 import '../grn_response/grn_models.dart';
 
 class GrnListController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
+
+  MrnGrnFilter activeFilter = const MrnGrnFilter();
 
   String htmlData = '';
   bool isLoadingList = false;
   List<GrnListItem> GrnItems = [];
   List<GrnListRawRow> rawRows = []; // ✅ add this
   List<String> columns = [];
+
+  List<GrnListItem> get filteredItems => activeFilter.applyMrn(
+    GrnItems,
+    partyName: (e) => e.partyName,
+    siteName: (e) => e.siteName,
+    jobType: (e) => e.jobType,
+    totalAmt: (e) => e.totalAmt,
+  );
+  bool get hasActiveFilter => activeFilter.isActive;
 
   final TextEditingController fromDateCtrl = TextEditingController();
   final TextEditingController toDateCtrl = TextEditingController();
@@ -36,6 +48,8 @@ class GrnListController extends AppBaseController {
     toDateCtrl.dispose();
     super.onClose();
   }
+  void applyFilter(MrnGrnFilter f) { activeFilter = f; update(); }
+  void resetFilter() { activeFilter = const MrnGrnFilter(); update(); }
 
   Future<void> fetchGrnList() async {
     isLoadingList = true;

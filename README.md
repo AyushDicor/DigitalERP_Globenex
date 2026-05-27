@@ -62,7 +62,7 @@ paste this ---------
 flutter clean
 flutter pub get
 flutter build apk --release
-
+    
 3)Debug APK (for testing)
 paste this ------------
 flutter clean

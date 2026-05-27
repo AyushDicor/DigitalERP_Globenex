@@ -6,16 +6,26 @@ import 'package:intl/intl.dart';
 
 import '../../../../../screen/base/base_controller.dart';
 import '../../home_controller.dart';
+import '../mrn_filter/mrn_filter_sheet.dart';
 import '../mrn_response/mrn_models.dart';
 
 class MrnListController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
+  MrnGrnFilter activeFilter = const MrnGrnFilter();
 
   String htmlData = '';
   bool isLoadingList = false;
   List<MrnListItem> mrnItems = [];
   List<MrnListRawRow> rawRows = []; // ✅ add this
   List<String> columns = [];
+  List<MrnListItem> get filteredItems => activeFilter.applyMrn(
+    mrnItems,
+    partyName: (e) => e.partyName,
+    siteName: (e) => e.siteName,
+    jobType: (e) => e.jobType,        // make sure jobType is String (not String?)
+    totalAmt: (e) => e.totalAmt,
+  );
+  bool get hasActiveFilter => activeFilter.isActive;
 
   final TextEditingController fromDateCtrl = TextEditingController();
   final TextEditingController toDateCtrl = TextEditingController();
@@ -37,9 +47,20 @@ class MrnListController extends AppBaseController {
     super.onClose();
   }
 
+  void applyFilter(MrnGrnFilter f) {
+    activeFilter = f;
+    update();
+  }
+
+  void resetFilter() {
+    activeFilter = const MrnGrnFilter();
+    update();
+  }
+
   Future<void> fetchMrnList() async {
     isLoadingList = true;
     mrnItems = [];
+    activeFilter = const MrnGrnFilter();
     htmlData = '';
     rawRows = []; // ✅ reset
     columns = []; // ✅ reset

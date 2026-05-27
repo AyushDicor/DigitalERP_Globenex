@@ -253,7 +253,9 @@ class GrnListItem {
       GrnDate: json['Grndate']?.toString() ?? json['grndate']?.toString() ?? '',
       partyName: json['PartyName']?.toString() ?? json['partyname']?.toString() ?? '',
       siteName: json['SiteName']?.toString() ?? json['sitename']?.toString() ?? '',
-      jobType: json['JobType']?.toString() ?? json['jobtype']?.toString() ?? '',
+      jobType: (json['JobType']?.toString() ?? json['jobtype']?.toString() ?? '') == 'null'
+          ? ''
+          : (json['JobType']?.toString() ?? json['jobtype']?.toString() ?? ''),
       totalQty: _parseDouble(json['TotalQty'] ?? json['totalqty']),
       totalAmt: _parseDouble(json['TotalAmt'] ?? json['totalamt']),
       withRateUrl: json['withrateurl']?.toString() ?? '',

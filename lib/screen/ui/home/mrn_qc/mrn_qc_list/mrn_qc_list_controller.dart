@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../../screen/base/base_controller.dart';
 import '../../home_controller.dart';
+import '../mrn_qc_filter/mrn_qc_filter_sheet.dart';
 import '../mrn_qc_model/mrn_qc_models.dart';
 
 enum MrnQcTab { pending, completed }
@@ -15,6 +16,8 @@ class MrnQcListController extends AppBaseController {
 
   // ── Tab state ──────────────────────────────────────────────────────────────
   MrnQcTab activeTab = MrnQcTab.pending;
+  MrnQcFilter activeFilter = const MrnQcFilter();
+
 
   // ── Separate lists per tab ─────────────────────────────────────────────────
   List<MrnQcListItem> pendingItems = [];
@@ -24,11 +27,16 @@ class MrnQcListController extends AppBaseController {
   List<MrnQcListItem> get activeItems =>
       activeTab == MrnQcTab.pending ? pendingItems : completedItems;
 
+  //Filter Sheet
+  List<MrnQcListItem> get filteredItems =>
+      activeFilter.apply(activeItems, activeTab == MrnQcTab.completed);
+
   // ── Loading states per tab ─────────────────────────────────────────────────
   bool isLoadingPending = false;
   bool isLoadingCompleted = false;
   bool get isLoadingList =>
       activeTab == MrnQcTab.pending ? isLoadingPending : isLoadingCompleted;
+  bool get hasActiveFilter => activeFilter.isActive;
 
   final TextEditingController fromDateCtrl = TextEditingController();
   final TextEditingController toDateCtrl = TextEditingController();
@@ -54,9 +62,22 @@ class MrnQcListController extends AppBaseController {
   // ── Switch tab → fresh API call ────────────────────────────────────────────
   void switchTab(MrnQcTab tab) {
     activeTab = tab;
+    activeFilter = const MrnQcFilter(); // ← reset on tab switch
     update();
     fetchMrnQcList();
   }
+
+  //Filter Functions
+  void applyFilter(MrnQcFilter f) {
+    activeFilter = f;
+    update();
+  }
+
+  void resetFilter() {
+    activeFilter = const MrnQcFilter();
+    update();
+  }
+
 
   // ── Fetch for current active tab ───────────────────────────────────────────
   Future<void> fetchMrnQcList() async {

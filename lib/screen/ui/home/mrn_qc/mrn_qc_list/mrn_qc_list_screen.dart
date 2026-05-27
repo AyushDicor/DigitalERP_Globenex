@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../../utils/show_message.dart';
+import '../mrn_qc_filter/mrn_qc_filter_sheet.dart';
 import '../mrn_qc_model/mrn_qc_models.dart';
 import 'mrn_qc_list_controller.dart';
 
@@ -54,6 +55,40 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
               preferredSize: const Size.fromHeight(1),
               child: Container(height: 1, color: newBorderColor),
             ),
+            actions: [
+              GestureDetector(
+                onTap: () => _showFilterSheet(context, ctrl),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: purpleLightest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      const Center(
+                        child: Icon(Icons.filter_list_rounded,
+                            color: purpleColor, size: 20),
+                      ),
+                      if (ctrl.hasActiveFilter)
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                                color: newOrangeColor, shape: BoxShape.circle),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           // floatingActionButton: FloatingActionButton(
           //   onPressed: () async {
@@ -68,9 +103,9 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
           // ),
           body: Column(children: [
             _filterBar(context, ctrl),
-            _tabBar(ctrl),            // ← NEW tab bar
+            _tabBar(ctrl), // ← NEW tab bar
             const SizedBox(height: 6),
-            Expanded(child: _tabContent(ctrl)),  // ← NEW tab content
+            Expanded(child: _tabContent(ctrl)), // ← NEW tab content
           ]),
         );
       },
@@ -144,7 +179,7 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
 // ── Tab content ────────────────────────────────────────────────────────────
   Widget _tabContent(MrnQcListController ctrl) {
     if (ctrl.isLoadingList) return _shimmer();
-    if (ctrl.activeItems.isEmpty) return _emptyState();
+    if (ctrl.filteredItems.isEmpty) return _emptyState();
 
     return RefreshIndicator(
       color: newBlueColor,
@@ -152,21 +187,23 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
-        itemCount: ctrl.activeItems.length,
+        itemCount: ctrl.filteredItems.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
-          final item = ctrl.activeItems[i];
+          final item = ctrl.filteredItems[i];
           // ── Pending taps go to MrnEntryView (or QC entry — change later)
           // ── Completed taps go to QC detail page — wire up when ready
           // In _tabContent, change the card instantiation:
           return _MrnCard(
             item: item,
-            isCompleted: ctrl.activeTab == MrnQcTab.completed,  // ← NEW
+            isCompleted: ctrl.activeTab == MrnQcTab.completed, // ← NEW
             onTap: () {
               if (ctrl.activeTab == MrnQcTab.pending) {
-                Get.to(() => const MrnQcScreen(), arguments: {'item': item, 'docname': 'mrn'});
+                Get.to(() => const MrnQcScreen(),
+                    arguments: {'item': item, 'docname': 'mrn'});
               } else {
-                Get.to(() => const MrnQcScreen(), arguments: {'item': item, 'docname': 'qc'});
+                Get.to(() => const MrnQcScreen(),
+                    arguments: {'item': item, 'docname': 'qc'});
               }
             },
           );
@@ -215,14 +252,17 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
   // }
 
   Widget _summaryBar(MrnQcListController ctrl) {
-    final totalAmt = ctrl.activeItems.fold(0.0, (s, i) => s + i.totalAmt);
-    final totalQty = ctrl.activeItems.fold(0.0, (s, i) => s + i.totalQty);
+    final totalAmt = ctrl.filteredItems.fold(0.0, (s, i) => s + i.totalAmt);
+    final totalQty = ctrl.filteredItems.fold(0.0, (s, i) => s + i.totalQty);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Row(children: [
-        _chip(Icons.receipt_long_rounded, '${ctrl.activeItems.length} Records',
-            newBlueLightColor, newBlueColor),
+        _chip(
+            Icons.receipt_long_rounded,
+            '${ctrl.filteredItems.length} Records',
+            newBlueLightColor,
+            newBlueColor),
         const SizedBox(width: 8),
         _chip(Icons.inventory_2_outlined, '${totalQty.toInt()} Items',
             newGreenLightColor, newGreenColor),
@@ -234,21 +274,21 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
   }
 
   Widget _chip(IconData icon, String label, Color bg, Color fg) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration:
-      BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 13, color: fg),
-        const SizedBox(width: 5),
-        Flexible(
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: fg),
-                overflow: TextOverflow.ellipsis)),
-      ]),
-    ),
-  );
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration:
+              BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 13, color: fg),
+            const SizedBox(width: 5),
+            Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+                    overflow: TextOverflow.ellipsis)),
+          ]),
+        ),
+      );
 
   static String _inr(double v) {
     if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
@@ -284,12 +324,12 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
             alignment: Alignment.center,
             child: ctrl.isLoadingList
                 ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.search_rounded,
-                color: Colors.white, size: 20),
+                    color: Colors.white, size: 20),
           ),
         ),
       ]),
@@ -338,43 +378,57 @@ class _MrnQcListScreenState extends State<MrnQcListScreen> {
   }
 
   Widget _emptyState() => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.inventory_2_outlined, size: 56, color: newBorderColor),
-      const SizedBox(height: 12),
-      const Text('No MRN records found',
-          style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: newTextSecondary)),
-      const SizedBox(height: 4),
-      const Text('Try adjusting the date range',
-          style: TextStyle(fontSize: 12, color: newTextSecondary)),
-    ]),
-  );
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.inventory_2_outlined, size: 56, color: newBorderColor),
+          const SizedBox(height: 12),
+          const Text('No MRN records found',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: newTextSecondary)),
+          const SizedBox(height: 4),
+          const Text('Try adjusting the date range',
+              style: TextStyle(fontSize: 12, color: newTextSecondary)),
+        ]),
+      );
 
   Widget _shimmer() => ListView.separated(
-    padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-    itemCount: 5,
-    separatorBuilder: (_, __) => const SizedBox(height: 10),
-    itemBuilder: (_, __) => Container(
-      height: 60,
-      decoration: BoxDecoration(
-          color: newBorderColor, borderRadius: BorderRadius.circular(10)),
-    ),
-  );
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+        itemCount: 5,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, __) => Container(
+          height: 60,
+          decoration: BoxDecoration(
+              color: newBorderColor, borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+
+  void _showFilterSheet(BuildContext context, MrnQcListController ctrl) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MrnQcFilterSheet(
+        allItems: ctrl.activeItems,
+        activeFilter: ctrl.activeFilter,
+        isCompleted: ctrl.activeTab == MrnQcTab.completed,
+        onApply: (f) => ctrl.applyFilter(f),
+        onReset: () => ctrl.resetFilter(),
+      ),
+    );
+  }
 }
 
 class _MrnCard extends StatelessWidget {
   final MrnQcListItem item;
   final VoidCallback? onTap;
-  final bool isCompleted;   // ← NEW
+  final bool isCompleted; // ← NEW
 
   const _MrnCard({
     required this.item,
     this.onTap,
-    this.isCompleted = false,   // ← NEW
+    this.isCompleted = false, // ← NEW
   });
-
 
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
@@ -403,15 +457,16 @@ class _MrnCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: newBorderColor)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
           // ── Header ────────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             decoration: BoxDecoration(
                 color: newBlueLightColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(13))),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(13))),
             child: Row(children: [
-              const Icon(Icons.receipt_long_rounded, size: 15, color: newBlueColor),
+              const Icon(Icons.receipt_long_rounded,
+                  size: 15, color: newBlueColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(item.MrnNo,
@@ -425,11 +480,13 @@ class _MrnCard extends StatelessWidget {
               if (isCompleted && item.qcNo.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
                       color: newGreenLightColor,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: newGreenColor.withValues(alpha: 0.3))),
+                      border: Border.all(
+                          color: newGreenColor.withValues(alpha: 0.3))),
                   child: Text('QC# ${item.qcNo}',
                       style: const TextStyle(
                           fontSize: 10,
@@ -441,10 +498,13 @@ class _MrnCard extends StatelessWidget {
                 decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: newBlueColor.withValues(alpha: 0.3))),
+                    border:
+                        Border.all(color: newBlueColor.withValues(alpha: 0.3))),
                 child: Text(
-                  // Show QC date for completed, MRN date for pending
-                    isCompleted && item.qcDate.isNotEmpty ? item.qcDate : item.MrnDate,
+                    // Show QC date for completed, MRN date for pending
+                    isCompleted && item.qcDate.isNotEmpty
+                        ? item.qcDate
+                        : item.MrnDate,
                     style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -456,7 +516,8 @@ class _MrnCard extends StatelessWidget {
           // ── Body (unchanged) ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(item.partyName,
                   style: const TextStyle(
                       fontSize: 13,
@@ -474,16 +535,20 @@ class _MrnCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(children: [
                 if (item.billNo.isNotEmpty) ...[
-                  const Icon(Icons.receipt_outlined, size: 12, color: newTextSecondary),
+                  const Icon(Icons.receipt_outlined,
+                      size: 12, color: newTextSecondary),
                   const SizedBox(width: 4),
                   Text('Bill: ${item.billNo}',
-                      style: const TextStyle(fontSize: 11, color: newTextSecondary)),
+                      style: const TextStyle(
+                          fontSize: 11, color: newTextSecondary)),
                   const SizedBox(width: 12),
                 ],
-                const Icon(Icons.inventory_2_outlined, size: 12, color: newTextSecondary),
+                const Icon(Icons.inventory_2_outlined,
+                    size: 12, color: newTextSecondary),
                 const SizedBox(width: 4),
                 Text('${item.totalQty.toInt()} items',
-                    style: const TextStyle(fontSize: 11, color: newTextSecondary)),
+                    style:
+                        const TextStyle(fontSize: 11, color: newTextSecondary)),
                 const Spacer(),
                 // Show grandTotal for completed, totalAmt for pending
                 Text(
@@ -529,8 +594,8 @@ class _MrnCard extends StatelessWidget {
             ),
 
           // ── Print buttons ────────────────────────────────────────────────
-          if (!isCompleted &&
-          item.withRateUrl.isNotEmpty || item.withoutRateUrl.isNotEmpty)
+          if (!isCompleted && item.withRateUrl.isNotEmpty ||
+              item.withoutRateUrl.isNotEmpty)
             Container(
               decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: newBorderColor))),
@@ -605,17 +670,17 @@ class _MrnCard extends StatelessWidget {
   }
 
   Widget _pill(IconData icon, String label, Color bg, Color fg) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration:
-    BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 11, color: fg),
-      const SizedBox(width: 4),
-      Text(label,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600, color: fg)),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: fg),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w600, color: fg)),
+        ]),
+      );
 
   static String _inr(double v) {
     if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(2)} Cr';
@@ -743,7 +808,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                         ...cols.asMap().entries.map((e) => _headerCell(
                             _formatHeader(e.value),
                             e.key,
-                                () => _sortBy(e.key))),
+                            () => _sortBy(e.key))),
                       ],
                     ),
                     // ── Data rows ────────────────────────────────────────
@@ -759,7 +824,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                       return TableRow(
                         decoration: BoxDecoration(
                           color:
-                          isEven ? Colors.white : const Color(0xFFF8FAFC),
+                              isEven ? Colors.white : const Color(0xFFF8FAFC),
                           border: const Border(
                               top: BorderSide(color: newBorderColor)),
                         ),
@@ -768,7 +833,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
                           _indexCell(displayIdx + 1, item),
                           // Dynamic cells
                           ...cols.map(
-                                  (col) => _dataCell(col, row.data[col], item)),
+                              (col) => _dataCell(col, row.data[col], item)),
                         ],
                       );
                     }),
@@ -830,8 +895,8 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
             Icon(
               isSorted
                   ? (_sortAsc
-                  ? Icons.arrow_upward_rounded
-                  : Icons.arrow_downward_rounded)
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded)
                   : Icons.unfold_more_rounded,
               size: 12,
               color: isSorted ? newBlueColor : newTextSecondary,
@@ -980,7 +1045,7 @@ class _DynamicMrnTableState extends State<_DynamicMrnTable> {
     return key
         .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
         .replaceAllMapped(
-        RegExp(r'([A-Z]+)([A-Z][a-z])'), (m) => '${m[1]} ${m[2]}');
+            RegExp(r'([A-Z]+)([A-Z][a-z])'), (m) => '${m[1]} ${m[2]}');
   }
 
   static String _inrFull(double v) {
@@ -1102,7 +1167,7 @@ class _MrnTableState extends State<_MrnTable> {
                       color: WidgetStateProperty.all(
                           isEven ? Colors.white : const Color(0xFFF8FAFC)),
                       onSelectChanged: (_) => Get.to(
-                            () => const MrnEntryView(),
+                        () => const MrnEntryView(),
                         arguments: item,
                       ),
                       cells: [
@@ -1167,9 +1232,9 @@ class _MrnTableState extends State<_MrnTable> {
                         // Job Type
                         DataCell(item.jobType.isEmpty
                             ? const Text('—',
-                            style: TextStyle(color: newTextSecondary))
+                                style: TextStyle(color: newTextSecondary))
                             : _pill(Icons.work_outline_rounded, item.jobType,
-                            newOrangeLightColor, newOrangeColor)),
+                                newOrangeLightColor, newOrangeColor)),
                         // Qty
                         DataCell(Container(
                           padding: const EdgeInsets.symmetric(
@@ -1213,18 +1278,18 @@ class _MrnTableState extends State<_MrnTable> {
   }
 
   Widget _pill(IconData icon, String label, Color bg, Color fg) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-    decoration:
-    BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 10, color: fg),
-      const SizedBox(width: 3),
-      Text(label,
-          style: TextStyle(
-              fontSize: 9, fontWeight: FontWeight.w600, color: fg),
-          overflow: TextOverflow.ellipsis),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 10, color: fg),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w600, color: fg),
+              overflow: TextOverflow.ellipsis),
+        ]),
+      );
 
   // static String _inr(double v) {
   //   if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(2)} Cr';
