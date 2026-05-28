@@ -269,51 +269,52 @@ class MrnSourceScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // Lot No + GRN No row
-                  Row(children: [
-                    Expanded(
-                      child: MrnField(
-                        label: 'Lot No.',
-                        controller: ctrl.lotNoCtrl,
-                        hint: 'Enter lot number',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: MrnField(
-                        label: 'GRN No.',
-                        controller: ctrl.grnNoCtrl,
-                        hint: 'Enter GRN number',
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 10),
-
-                  // GRN Date + Gate Entry No row
-                  Row(children: [
-                    Expanded(
-                      child: MrnField(
-                        label: 'GRN Date',
-                        controller: ctrl.grnDateCtrl,
-                        readOnly: true,
-                        hint: 'DD/MM/YYYY',
-                        onTap: () => ctrl.pickGrnDate(context),
-                        suffix: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Icon(Icons.calendar_today_outlined,
-                              size: 16, color: newTextSecondary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: MrnField(
-                        label: 'Gate Entry No.',
-                        controller: ctrl.gateEntryNoCtrl,
-                        hint: 'Enter gate entry no.',
-                      ),
-                    ),
-                  ]),
+                  // // Lot No + GRN No row
+                  // Row(children: [
+                  //   Expanded(
+                  //     child: MrnField(
+                  //       label: 'Lot No.',
+                  //       controller: ctrl.lotNoCtrl,
+                  //       hint: 'Enter lot number',
+                  //     ),
+                  //   ),
+                  //   const SizedBox(width: 10),
+                  //   Expanded(
+                  //     child: MrnField(
+                  //       label: 'GRN No.',
+                  //       controller: ctrl.grnNoCtrl,
+                  //       hint: 'Enter GRN number',
+                  //     ),
+                  //   ),
+                  // ]),
+                  // const SizedBox(height: 10),
+                  //
+                  // // GRN Date + Gate Entry No row
+                  // Row(children: [
+                  //   Expanded(
+                  //     child: MrnField(
+                  //       label: 'GRN Date',
+                  //       controller: ctrl.grnDateCtrl,
+                  //       readOnly: true,
+                  //       hint: 'DD/MM/YYYY',
+                  //       onTap: () => ctrl.pickGrnDate(context),
+                  //       suffix: const Padding(
+                  //         padding: EdgeInsets.all(12),
+                  //         child: Icon(Icons.calendar_today_outlined,
+                  //             size: 16, color: newTextSecondary),
+                  //       ),
+                  //     ),
+                  //   ),
+                  //   const SizedBox(width: 10),
+                  //   Expanded(
+                  //     child: MrnField(
+                  //       label: 'Gate Entry No.',
+                  //       controller: ctrl.gateEntryNoCtrl,
+                  //       hint: 'Enter gate entry no.',
+                  //     ),
+                  //   ),
+                  // ]
+                  // ),
                 ]),
               ),
             ]),

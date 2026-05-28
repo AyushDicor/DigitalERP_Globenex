@@ -314,6 +314,11 @@ class ApprovalHubController extends AppBaseController {
     return isTargetType && isVerified;
   }
 
+  bool get showReject {
+    final type = (currentItem?.approvalTypeCode ??
+        currentItem?.approvalType ?? '').toLowerCase();
+    return type.contains('payment') && type.contains('l1');
+  }
 
   ApprovalCategory _buildCat(String key, int fallbackIndex) {
     final style = _knownStyles[key];

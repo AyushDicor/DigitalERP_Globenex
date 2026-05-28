@@ -546,7 +546,7 @@ class _QuickActionsCard extends StatelessWidget {
     // If not approved — show Approve + Reject + Disapprove (when eligible)
     final actions = [
       if (!isApproved) ApprovalAction.approve,
-      if (!isApproved) ApprovalAction.reject,
+      if (!isApproved && ctrl.showReject) ApprovalAction.reject,
       if (ctrl.showDisapprove) ApprovalAction.disapprove,
     ];
 
