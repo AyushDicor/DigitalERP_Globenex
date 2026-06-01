@@ -396,8 +396,8 @@ class HomeViewNewController extends AppBaseController {
       'GRN Entry'            : AppAssets.grnIcon,
       'Mrn QC'               : AppAssets.mrnQcIcon,
       'Material Received'    : AppAssets.mrnrIcon,
-      'Indent'               : AppAssets.indentIcon,
-      'Issue Item'           : AppAssets.issueItemIcon,
+      'Create Indent'               : AppAssets.indentIcon,
+      'Item Issue'           : AppAssets.issueItemIcon,
     };
   }
 
