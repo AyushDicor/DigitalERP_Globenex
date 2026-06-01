@@ -396,6 +396,8 @@ class HomeViewNewController extends AppBaseController {
       'GRN Entry'            : AppAssets.grnIcon,
       'Mrn QC'               : AppAssets.mrnQcIcon,
       'Material Received'    : AppAssets.mrnrIcon,
+      'Indent'               : AppAssets.indentIcon,
+      'Issue Item'           : AppAssets.issueItemIcon,
     };
   }
 
@@ -420,6 +422,8 @@ class HomeViewNewController extends AppBaseController {
     if (menuId == 2760) return AppRoutes.grnScreen;
     if (menuId == 2761) return AppRoutes.mrnQcList;
     if (menuId == 2755) return AppRoutes.materialReceiptScreen;
+    if (menuId == 2769) return AppRoutes.indentList;
+    if (menuId == 2770) return AppRoutes.issueItemList;
     return AppRoutes.homeNew;
   }
 }

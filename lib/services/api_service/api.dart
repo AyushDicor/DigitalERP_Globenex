@@ -134,6 +134,8 @@ import '../../response/task_dropdown_response.dart';
 import '../../response/create_task_response.dart';
 import '../../response/save_followup_response.dart';
 import '../../screen/ui/home/grn/grn_response/grn_models.dart';
+import '../../screen/ui/home/indent/indent_response/indent_model.dart';
+import '../../screen/ui/home/issue item/issue_item_response/issue_item_model.dart';
 import '../../screen/ui/home/mrn_module/mrn_response/mrn_models.dart';
 import '../../screen/ui/home/mrn_qc/mrn_qc_model/mrn_qc_models.dart';
 
@@ -5198,5 +5200,240 @@ class Api {
     }
     return SaveQcEntryResponse(
         success: false, status: 500, message: 'No Internet');
+  }
+
+  ///Indent Module
+
+  Future<IndentDropdownResponse> getIndentDropdownList(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIndentDropdownList,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IndentDropdownResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIndentDropdownList parse error: $e');
+          return IndentDropdownResponse(status: 500, message: e.toString());
+        }
+      }
+      return IndentDropdownResponse(status: 500, message: 'Something went wrong');
+    }
+    return IndentDropdownResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IndentListResponse> getIndentList(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIndentList,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IndentListResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIndentList parse error: $e');
+          return IndentListResponse(status: 500, message: e.toString());
+        }
+      }
+      return IndentListResponse(status: 500, message: 'Something went wrong');
+    }
+    return IndentListResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IndentDetailResponse> getIndentDetail(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIndentDetail,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IndentDetailResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIndentDetail parse error: $e');
+          return IndentDetailResponse(status: 500, message: e.toString());
+        }
+      }
+      return IndentDetailResponse(status: 500, message: 'Something went wrong');
+    }
+    return IndentDetailResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IndentSubmitResponse> saveIndent(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.saveIndent,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IndentSubmitResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('saveIndent parse error: $e');
+          return IndentSubmitResponse(status: 500, message: e.toString());
+        }
+      }
+      return IndentSubmitResponse(status: 500, message: 'Something went wrong');
+    }
+    return IndentSubmitResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IndentItemStockResponse> getIndentItemStock({
+    required int itemId,
+    required int siteId,
+    required int compId,
+    required int branchId,
+  }) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      final body = jsonEncode({
+        'itemid': itemId,
+        'siteid': siteId,
+        'compid': compId,
+        'branchid': branchId,
+      });
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIndentItemStock,
+        body: body,
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IndentItemStockResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIndentItemStock parse error: $e');
+          return IndentItemStockResponse(status: 500, message: e.toString());
+        }
+      }
+      return IndentItemStockResponse(status: 500, message: 'Something went wrong');
+    }
+    return IndentItemStockResponse(status: 500, message: 'No Internet');
+  }
+
+  /// Issue Item Module -----------------------------------------------------------
+
+  Future<IssueItemDropdownResponse> getIssueItemDropdownList(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIssueItemDropdown,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IssueItemDropdownResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIssueItemDropdownList parse error: $e');
+          return IssueItemDropdownResponse(status: 500, message: e.toString());
+        }
+      }
+      return IssueItemDropdownResponse(status: 500, message: 'Something went wrong');
+    }
+    return IssueItemDropdownResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IssueItemListResponse> getIssueItemList(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIssueItemList,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IssueItemListResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIssueItemList parse error: $e');
+          return IssueItemListResponse(status: 500, message: e.toString());
+        }
+      }
+      return IssueItemListResponse(status: 500, message: 'Something went wrong');
+    }
+    return IssueItemListResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IssueItemDetailResponse> getIssueItemDetail(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.getIssueItemDetail,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IssueItemDetailResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('getIssueItemDetail parse error: $e');
+          return IssueItemDetailResponse(status: 500, message: e.toString());
+        }
+      }
+      return IssueItemDetailResponse(status: 500, message: 'Something went wrong');
+    }
+    return IssueItemDetailResponse(status: 500, message: 'No Internet');
+  }
+
+  Future<IssueItemSubmitResponse> saveIssueItem(
+      Map<String, dynamic> body) async {
+    List<ConnectivityResult> connectivityResults =
+    await connectivity.checkConnectivity();
+    if (connectivityResults.contains(ConnectivityResult.wifi) ||
+        connectivityResults.contains(ConnectivityResult.mobile)) {
+      String res = await _apiClient.postMethodJson(
+        method: _apiMethods.saveIssueItem,
+        body: jsonEncode(body),
+        header: {'Content-Type': 'application/json'},
+      );
+      if (res.isNotEmpty) {
+        try {
+          return IssueItemSubmitResponse.fromJson(jsonDecode(res));
+        } catch (e) {
+          if (kDebugMode) print('saveIssueItem parse error: $e');
+          return IssueItemSubmitResponse(status: 500, message: e.toString());
+        }
+      }
+      return IssueItemSubmitResponse(status: 500, message: 'Something went wrong');
+    }
+    return IssueItemSubmitResponse(status: 500, message: 'No Internet');
   }
 }

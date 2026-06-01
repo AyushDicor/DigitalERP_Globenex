@@ -47,6 +47,8 @@ import 'package:digitalerp/screen/ui/home/executive_list/executive_attendance/ex
 import 'package:digitalerp/screen/ui/home/executive_list/executive_attendance/executive_attendance_view.dart';
 import 'package:digitalerp/screen/ui/home/executive_list/executive_list_view.dart';
 import 'package:digitalerp/screen/ui/home/home_view.dart';
+import 'package:digitalerp/screen/ui/home/indent/indent_screens/indent_list_screen.dart';
+import 'package:digitalerp/screen/ui/home/issue%20item/issue_item_screens/issue_item_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/attendance_report/attendance_report_view.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/mis_module_view.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/mis_order/mis_order_view.dart';
@@ -54,7 +56,6 @@ import 'package:digitalerp/screen/ui/home/mis_module/mis_outstanding/mis_outstan
 import 'package:digitalerp/screen/ui/home/mis_module/pending_shipping/pending_shipping_view.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/print_report/print_report_view.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/stock_report/stock_report_view.dart';
-import 'package:digitalerp/screen/ui/home/mrn/material%20receipt/material_receipt_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/mrn/screens/add_mrn_screen.dart';
 import 'package:digitalerp/screen/ui/home/mrn/screens/mrn_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/mrn_module/mrn_entry_view.dart';
@@ -433,6 +434,14 @@ class AppPages {
     GetPage(
       name: AppRoutes.mrnQcScreen,
       page: () => MrnQcScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.indentList,
+      page: () => IndentListScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.issueItemList,
+      page: () => IssueItemListScreen(),
     ),
     GetPage(
       name: AppRoutes.paymentRequestScreen,

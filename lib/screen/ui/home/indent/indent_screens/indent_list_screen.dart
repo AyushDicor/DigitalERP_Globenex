@@ -1,0 +1,268 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import '../../../../../utils/app_constant_new.dart';
+import '../indent_controller/indent_list_controller.dart';
+import '../indent_entry_view.dart';
+import '../indent_response/indent_model.dart';
+import '../indent_widgets.dart';
+
+class IndentListScreen extends StatelessWidget {
+  const IndentListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<IndentListController>(
+      init: IndentListController(),
+      builder: (ctrl) => Scaffold(
+        backgroundColor: indSurfaceColor,
+        appBar: _buildAppBar(ctrl),
+        body: _buildBody(ctrl),
+        floatingActionButton: _buildFab(),
+      ),
+    );
+  }
+
+  // ── App bar ───────────────────────────────────────────────────────────────
+  PreferredSizeWidget _buildAppBar(IndentListController ctrl) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      titleSpacing: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+            size: 18, color: indTextPrimary),
+        onPressed: () => Get.back(),
+      ),
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Indent',
+              style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: indTextPrimary)),
+          Text('Material Requisition',
+              style: TextStyle(fontSize: 11, color: indTextSecondary)),
+        ],
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: TextField(
+            onChanged: ctrl.onSearch,
+            decoration: InputDecoration(
+              hintText: 'Search by indent no, site, dept…',
+              hintStyle:
+              const TextStyle(fontSize: 13, color: indTextHint),
+              prefixIcon: const Icon(Icons.search,
+                  size: 18, color: indTextSecondary),
+              filled: true,
+              fillColor: indSurfaceColor,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: indBorderColor)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: indBorderColor)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: indBlueColor, width: 1.5)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Body ──────────────────────────────────────────────────────────────────
+  Widget _buildBody(IndentListController ctrl) {
+    if (ctrl.isLoadingList) {
+      return const Center(
+          child: CircularProgressIndicator(color: indBlueColor));
+    }
+
+    if (ctrl.filteredItems.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: ctrl.refresh,
+        color: indBlueColor,
+        child: ListView(
+          children: [
+            SizedBox(
+              height: 400,
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.assignment_outlined,
+                        size: 60, color: indBorderColor),
+                    const SizedBox(height: 16),
+                    const Text('No indents found',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: indTextSecondary)),
+                    const SizedBox(height: 6),
+                    const Text('Tap + to create a new indent',
+                        style: TextStyle(
+                            fontSize: 12, color: indTextSecondary)),
+                  ]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: ctrl.refresh,
+      color: indBlueColor,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
+        itemCount: ctrl.filteredItems.length,
+        itemBuilder: (_, i) =>
+            _IndentCard(item: ctrl.filteredItems[i]),
+      ),
+    );
+  }
+
+  // ── FAB ───────────────────────────────────────────────────────────────────
+  Widget _buildFab() {
+    return FloatingActionButton(
+      onPressed: () => {
+        Get.to(() => const IndentEntryView()),
+      },
+      shape: const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 2)),
+      backgroundColor: purpleColor,
+      elevation: 4,
+      child: const Icon(Icons.add, color: Colors.white, size: 32),
+    );
+  }
+}
+
+// ── Single indent card ────────────────────────────────────────────────────────
+class _IndentCard extends StatelessWidget {
+  final IndentListItem item;
+  const _IndentCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Get.to(() => const IndentEntryView(), arguments: item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: indBorderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top row: indent no + status ────────────────────────────
+              Row(children: [
+                Expanded(
+                  child: Text(item.indentNo,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: indBlueColor)),
+                ),
+                StatusBadge(item.status),
+              ]),
+              const SizedBox(height: 6),
+
+              // ── Date + requested by ────────────────────────────────────
+              Row(children: [
+                const Icon(Icons.calendar_today_outlined,
+                    size: 12, color: indTextSecondary),
+                const SizedBox(width: 4),
+                Text(_formatDate(item.indentDate),
+                    style: const TextStyle(
+                        fontSize: 11, color: indTextSecondary)),
+                const SizedBox(width: 12),
+                const Icon(Icons.person_outline_rounded,
+                    size: 12, color: indTextSecondary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(item.requestBy,
+                      style: const TextStyle(
+                          fontSize: 11, color: indTextSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: indBorderColor),
+              const SizedBox(height: 8),
+
+              // ── Info chips ─────────────────────────────────────────────
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                if (item.siteName.isNotEmpty)
+                  _chip(Icons.location_on_outlined, item.siteName),
+                if (item.department.isNotEmpty)
+                  _chip(Icons.business_outlined, item.department),
+                if (item.jobType.isNotEmpty)
+                  _chip(Icons.work_outline_rounded, item.jobType),
+                if (item.priority.isNotEmpty)
+                  PriorityBadge(item.priority),
+              ]),
+
+              if (item.totalItems > 0) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Icon(Icons.inventory_2_outlined,
+                      size: 12, color: indTextSecondary),
+                  const SizedBox(width: 4),
+                  Text('${item.totalItems} item(s)',
+                      style: const TextStyle(
+                          fontSize: 11, color: indTextSecondary)),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 18, color: indTextSecondary),
+                ]),
+              ],
+            ]),
+      ),
+    );
+  }
+
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: indSurfaceColor,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: indBorderColor),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11, color: indTextSecondary),
+        const SizedBox(width: 4),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: indTextSecondary)),
+      ]),
+    );
+  }
+
+  String _formatDate(String raw) {
+    try {
+      DateTime? dt = DateTime.tryParse(raw);
+      dt ??= DateFormat('dd-MM-yyyy').tryParseStrict(raw);
+      if (dt != null) return DateFormat('dd MMM yyyy').format(dt);
+    } catch (_) {}
+    return raw;
+  }
+}

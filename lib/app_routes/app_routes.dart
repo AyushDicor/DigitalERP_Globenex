@@ -95,6 +95,13 @@ class AppRoutes {
   static const mrnQcScreen = '/mrnQc';
   static const mrnQcList = '/mrnQcList';
 
+  //Indent Module
+  static const indentScreen ='/indent';
+  static const indentList   ='/indentList';
+
+  //Issue Item
+  static const issueItem     ='/issueItem';
+  static const issueItemList ='/issueItemList';
 
   static const String approvalHub = '/approvalHubDashboard';  // ← ADD
 

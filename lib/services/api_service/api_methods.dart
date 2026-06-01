@@ -304,4 +304,20 @@ class ApiMethods {
   String getMrnQcDetail      = 'mrnandqcdetail';
   String saveQcEntry         = 'saveqcentry';
 //  static const String getPendingPoItems = 'getpendingpo';
+
+  /// Indent Module
+  String getIndentList         = '';
+  String getIndentDetail       = '';
+  String getIndentDropdownList = '';
+  String saveIndent            = '';
+  String getIndentItemStock    = '';
+
+  ///Issue Item
+ String getIssueItemDropdown = '';
+ String getPendingIndentList     = '';
+ String processPendingIndentList = '';
+ String saveIssueItem       = '';
+ String getIssueItemDetail       = '';
+ String getIssueItemList    = 'api/IssueItem/GetIssueItemList';
+
 }
