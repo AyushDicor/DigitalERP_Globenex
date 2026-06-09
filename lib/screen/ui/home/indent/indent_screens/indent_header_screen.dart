@@ -92,7 +92,7 @@ class IndentHeaderScreen extends StatelessWidget {
               IndentCard(child: Column(children: [
                 const IndentSectionHead("Request Details"),
                 IndentField(
-                  label: "Request By",
+                  label: "Request By ",
                   controller: ctrl.requestByCtrl,
                   hint: "Enter requester name",
                 ),

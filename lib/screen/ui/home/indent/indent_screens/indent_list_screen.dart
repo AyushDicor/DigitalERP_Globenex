@@ -6,6 +6,7 @@ import '../../../../../utils/app_constant_new.dart';
 import '../indent_controller/indent_controller.dart';
 import '../indent_controller/indent_list_controller.dart';
 import '../indent_entry_view.dart';
+import '../indent_filter/indent_filter_sheet.dart';
 import '../indent_response/indent_model.dart';
 import '../indent_widgets.dart';
 
@@ -76,6 +77,10 @@ class IndentListScreen extends StatelessWidget {
           ),
         ),
       ),
+        actions: [
+    _FilterButton(ctrl: ctrl),
+    const SizedBox(width: 6),
+  ],
     );
   }
 
@@ -137,6 +142,65 @@ class IndentListScreen extends StatelessWidget {
       backgroundColor: purpleColor,
       elevation: 4,
       child: const Icon(Icons.add, color: Colors.white, size: 32),
+    );
+  }
+}
+
+class _FilterButton extends StatelessWidget {
+  final IndentListController ctrl;
+  const _FilterButton({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = ctrl.activeFilter.activeCount;
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        IconButton(
+          icon: Icon(
+            Icons.filter_list_rounded,
+            color: indBlueColor,
+            size: 20,
+          ),
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => IndentFilterSheet(
+                items:        ctrl.indentItems,
+                activeFilter: ctrl.activeFilter,
+                onApply:      ctrl.applyFilter,
+                onReset:      ctrl.resetFilter,
+              ),
+            );
+          },
+        ),
+        if (count > 0)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: purpleLightest,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -9,15 +9,15 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import 'package:digitalerp/screen/base/base_controller.dart';
-import '../../grn/grn_filter/grn_filter_sheet.dart';
 import '../../home_controller.dart';
 import '../indent_response/indent_model.dart';
+import '../indent_filter/indent_filter_sheet.dart'; // ← new import
 
 class IndentListController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Filter ─────────────────────────────────────────────────────────────────
-  MrnGrnFilter activeFilter = const MrnGrnFilter();
+  IndentFilter activeFilter = const IndentFilter();
   bool get hasActiveFilter => activeFilter.isActive;
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -25,25 +25,19 @@ class IndentListController extends AppBaseController {
   List<IndentListItem> indentItems = [];
 
   List<IndentListItem> get filteredItems {
-    List<IndentListItem> items = searchQuery.trim().isEmpty
-        ? List.from(indentItems)
+    final searched = searchQuery.trim().isEmpty
+        ? List<IndentListItem>.from(indentItems)
         : indentItems
         .where((i) =>
-    i.indentNo.toLowerCase().contains(searchQuery.toLowerCase())   ||
-        i.requestBy.toLowerCase().contains(searchQuery.toLowerCase())  ||
-        i.siteName.toLowerCase().contains(searchQuery.toLowerCase())   ||
+    i.indentNo.toLowerCase().contains(searchQuery.toLowerCase()) ||
+        i.requestBy.toLowerCase().contains(searchQuery.toLowerCase()) ||
+        i.siteName.toLowerCase().contains(searchQuery.toLowerCase()) ||
         i.department.toLowerCase().contains(searchQuery.toLowerCase()) ||
-        i.jobType.toLowerCase().contains(searchQuery.toLowerCase())    ||
+        i.jobType.toLowerCase().contains(searchQuery.toLowerCase()) ||
         i.status.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
-    return activeFilter.applyMrn(
-      items,
-      partyName: (e) => e.requestBy,
-      siteName:  (e) => e.siteName,
-      jobType:   (e) => e.jobType,
-      totalAmt:  (e) => e.totalItems.toDouble(),
-    );
+    return activeFilter.apply(searched);
   }
 
   String searchQuery = '';
@@ -56,7 +50,7 @@ class IndentListController extends AppBaseController {
   @override
   void onInit() {
     super.onInit();
-    _isFetching = false;  // ← reset on init
+    _isFetching = false;
     final today = DateTime.now();
     final from  = today.subtract(const Duration(days: 30));
     fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(from);
@@ -72,9 +66,9 @@ class IndentListController extends AppBaseController {
   }
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
-  void applyFilter(MrnGrnFilter f) { activeFilter = f; update(['indentList']);; }
-  void resetFilter()               { activeFilter = const MrnGrnFilter(); update(['indentList']);; }
-  void onSearch(String q)          { searchQuery = q; update(['indentList']);; }
+  void applyFilter(IndentFilter f) { activeFilter = f; update(['indentList']); }
+  void resetFilter()               { activeFilter = const IndentFilter(); update(['indentList']); }
+  void onSearch(String q)          { searchQuery = q; update(['indentList']); }
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   bool _isFetching = false;
@@ -85,7 +79,6 @@ class IndentListController extends AppBaseController {
     isLoadingList = true;
     indentItems = [];
     searchQuery = '';
-    // ❌ remove update(['indentList']); here — don't trigger rebuild before await
 
     try {
       final body = {
@@ -109,7 +102,7 @@ class IndentListController extends AppBaseController {
     } finally {
       isLoadingList = false;
       _isFetching = false;
-      update(['indentList']);; // ✅ only ONE update at the very end
+      update(['indentList']);
     }
   }
 
@@ -123,7 +116,7 @@ class IndentListController extends AppBaseController {
     );
     if (picked != null) {
       fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
-      update(['indentList']);;
+      update(['indentList']);
     }
   }
 
@@ -136,7 +129,7 @@ class IndentListController extends AppBaseController {
     );
     if (picked != null) {
       toDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
-      update(['indentList']);;
+      update(['indentList']);
     }
   }
 

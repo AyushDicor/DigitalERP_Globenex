@@ -73,9 +73,9 @@ class IndentEntryView extends StatelessWidget {
           child: Container(
             width: 38,
             height: 38,
-            decoration: BoxDecoration(
-                color: indSurfaceColor,
-                borderRadius: BorderRadius.circular(10)),
+            // decoration: BoxDecoration(
+            //     color: indSurfaceColor,
+            //     borderRadius: BorderRadius.circular(10)),
             alignment: Alignment.center,
             child: const Icon(Icons.arrow_back_ios_new_rounded,
                 size: 18, color: indTextPrimary),

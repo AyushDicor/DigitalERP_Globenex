@@ -1,36 +1,3 @@
-// lib/screen/ui/home/mrn_module/mrn_grn_filter/mrn_grn_filter_sheet.dart
-//
-// Shared filter bottom sheet for MrnListScreen and GrnListScreen.
-// Same accordion style as PaymentRequestFilterSheet.
-// All filtering is client-side on already-loaded data.
-//
-// ── MRN USAGE ──
-//   Add to MrnListController:
-//     MrnGrnFilter activeFilter = const MrnGrnFilter();
-//     List<MrnListItem> get filteredItems => activeFilter.applyMrn(mrnItems);
-//     bool get hasActiveFilter => activeFilter.isActive;
-//     void applyFilter(MrnGrnFilter f) { activeFilter = f; update(); }
-//     void resetFilter() { activeFilter = const MrnGrnFilter(); update(); }
-//
-//   In MrnListScreen AppBar actions:
-//     IconButton(icon: Icon(Icons.tune_rounded), onPressed: () => _showFilterSheet(context, ctrl))
-//
-//   Method in MrnListScreen:
-//     void _showFilterSheet(BuildContext ctx, MrnListController ctrl) {
-//       showModalBottomSheet(
-//         context: ctx, isScrollControlled: true, backgroundColor: Colors.transparent,
-//         builder: (_) => MrnGrnFilterSheet.forMrn(
-//           items: ctrl.mrnItems,
-//           activeFilter: ctrl.activeFilter,
-//           onApply: ctrl.applyFilter,
-//           onReset: ctrl.resetFilter,
-//         ),
-//       );
-//     }
-//
-// ── GRN USAGE ── (identical, just swap MrnListController → GrnListController)
-//     MrnGrnFilterSheet.forGrn(items: ctrl.GrnItems, ...)
-
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -76,10 +43,10 @@ class MrnGrnFilter {
 
   bool get isActive =>
       partyNames.isNotEmpty ||
-          siteNames.isNotEmpty ||
-          jobTypes.isNotEmpty ||
-          minAmount != null ||
-          maxAmount != null;
+      siteNames.isNotEmpty ||
+      jobTypes.isNotEmpty ||
+      minAmount != null ||
+      maxAmount != null;
 
   int get activeCount {
     int n = 0;
@@ -109,9 +76,9 @@ class MrnGrnFilter {
 
   /// Generic apply — works on the adapter list
   List<T> _apply<T>(
-      List<T> all,
-      _ListItemAdapter Function(T) toAdapter,
-      ) {
+    List<T> all,
+    _ListItemAdapter Function(T) toAdapter,
+  ) {
     return all.where((raw) {
       final item = toAdapter(raw);
       if (partyNames.isNotEmpty && !partyNames.contains(item.partyName)) {
@@ -131,15 +98,15 @@ class MrnGrnFilter {
 
   /// Call this from MrnListController.filteredItems
   List<T> applyMrn<T extends Object>(
-      List<T> items, {
-        required String Function(T) partyName,
-        required String Function(T) siteName,
-        required String Function(T) jobType,
-        required double Function(T) totalAmt,
-      }) =>
+    List<T> items, {
+    required String Function(T) partyName,
+    required String Function(T) siteName,
+    required String Function(T) jobType,
+    required double Function(T) totalAmt,
+  }) =>
       _apply(
         items,
-            (e) => _ListItemAdapter(
+        (e) => _ListItemAdapter(
           partyName: partyName(e),
           siteName: siteName(e),
           jobType: jobType(e),
@@ -181,11 +148,11 @@ class MrnGrnFilterSheet extends StatefulWidget {
       MrnGrnFilterSheet._(
         items: items
             .map((e) => _ListItemAdapter(
-          partyName: partyName(e),
-          siteName: siteName(e),
-          jobType: jobType(e),
-          totalAmt: totalAmt(e),
-        ))
+                  partyName: partyName(e),
+                  siteName: siteName(e),
+                  jobType: jobType(e),
+                  totalAmt: totalAmt(e),
+                ))
             .toList(),
         activeFilter: activeFilter,
         onApply: onApply,
@@ -207,11 +174,11 @@ class MrnGrnFilterSheet extends StatefulWidget {
       MrnGrnFilterSheet._(
         items: items
             .map((e) => _ListItemAdapter(
-          partyName: partyName(e),
-          siteName: siteName(e),
-          jobType: jobType(e),
-          totalAmt: totalAmt(e),
-        ))
+                  partyName: partyName(e),
+                  siteName: siteName(e),
+                  jobType: jobType(e),
+                  totalAmt: totalAmt(e),
+                ))
             .toList(),
         activeFilter: activeFilter,
         onApply: onApply,
@@ -277,9 +244,8 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
         .toList()
       ..sort();
 
-    _dataMaxAmt = widget._items
-        .map((e) => e.totalAmt)
-        .fold(0.0, (a, b) => a > b ? a : b);
+    _dataMaxAmt =
+        widget._items.map((e) => e.totalAmt).fold(0.0, (a, b) => a > b ? a : b);
   }
 
   @override
@@ -363,8 +329,7 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
                   options: _partyOptions,
                   selected: _draft.partyNames,
                   search: _search['party']!,
-                  onSearchChanged: (v) =>
-                      setState(() => _search['party'] = v),
+                  onSearchChanged: (v) => setState(() => _search['party'] = v),
                   onToggle: (o) => _toggleItem(_draft.partyNames, o, 'party'),
                   showSearch: _partyOptions.length > 5,
                   accentColor: newBlueColor,
@@ -384,8 +349,7 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
                   options: _siteOptions,
                   selected: _draft.siteNames,
                   search: _search['site']!,
-                  onSearchChanged: (v) =>
-                      setState(() => _search['site'] = v),
+                  onSearchChanged: (v) => setState(() => _search['site'] = v),
                   onToggle: (o) => _toggleItem(_draft.siteNames, o, 'site'),
                   showSearch: _siteOptions.length > 5,
                   accentColor: newBlueColor,
@@ -420,9 +384,9 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
                 icon: Icons.currency_rupee_rounded,
                 accentColor: newBlueColor,
                 selectedCount:
-                (_draft.minAmount != null || _draft.maxAmount != null)
-                    ? 1
-                    : 0,
+                    (_draft.minAmount != null || _draft.maxAmount != null)
+                        ? 1
+                        : 0,
                 expanded: _expanded['amount']!,
                 onToggle: (v) => _toggleExpand('amount', v),
                 child: _AmountPanel(
@@ -475,11 +439,9 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
           if (count > 0) ...[
             const SizedBox(width: 8),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                  color: newBlueColor,
-                  borderRadius: BorderRadius.circular(20)),
+                  color: newBlueColor, borderRadius: BorderRadius.circular(20)),
               child: Text('$count',
                   style: GoogleFonts.dmSans(
                       fontSize: 12,
@@ -544,8 +506,8 @@ class _MrnGrnFilterSheetState extends State<MrnGrnFilterSheet> {
             ),
             child: Text(
               count > 0 ? 'Apply ($count)' : 'Apply',
-              style: GoogleFonts.dmSans(
-                  fontSize: 14, fontWeight: FontWeight.w700),
+              style:
+                  GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -595,8 +557,7 @@ class _Accordion extends StatelessWidget {
           onTap: () => onToggle(!expanded),
           borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(children: [
               Icon(icon, size: 18, color: accentColor),
               const SizedBox(width: 10),
@@ -609,8 +570,8 @@ class _Accordion extends StatelessWidget {
               ),
               if (selectedCount > 0) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                       color: accentColor,
                       borderRadius: BorderRadius.circular(20)),
@@ -637,9 +598,8 @@ class _Accordion extends StatelessWidget {
             const Divider(height: 1, color: Color(0xFFF0F0F0)),
             child,
           ]),
-          crossFadeState: expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
+          crossFadeState:
+              expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 200),
         ),
       ]),
@@ -677,26 +637,25 @@ class _Checklist extends StatelessWidget {
     final filtered = search.isEmpty
         ? options
         : options
-        .where((o) => o.toLowerCase().contains(search.toLowerCase()))
-        .toList();
+            .where((o) => o.toLowerCase().contains(search.toLowerCase()))
+            .toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child:
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (showSearch) ...[
           TextField(
             onChanged: onSearchChanged,
             style: GoogleFonts.dmSans(fontSize: 13),
             decoration: InputDecoration(
               hintText: 'Search...',
-              hintStyle: GoogleFonts.dmSans(
-                  fontSize: 13, color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.search,
-                  size: 18, color: Colors.grey.shade400),
+              hintStyle:
+                  GoogleFonts.dmSans(fontSize: 13, color: Colors.grey.shade400),
+              prefixIcon:
+                  Icon(Icons.search, size: 18, color: Colors.grey.shade400),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               filled: true,
               fillColor: const Color(0xFFF8F8F8),
               border: OutlineInputBorder(
@@ -721,12 +680,12 @@ class _Checklist extends StatelessWidget {
               child: Column(
                 children: filtered
                     .map((opt) => _CheckItem(
-                  label: opt,
-                  selected: selected.contains(opt),
-                  onToggle: () => onToggle(opt),
-                  accentColor: accentColor,
-                  showDot: showJobTypeDot,
-                ))
+                          label: opt,
+                          selected: selected.contains(opt),
+                          onToggle: () => onToggle(opt),
+                          accentColor: accentColor,
+                          showDot: showJobTypeDot,
+                        ))
                     .toList(),
               ),
             ),
@@ -815,11 +774,9 @@ class _CheckItem extends StatelessWidget {
               label,
               style: GoogleFonts.dmSans(
                 fontSize: 13,
-                fontWeight:
-                selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected
-                    ? const Color(0xFF1A1A2E)
-                    : Colors.grey.shade700,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color:
+                    selected ? const Color(0xFF1A1A2E) : Colors.grey.shade700,
               ),
             ),
           ),
@@ -848,15 +805,14 @@ class _AmountPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child:
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (dataMax > 0)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text(
               'Range in data: ₹0 – ₹${dataMax.toStringAsFixed(0)}',
-              style: GoogleFonts.dmSans(
-                  fontSize: 11, color: Colors.grey.shade500),
+              style:
+                  GoogleFonts.dmSans(fontSize: 11, color: Colors.grey.shade500),
             ),
           ),
         Row(children: [
@@ -889,10 +845,10 @@ class _AmountField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-        GoogleFonts.dmSans(fontSize: 13, color: Colors.grey.shade400),
+            GoogleFonts.dmSans(fontSize: 13, color: Colors.grey.shade400),
         isDense: true,
         contentPadding:
-        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         filled: true,
         fillColor: newBlueLightColor,
         border: OutlineInputBorder(
