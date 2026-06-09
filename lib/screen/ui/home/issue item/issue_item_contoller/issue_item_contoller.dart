@@ -108,9 +108,9 @@ class IssueItemEntryController extends AppBaseController {
     currentStep = step;
     pageController.animateToPage(step,
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-    if (step == 1 && selectedSource == IssueItemSource.fromIndent) {
-      fetchPendingIndents();
-    }
+    // if (step == 1 && selectedSource == IssueItemSource.fromIndent) {
+    //   fetchPendingIndents();
+    // }
     update();
   }
 
@@ -123,7 +123,7 @@ class IssueItemEntryController extends AppBaseController {
     itemLines.clear();
     pendingIndentList.clear();
     selectedIndent = null;
-    if (src == IssueItemSource.fromIndent) fetchPendingIndents();
+    //if (src == IssueItemSource.fromIndent) fetchPendingIndents();
     update();
   }
 
@@ -260,53 +260,53 @@ class IssueItemEntryController extends AppBaseController {
     }
   }
 
-  // ── Fetch pending indents (From Indent source) ─────────────────────────────
-  Future<void> fetchPendingIndents() async {
-    isLoadingIndents = true;
-    pendingIndentList = [];
-    selectedIndent = null;
-    update();
-    try {
-      final body = {
-        'compid':   homeController.currentUserData?.compId   ?? 0,
-        'branchid': homeController.currentUserData?.branchId ?? 0,
-        'userid':   homeController.currentUserData?.userid   ?? 0,
-        'fromdate': DateFormat('yyyy-MM-dd')
-            .format(DateTime.now().subtract(const Duration(days: 90))),
-        'todate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      };
-      final res = await api.getIndentList(body);   // reuse indent list API
-      if (res.status == 200 || res.success == true) {
-        // Map IndentListItem → IssueItemListItem stub for display
-        pendingIndentList = res.data
-            .map((i) => IssueItemListItem(
-          id:            i.id,
-          issueNo:       i.indentNo,
-          issueDate:     i.indentDate,
-          issueType:     i.jobType,
-          issueTo:       i.siteName,
-          issuedBy:      i.requestBy,
-          godown:        '',
-          itemIssueType: i.department,
-          billNo:        '',
-          remarks:       '',
-          totalQty:      i.totalItems.toDouble(),
-          totalAmount:   0,
-          grandTotal:    0,
-          status:        i.status,
-        ))
-            .toList();
-      } else {
-        ShowMessage.showSnackBar(
-            'Indent List', res.message ?? 'No pending indents');
-      }
-    } catch (e) {
-      ShowMessage.showSnackBar('Indent List', '$e');
-    } finally {
-      isLoadingIndents = false;
-      update();
-    }
-  }
+  // // ── Fetch pending indents (From Indent source) ─────────────────────────────
+  // Future<void> fetchPendingIndents() async {
+  //   isLoadingIndents = true;
+  //   pendingIndentList = [];
+  //   selectedIndent = null;
+  //   update();
+  //   try {
+  //     final body = {
+  //       'compid':   homeController.currentUserData?.compId   ?? 0,
+  //       'branchid': homeController.currentUserData?.branchId ?? 0,
+  //       'userid':   homeController.currentUserData?.userid   ?? 0,
+  //       'fromdate': DateFormat('yyyy-MM-dd')
+  //           .format(DateTime.now().subtract(const Duration(days: 90))),
+  //       'todate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+  //     };
+  //     final res = await api.getPendingIndentList(body);   // reuse indent list API
+  //     if (res.status == 200 || res.success == true) {
+  //       // Map IndentListItem → IssueItemListItem stub for display
+  //       pendingIndentList = res.data
+  //           .map((i) => IssueItemListItem(
+  //         id:            i.id,
+  //         issueNo:       i.indentNo,
+  //         issueDate:     i.indentDate,
+  //         issueType:     i.jobType,
+  //         issueTo:       i.siteName,
+  //         issuedBy:      i.requestBy,
+  //         godown:        '',
+  //         itemIssueType: i.department,
+  //         billNo:        '',
+  //         remarks:       '',
+  //         totalQty:      i.totalItems.toDouble(),
+  //         totalAmount:   0,
+  //         grandTotal:    0,
+  //         status:        i.status,
+  //       ))
+  //           .toList();
+  //     } else {
+  //       ShowMessage.showSnackBar(
+  //           'Indent List', res.message ?? 'No pending indents');
+  //     }
+  //   } catch (e) {
+  //     ShowMessage.showSnackBar('Indent List', '$e');
+  //   } finally {
+  //     isLoadingIndents = false;
+  //     update();
+  //   }
+  // }
 
   // ── Select indent → load its items ────────────────────────────────────────
   void selectIndent(IssueItemListItem indent) {

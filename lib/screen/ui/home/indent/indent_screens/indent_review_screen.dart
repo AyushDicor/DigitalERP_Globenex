@@ -9,7 +9,9 @@ class IndentReviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<IndentController>(builder: (ctrl) {
+    return GetBuilder<IndentController>(
+        id: 'indentReview',
+        builder: (ctrl) {
       return Scaffold(
         backgroundColor: indSurfaceColor,
         body: Column(children: [
@@ -381,7 +383,7 @@ class IndentReviewScreen extends StatelessWidget {
             ),
           ),
           // Submit button
-          ctrl.isBusy
+          ctrl.isSubmitting
               ? Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../../utils/app_constant_new.dart';
+import '../indent_controller/indent_controller.dart';
 import '../indent_controller/indent_list_controller.dart';
 import '../indent_entry_view.dart';
 import '../indent_response/indent_model.dart';
@@ -13,7 +15,7 @@ class IndentListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<IndentListController>(
-      init: IndentListController(),
+      id: 'indentList',
       builder: (ctrl) => Scaffold(
         backgroundColor: indSurfaceColor,
         appBar: _buildAppBar(ctrl),
@@ -54,10 +56,9 @@ class IndentListScreen extends StatelessWidget {
             onChanged: ctrl.onSearch,
             decoration: InputDecoration(
               hintText: 'Search by indent no, site, dept…',
-              hintStyle:
-              const TextStyle(fontSize: 13, color: indTextHint),
-              prefixIcon: const Icon(Icons.search,
-                  size: 18, color: indTextSecondary),
+              hintStyle: const TextStyle(fontSize: 13, color: indTextHint),
+              prefixIcon:
+                  const Icon(Icons.search, size: 18, color: indTextSecondary),
               filled: true,
               fillColor: indSurfaceColor,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -69,8 +70,8 @@ class IndentListScreen extends StatelessWidget {
                   borderSide: const BorderSide(color: indBorderColor)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                      color: indBlueColor, width: 1.5)),
+                  borderSide:
+                      const BorderSide(color: indBlueColor, width: 1.5)),
             ),
           ),
         ),
@@ -106,8 +107,8 @@ class IndentListScreen extends StatelessWidget {
                             color: indTextSecondary)),
                     const SizedBox(height: 6),
                     const Text('Tap + to create a new indent',
-                        style: TextStyle(
-                            fontSize: 12, color: indTextSecondary)),
+                        style:
+                            TextStyle(fontSize: 12, color: indTextSecondary)),
                   ]),
             ),
           ],
@@ -121,20 +122,18 @@ class IndentListScreen extends StatelessWidget {
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
         itemCount: ctrl.filteredItems.length,
-        itemBuilder: (_, i) =>
-            _IndentCard(item: ctrl.filteredItems[i]),
+        itemBuilder: (_, i) => _IndentCard(item: ctrl.filteredItems[i]),
       ),
     );
   }
 
-  // ── FAB ───────────────────────────────────────────────────────────────────
+  // FAB
   Widget _buildFab() {
     return FloatingActionButton(
-      onPressed: () => {
-        Get.to(() => const IndentEntryView()),
+      onPressed: () {
+        Get.to(() => const IndentEntryView());
       },
-      shape: const CircleBorder(
-          side: BorderSide(color: Colors.white, width: 2)),
+      shape: const CircleBorder(side: BorderSide(color: Colors.white, width: 2)),
       backgroundColor: purpleColor,
       elevation: 4,
       child: const Icon(Icons.add, color: Colors.white, size: 32),
@@ -150,7 +149,11 @@ class _IndentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Get.to(() => const IndentEntryView(), arguments: item),
+      onTap: () => Get.to(
+            () => const IndentEntryView(),
+        arguments: item,
+        // ← NO binding here
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -167,73 +170,163 @@ class _IndentCard extends StatelessWidget {
           ],
         ),
         child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Top row: indent no + status ────────────────────────────
-              Row(children: [
-                Expanded(
-                  child: Text(item.indentNo,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: indBlueColor)),
-                ),
-                StatusBadge(item.status),
-              ]),
-              const SizedBox(height: 6),
-
-              // ── Date + requested by ────────────────────────────────────
-              Row(children: [
-                const Icon(Icons.calendar_today_outlined,
-                    size: 12, color: indTextSecondary),
-                const SizedBox(width: 4),
-                Text(_formatDate(item.indentDate),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top row: indent no + approval status ──────────────────
+            Row(children: [
+              Expanded(
+                child: Text(item.indentNo,
                     style: const TextStyle(
-                        fontSize: 11, color: indTextSecondary)),
-                const SizedBox(width: 12),
-                const Icon(Icons.person_outline_rounded,
-                    size: 12, color: indTextSecondary),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(item.requestBy,
-                      style: const TextStyle(
-                          fontSize: 11, color: indTextSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ),
-              ]),
-              const SizedBox(height: 8),
-              const Divider(height: 1, color: indBorderColor),
-              const SizedBox(height: 8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: indBlueColor)),
+              ),
+              if (item.approvalStatus.isNotEmpty)
+                _approvalBadge(item.approvalStatus),
+              const SizedBox(width: 6),
+              StatusBadge(item.status),
+            ]),
+            const SizedBox(height: 4),
 
-              // ── Info chips ─────────────────────────────────────────────
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                if (item.siteName.isNotEmpty)
-                  _chip(Icons.location_on_outlined, item.siteName),
-                if (item.department.isNotEmpty)
-                  _chip(Icons.business_outlined, item.department),
-                if (item.jobType.isNotEmpty)
-                  _chip(Icons.work_outline_rounded, item.jobType),
-                if (item.priority.isNotEmpty)
-                  PriorityBadge(item.priority),
-              ]),
-
-              if (item.totalItems > 0) ...[
-                const SizedBox(height: 8),
-                Row(children: [
-                  const Icon(Icons.inventory_2_outlined,
-                      size: 12, color: indTextSecondary),
+            // ── Order No ───────────────────────────────────────────────
+            if (item.orderNo.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(children: [
+                  const Icon(Icons.receipt_outlined,
+                      size: 11, color: indTextSecondary),
                   const SizedBox(width: 4),
-                  Text('${item.totalItems} item(s)',
+                  Text(item.orderNo,
                       style: const TextStyle(
                           fontSize: 11, color: indTextSecondary)),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 18, color: indTextSecondary),
                 ]),
+              ),
+
+            // ── Date + requested by ────────────────────────────────────
+            Row(children: [
+              const Icon(Icons.calendar_today_outlined,
+                  size: 12, color: indTextSecondary),
+              const SizedBox(width: 4),
+              Text(_formatDate(item.indentDate),
+                  style:
+                      const TextStyle(fontSize: 11, color: indTextSecondary)),
+              if (item.dueDate.isNotEmpty &&
+                  item.dueDate != item.indentDate) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.event_available_outlined,
+                    size: 12, color: indTextSecondary),
+                const SizedBox(width: 4),
+                Text(_formatDate(item.dueDate),
+                    style:
+                        const TextStyle(fontSize: 11, color: indTextSecondary)),
               ],
+              const SizedBox(width: 12),
+              const Icon(Icons.person_outline_rounded,
+                  size: 12, color: indTextSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(item.requestBy,
+                    style:
+                        const TextStyle(fontSize: 11, color: indTextSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
             ]),
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: indBorderColor),
+            const SizedBox(height: 8),
+
+            // ── Info chips ─────────────────────────────────────────────
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              if (item.siteName.isNotEmpty)
+                _chip(Icons.location_on_outlined, item.siteName),
+              if (item.jobType.isNotEmpty)
+                _chip(Icons.work_outline_rounded, item.jobType),
+              if (item.priority.isNotEmpty) PriorityBadge(item.priority),
+            ]),
+
+            // ── Qty summary row ────────────────────────────────────────
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: indBorderColor),
+            const SizedBox(height: 8),
+            Row(children: [
+              _qtyCell('Indent', item.totalItems.toDouble()),
+              _qtyDivider(),
+              _qtyCell('Approved', item.approveQty),
+              _qtyDivider(),
+              _qtyCell('PO', item.poQty),
+              _qtyDivider(),
+              _qtyCell('Balance', item.balQty, highlight: item.balQty > 0),
+              const Spacer(),
+              // Print button
+              if (item.printUrl.isNotEmpty)
+                GestureDetector(
+                  onTap: () => _openPrint(item.printUrl),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: indBlueLightColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                          color: indBlueColor.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.print_outlined, size: 12, color: indBlueColor),
+                      SizedBox(width: 4),
+                      Text('Print',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: indBlueColor)),
+                    ]),
+                  ),
+                ),
+            ]),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _qtyCell(String label, double value, {bool highlight = false}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontSize: 9, color: indTextSecondary)),
+      Text(value % 1 == 0 ? value.toInt().toString() : value.toStringAsFixed(1),
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: highlight ? indGreenColor : indTextPrimary)),
+    ]);
+  }
+
+  Widget _qtyDivider() => Container(
+        height: 28,
+        width: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 10),
+        color: indBorderColor,
+      );
+
+  Widget _approvalBadge(String status) {
+    final isPending = status.toLowerCase() == 'pending';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: isPending
+            ? Colors.orange.withValues(alpha: 0.1)
+            : Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: isPending
+                ? Colors.orange.withValues(alpha: 0.4)
+                : Colors.green.withValues(alpha: 0.4)),
+      ),
+      child: Text(status,
+          style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color:
+                  isPending ? Colors.orange.shade700 : Colors.green.shade700)),
     );
   }
 
@@ -255,6 +348,11 @@ class _IndentCard extends StatelessWidget {
                 color: indTextSecondary)),
       ]),
     );
+  }
+
+  void _openPrint(String url) {
+    // uses url_launcher — already in your pubspec
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   String _formatDate(String raw) {

@@ -27,39 +27,59 @@ class IndentListItem {
   final int id;
   final String indentNo;
   final String indentDate;
+  final String dueDate;
   final String requestBy;
   final String siteName;
   final String department;
   final String jobType;
   final String priority;
   final String status;
+  final String approvalStatus;
+  final String orderNo;
   final int totalItems;
+  final double approveQty;
+  final double poQty;
+  final double balQty;
+  final String printUrl;
 
   const IndentListItem({
     required this.id,
     required this.indentNo,
     required this.indentDate,
+    required this.dueDate,
     required this.requestBy,
     required this.siteName,
     required this.department,
     required this.jobType,
     required this.priority,
     required this.status,
+    required this.approvalStatus,
+    required this.orderNo,
     required this.totalItems,
+    required this.approveQty,
+    required this.poQty,
+    required this.balQty,
+    required this.printUrl,
   });
 
   factory IndentListItem.fromJson(Map<String, dynamic> j) => IndentListItem(
-    id: int.tryParse(j['id']?.toString() ?? '0') ?? 0,
-    indentNo: (j['indentno'] ?? j['IndentNo'] ?? '').toString(),
-    indentDate: (j['indentdate'] ?? j['IndentDate'] ?? '').toString(),
-    requestBy: (j['requestby'] ?? j['RequestBy'] ?? '').toString(),
-    siteName: (j['sitename'] ?? j['SiteName'] ?? '').toString(),
-    department: (j['department'] ?? j['Department'] ?? '').toString(),
-    jobType: (j['jobtype'] ?? j['JobType'] ?? '').toString(),
-    priority: (j['priority'] ?? j['Priority'] ?? '').toString(),
-    status: (j['status'] ?? j['Status'] ?? 'Draft').toString(),
-    totalItems:
-    int.tryParse(j['totalitems']?.toString() ?? '0') ?? 0,
+    id:             int.tryParse(j['IndentId']?.toString() ?? '0') ?? 0,
+    indentNo:       '#${j['IndentNo'] ?? ''}',
+    indentDate:     (j['IndentDate']    ?? '').toString(),
+    dueDate:        (j['DueDate']       ?? '').toString(),
+    requestBy:      (j['CreatedBy']     ?? '').toString(),
+    siteName:       (j['Site']          ?? '').toString(),
+    department:     (j['Godown']        ?? '').toString(),
+    jobType:        (j['JobType']       ?? '').toString(),
+    priority:       (j['Priority']      ?? '').toString(),
+    status:         (j['IndentStatus']  ?? 'Draft').toString(),
+    approvalStatus: (j['ApprovalStatus']?? '').toString(),
+    orderNo:        (j['OrderNo']       ?? '').toString(),
+    totalItems:     (j['IndentQty']     as num? ?? 0).toInt(),
+    approveQty:     (j['ApproveQty']    as num? ?? 0).toDouble(),
+    poQty:          (j['PoQty']         as num? ?? 0).toDouble(),
+    balQty:         (j['BalQty']        as num? ?? 0).toDouble(),
+    printUrl:       (j['printurl']      ?? '').toString(),
   );
 }
 
@@ -120,6 +140,9 @@ class IndentDetailData {
   final int compid;
   final int branchid;
   final List<IndentDetailItem> items;
+  final String requireddate;
+  final int priortyid;
+  final String boqNo;
 
   const IndentDetailData({
     required this.indentid,
@@ -142,36 +165,40 @@ class IndentDetailData {
     required this.compid,
     required this.branchid,
     required this.items,
+    required this.requireddate,
+    required this.priortyid,
+    required this.boqNo,
   });
 
   factory IndentDetailData.fromJson(Map<String, dynamic> j) {
-    final rawItems = j['items'] ?? j['Items'] ?? [];
+    final rawItems = j['indentitems'] ?? j['items'] ?? j['Items'] ?? [];
     final parsedItems = (rawItems as List)
         .map((e) => IndentDetailItem.fromJson(e as Map<String, dynamic>))
         .toList();
     return IndentDetailData(
-      indentid: int.tryParse(j['indentid']?.toString() ?? '0') ?? 0,
-      indentno: (j['indentno'] ?? '').toString(),
-      indentdate: (j['indentdate'] ?? '').toString(),
-      requestby: (j['requestby'] ?? '').toString(),
-      siteid: int.tryParse(j['siteid']?.toString() ?? '0') ?? 0,
-      sitename: (j['sitename'] ?? '').toString(),
-      departmentid:
-      int.tryParse(j['departmentid']?.toString() ?? '0') ?? 0,
-      department: (j['department'] ?? '').toString(),
-      jobtypeid: int.tryParse(j['jobtypeid']?.toString() ?? '0') ?? 0,
-      jobtype: (j['jobtype'] ?? '').toString(),
-      priority: (j['priority'] ?? '').toString(),
-      remarks: (j['remarks'] ?? '').toString(),
+      indentid:     int.tryParse(j['indentid']?.toString() ?? '0') ?? 0,
+      indentno:     (j['indentno']     ?? '').toString(),
+      indentdate:   (j['indentdate']   ?? '').toString(),
+      requestby:    (j['receivedby']   ?? j['requestby'] ?? '').toString(), // ← receivedby
+      siteid:       int.tryParse(j['siteid']?.toString()       ?? '0') ?? 0,
+      sitename:     (j['sitename']     ?? '').toString(),
+      departmentid: int.tryParse(j['departmentid']?.toString() ?? '0') ?? 0,
+      department:   (j['department']   ?? '').toString(),
+      jobtypeid:    int.tryParse(j['jobtypeid']?.toString()    ?? '0') ?? 0,
+      jobtype:      (j['jobtype']      ?? '').toString(),
+      priority:     (j['priority']     ?? '').toString(),
+      remarks:      (j['remarks']      ?? '').toString(),
       siteIncharge: (j['siteincharge'] ?? '').toString(),
-      godownid: int.tryParse(j['godownid']?.toString() ?? '0') ?? 0,
-      godownname: (j['godownname'] ?? '').toString(),
-      workorderid:
-      int.tryParse(j['workorderid']?.toString() ?? '0') ?? 0,
-      workorderno: (j['workorderno'] ?? '').toString(),
-      compid: int.tryParse(j['compid']?.toString() ?? '0') ?? 0,
-      branchid: int.tryParse(j['branchid']?.toString() ?? '0') ?? 0,
-      items: parsedItems,
+      godownid:     int.tryParse(j['godownid']?.toString()     ?? '0') ?? 0,
+      godownname:   (j['godownname']   ?? '').toString(),
+      workorderid:  int.tryParse(j['orderid']?.toString()      ?? '0') ?? 0, // ← orderid
+      workorderno:  (j['BOQNo']        ?? j['workorderno'] ?? '').toString(), // ← BOQNo
+      compid:       int.tryParse(j['compid']?.toString()       ?? '0') ?? 0,
+      branchid:     int.tryParse(j['branchid']?.toString()     ?? '0') ?? 0,
+      items:        parsedItems,
+      requireddate: (j['requireddate'] ?? '').toString(),
+      priortyid: int.tryParse(j['priortyid']?.toString() ?? '0') ?? 0,
+      boqNo:     (j['BOQNo'] ?? '').toString(),
     );
   }
 }
@@ -205,19 +232,17 @@ class IndentDetailItem {
 
   factory IndentDetailItem.fromJson(Map<String, dynamic> j) =>
       IndentDetailItem(
-        itemid: int.tryParse(j['itemid']?.toString() ?? '0') ?? 0,
-        itemname: (j['itemname'] ?? '').toString(),
-        unitid: int.tryParse(j['unitid']?.toString() ?? '0') ?? 0,
-        unitname: (j['unitname'] ?? '').toString(),
-        prqty: double.tryParse(j['prqty']?.toString() ?? '0') ?? 0,
-        indentqty:
-        double.tryParse(j['indentqty']?.toString() ?? '0') ?? 0,
-        delqty: double.tryParse(j['delqty']?.toString() ?? '0') ?? 0,
-        rate: double.tryParse(j['rate']?.toString() ?? '0') ?? 0,
-        stockatsite:
-        double.tryParse(j['stockatsite']?.toString() ?? '0') ?? 0,
-        itemdescription: (j['itemdescription'] ?? '').toString(),
-        transid: int.tryParse(j['transid']?.toString() ?? '0') ?? 0,
+        itemid:          int.tryParse(j['itemid']?.toString() ?? '0') ?? 0,
+        itemname:        (j['ItemName'] ?? j['itemname'] ?? '').toString(), // ← capital ItemName
+        unitid:          int.tryParse(j['unitid']?.toString() ?? '0') ?? 0,
+        unitname:        (j['unitname'] ?? '').toString(),
+        prqty:           double.tryParse(j['bomqty']?.toString() ?? '0') ?? 0,     // ← bomqty
+        indentqty:       double.tryParse(j['quantity']?.toString() ?? '0') ?? 0,   // ← quantity
+        delqty:          double.tryParse(j['deliveredQtyamount']?.toString() ?? '0') ?? 0,
+        rate:            double.tryParse(j['rate']?.toString() ?? '0') ?? 0,
+        stockatsite:     double.tryParse(j['stockquantity']?.toString() ?? '0') ?? 0, // ← stockquantity
+        itemdescription: (j['remarks'] ?? j['lineitem'] ?? '').toString(),         // ← remarks
+        transid:         int.tryParse(j['autoid']?.toString() ?? '0') ?? 0,        // ← autoid
       );
 }
 

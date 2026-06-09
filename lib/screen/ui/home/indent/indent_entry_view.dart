@@ -12,14 +12,15 @@ import 'indent_screens/indent_items_screen.dart';
 import 'indent_screens/indent_review_screen.dart';
 import 'indent_widgets.dart';
 
-
 class IndentEntryView extends StatelessWidget {
   const IndentEntryView({super.key});
 
   @override
   Widget build(BuildContext context) {
+
     return GetBuilder<IndentController>(
       init: IndentController(),
+      id: 'indentEntry',
       builder: (ctrl) => PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
@@ -82,22 +83,21 @@ class IndentEntryView extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ctrl.isEditMode ? 'Edit Indent' : 'New Indent',
-                  style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: indTextPrimary),
-                ),
-                Text(ctrl.indentNumber,
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: indTextSecondary,
-                        fontWeight: FontWeight.w600)),
-              ]),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              ctrl.isEditMode ? 'Edit Indent' : 'New Indent',
+              style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: indTextPrimary),
+            ),
+            Text(ctrl.indentNumber,
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: indTextSecondary,
+                    fontWeight: FontWeight.w600)),
+          ]),
         ),
       ]),
     );

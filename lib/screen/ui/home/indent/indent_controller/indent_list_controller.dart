@@ -17,8 +17,6 @@ class IndentListController extends AppBaseController {
   final HomeController homeController = Get.find<HomeController>();
 
   // ── Filter ─────────────────────────────────────────────────────────────────
-  // Replace MrnGrnFilter with your indent filter class if you have one,
-  // or reuse MrnGrnFilter if indent shares the same filter sheet.
   MrnGrnFilter activeFilter = const MrnGrnFilter();
   bool get hasActiveFilter => activeFilter.isActive;
 
@@ -29,11 +27,14 @@ class IndentListController extends AppBaseController {
   List<IndentListItem> get filteredItems {
     List<IndentListItem> items = searchQuery.trim().isEmpty
         ? List.from(indentItems)
-        : indentItems.where((i) =>
+        : indentItems
+        .where((i) =>
     i.indentNo.toLowerCase().contains(searchQuery.toLowerCase())   ||
         i.requestBy.toLowerCase().contains(searchQuery.toLowerCase())  ||
         i.siteName.toLowerCase().contains(searchQuery.toLowerCase())   ||
-        i.department.toLowerCase().contains(searchQuery.toLowerCase()))
+        i.department.toLowerCase().contains(searchQuery.toLowerCase()) ||
+        i.jobType.toLowerCase().contains(searchQuery.toLowerCase())    ||
+        i.status.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
     return activeFilter.applyMrn(
@@ -44,6 +45,7 @@ class IndentListController extends AppBaseController {
       totalAmt:  (e) => e.totalItems.toDouble(),
     );
   }
+
   String searchQuery = '';
 
   // ── Date controllers ───────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ class IndentListController extends AppBaseController {
   @override
   void onInit() {
     super.onInit();
+    _isFetching = false;  // ← reset on init
     final today = DateTime.now();
     final from  = today.subtract(const Duration(days: 30));
     fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(from);
@@ -69,138 +72,46 @@ class IndentListController extends AppBaseController {
   }
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
-  void applyFilter(MrnGrnFilter f) { activeFilter = f; update(); }
-  void resetFilter()               { activeFilter = const MrnGrnFilter(); update(); }
-
-  void onSearch(String q) {
-    searchQuery = q;
-    update();
-  }
-
+  void applyFilter(MrnGrnFilter f) { activeFilter = f; update(['indentList']);; }
+  void resetFilter()               { activeFilter = const MrnGrnFilter(); update(['indentList']);; }
+  void onSearch(String q)          { searchQuery = q; update(['indentList']);; }
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
-  bool _isFetching = false;   // ← add this field
+  bool _isFetching = false;
 
   Future<void> fetchIndentList() async {
     if (_isFetching) return;
     _isFetching = true;
-
     isLoadingList = true;
     indentItems = [];
     searchQuery = '';
-    update();
+    // ❌ remove update(['indentList']); here — don't trigger rebuild before await
 
     try {
-      // ── TEMPORARY MOCK: remove once API is ready ──────────────────────
-      await Future.delayed(const Duration(seconds: 1));
-      indentItems = [
-        const IndentListItem(
-          id:         1,
-          indentNo:   'IND-2024-001',
-          indentDate: '2024-05-01',
-          requestBy:  'GAURAV DWIVEDI',
-          siteName:   'Site A',
-          department: 'IT',
-          jobType:    'Internal',
-          priority:   'High',
-          status:     'Draft',
-          totalItems: 5,
-        ),
-        const IndentListItem(
-          id:         2,
-          indentNo:   'IND-2024-002',
-          indentDate: '2024-05-10',
-          requestBy:  'Neha Gautam',
-          siteName:   'Site B',
-          department: 'HR',
-          jobType:    'External',
-          priority:   'Medium',
-          status:     'Approved',
-          totalItems: 3,
-        ),
-        const IndentListItem(
-          id:         3,
-          indentNo:   'IND-2024-003',
-          indentDate: '2024-05-15',
-          requestBy:  'SHIVANI DWIVEDI',
-          siteName:   'Site C',
-          department: 'Admin',
-          jobType:    'Internal',
-          priority:   'Low',
-          status:     'Pending',
-          totalItems: 8,
-        ),
-      ];
-      // ── END MOCK ──────────────────────────────────────────────────────
+      final body = {
+        'compid':   homeController.currentUserData?.compId   ?? 0,
+        'branchid': homeController.currentUserData?.branchId ?? 0,
+        'userid':   homeController.currentUserData?.userid   ?? 0,
+        'fromdate': fromDateCtrl.text,
+        'todate':   toDateCtrl.text,
+        'siteid':   0,
+      };
 
-      // ── REAL API: uncomment this block when API is ready ──────────────
-      // final body = {
-      //   'compid':   homeController.currentUserData?.compId   ?? 0,
-      //   'branchid': homeController.currentUserData?.branchId ?? 0,
-      //   'userid':   homeController.currentUserData?.userid   ?? 0,
-      //   'fromdate': fromDateCtrl.text,
-      //   'todate':   toDateCtrl.text,
-      // };
-      // final res = await api.getIndentList(body);
-      // if (res.status == 200 || res.success == true) {
-      //   indentItems = res.data;
-      // } else {
-      //   WidgetsBinding.instance.addPostFrameCallback((_) {
-      //     ShowMessage.showSnackBar('Indent List', res.message ?? 'Failed to load');
-      //   });
-      // }
-      // ─────────────────────────────────────────────────────────────────
-
+      final res = await api.getIndentList(body);
+      if (res.success == true || res.status == 200) {
+        indentItems = res.data;
+      } else {
+        ShowMessage.showSnackBar('Indent List', res.message ?? 'Failed to load');
+      }
     } catch (e) {
       if (kDebugMode) print('IndentList exception: $e');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ShowMessage.showSnackBar('Error', '$e');
-      });
+      ShowMessage.showSnackBar('Error', '$e');
     } finally {
       isLoadingList = false;
       _isFetching = false;
-      update();
+      update(['indentList']);; // ✅ only ONE update at the very end
     }
   }
-
-  // Future<void> fetchIndentList() async {
-  //   if (_isFetching) return;  // ← guard against re-entry
-  //   _isFetching = true;
-  //
-  //   isLoadingList = true;
-  //   indentItems = [];
-  //   searchQuery = '';
-  //   update();
-  //
-  //   try {
-  //     final body = {
-  //       'compid':   homeController.currentUserData?.compId   ?? 0,
-  //       'branchid': homeController.currentUserData?.branchId ?? 0,
-  //       'userid':   homeController.currentUserData?.userid   ?? 0,
-  //       'fromdate': fromDateCtrl.text,
-  //       'todate':   toDateCtrl.text,
-  //     };
-  //     final res = await api.getIndentList(body);
-  //     if (res.status == 200 || res.success == true) {
-  //       indentItems = res.data;
-  //     } else {
-  //       // ← defer snackbar until after the current frame is done
-  //       WidgetsBinding.instance.addPostFrameCallback((_) {
-  //         ShowMessage.showSnackBar('Indent List', res.message ?? 'Failed to load');
-  //       });
-  //     }
-  //   } catch (e) {
-  //     if (kDebugMode) print('IndentList exception: $e');
-  //     // ← defer here too
-  //     WidgetsBinding.instance.addPostFrameCallback((_) {
-  //       ShowMessage.showSnackBar('Error', '$e');
-  //     });
-  //   } finally {
-  //     isLoadingList = false;
-  //     _isFetching = false;   // ← always release the guard
-  //     update();
-  //   }
-  // }
 
   // ── Date pickers ───────────────────────────────────────────────────────────
   Future<void> pickFromDate(BuildContext ctx) async {
@@ -212,7 +123,7 @@ class IndentListController extends AppBaseController {
     );
     if (picked != null) {
       fromDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
-      update();
+      update(['indentList']);;
     }
   }
 
@@ -225,7 +136,7 @@ class IndentListController extends AppBaseController {
     );
     if (picked != null) {
       toDateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
-      update();
+      update(['indentList']);;
     }
   }
 

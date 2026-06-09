@@ -88,6 +88,7 @@ import '../payment_request/payment request detail/payment_request_detail_screen.
 import '../payment_request/payment request list/payment_request_list_screen.dart';
 import '../screen/ui/home/approval_management/approval_hub_screens/approval_hub_list.dart';
 import '../screen/ui/home/grn/grn_screens/grn_list_screen.dart';
+import '../screen/ui/home/indent/indent_controller/indent_list_controller.dart';
 import '../screen/ui/home/mrn_qc/mrn_qc_list/mrn_qc_list_screen.dart';
 import '../screen/ui/home/mrn_qc/mrn_qc_screens/mrn_qc_screen.dart';
 import '../task management/create_task/create_task_screen.dart';
@@ -435,9 +436,13 @@ class AppPages {
       name: AppRoutes.mrnQcScreen,
       page: () => MrnQcScreen(),
     ),
+    // In app_pages.dart
     GetPage(
       name: AppRoutes.indentList,
-      page: () => IndentListScreen(),
+      page: () => const IndentListScreen(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut(() => IndentListController());
+      }),
     ),
     GetPage(
       name: AppRoutes.issueItemList,

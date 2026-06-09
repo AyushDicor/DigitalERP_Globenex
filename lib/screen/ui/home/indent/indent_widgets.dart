@@ -7,19 +7,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // ── Color tokens (mirrors GRN's newBlueColor etc.) ───────────────────────────
-const Color indBlueColor       = Color(0xFF5B6CF6);
-final Color indBlueLightColor  = const Color(0xFF5B6CF6).withValues(alpha: 0.10);
-const Color indGreenColor      = Color(0xFF10B981);
+const Color indBlueColor = Color(0xFF5B6CF6);
+final Color indBlueLightColor = const Color(0xFF5B6CF6).withValues(alpha: 0.10);
+const Color indGreenColor = Color(0xFF10B981);
 const Color indGreenLightColor = Color(0xFFD1FAE5);
-const Color indRedColor        = Color(0xFFEF4444);
-const Color indRedLightColor   = Color(0xFFFEE2E2);
-const Color indOrangeColor     = Color(0xFFF59E0B);
+const Color indRedColor = Color(0xFFEF4444);
+const Color indRedLightColor = Color(0xFFFEE2E2);
+const Color indOrangeColor = Color(0xFFF59E0B);
 const Color indOrangeLightColor = Color(0xFFFEF3C7);
-const Color indSurfaceColor    = Color(0xFFF8FAFC);
-const Color indBorderColor     = Color(0xFFE2E6EA);
-const Color indTextPrimary     = Color(0xFF1A1D23);
-const Color indTextSecondary   = Color(0xFF6B7280);
-const Color indTextHint        = Color(0xFFADB5BD);
+const Color indSurfaceColor = Color(0xFFF8FAFC);
+const Color indBorderColor = Color(0xFFE2E6EA);
+const Color indTextPrimary = Color(0xFF1A1D23);
+const Color indTextSecondary = Color(0xFF6B7280);
+const Color indTextHint = Color(0xFFADB5BD);
 
 // ── Card wrapper ──────────────────────────────────────────────────────────────
 class IndentCard extends StatelessWidget {
@@ -132,7 +132,7 @@ class IndentField extends StatelessWidget {
           filled: true,
           fillColor: readOnly ? indSurfaceColor : Colors.white,
           contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: indBorderColor)),
@@ -141,8 +141,7 @@ class IndentField extends StatelessWidget {
               borderSide: const BorderSide(color: indBorderColor)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-              const BorderSide(color: indBlueColor, width: 1.5)),
+              borderSide: const BorderSide(color: indBlueColor, width: 1.5)),
         ),
       ),
     ]);
@@ -182,8 +181,7 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
       GestureDetector(
         onTap: isLoading ? null : () => _showSheet(context),
         child: Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -191,19 +189,22 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
           ),
           child: Row(children: [
             Expanded(
-              child: isLoading
+              child: isLoading && items.isEmpty
                   ? const SizedBox(
-                  height: 16,
-                  width: 16,
+                height: 16,
+                width: 16,
+                child: Center(
                   child: CircularProgressIndicator(
-                      strokeWidth: 1.5, color: indBlueColor))
+                    strokeWidth: 1.5,
+                    color: indBlueColor,
+                  ),
+                ),
+              )
                   : Text(
                 value != null ? itemLabel(value as T) : (hint ?? 'Select…'),
                 style: TextStyle(
                     fontSize: 13,
-                    color: value != null
-                        ? indTextPrimary
-                        : indTextHint),
+                    color: value != null ? indTextPrimary : indTextHint),
               ),
             ),
             const Icon(Icons.keyboard_arrow_down_rounded,
@@ -223,9 +224,8 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setState) {
           final filtered = items
-              .where((i) => itemLabel(i)
-              .toLowerCase()
-              .contains(ctrl.text.toLowerCase()))
+              .where((i) =>
+                  itemLabel(i).toLowerCase().contains(ctrl.text.toLowerCase()))
               .toList();
           return DraggableScrollableSheet(
             initialChildSize: 0.7,
@@ -233,8 +233,7 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
             builder: (_, scroll) => Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(children: [
                 const SizedBox(height: 10),
@@ -266,16 +265,13 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
                           size: 18, color: indTextSecondary),
                       filled: true,
                       fillColor: indSurfaceColor,
-                      contentPadding:
-                      const EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                          const BorderSide(color: indBorderColor)),
+                          borderSide: const BorderSide(color: indBorderColor)),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                          const BorderSide(color: indBorderColor)),
+                          borderSide: const BorderSide(color: indBorderColor)),
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(
@@ -289,11 +285,11 @@ class IndentSearchableDropdown<T> extends StatelessWidget {
                     controller: scroll,
                     itemCount: filtered.length,
                     separatorBuilder: (_, __) =>
-                    const Divider(height: 1, color: indBorderColor),
+                        const Divider(height: 1, color: indBorderColor),
                     itemBuilder: (_, i) {
                       final item = filtered[i];
-                      final isSelected =
-                          value != null && itemLabel(value as T) == itemLabel(item);
+                      final isSelected = value != null &&
+                          itemLabel(value as T) == itemLabel(item);
                       return InkWell(
                         onTap: () {
                           onChanged(item);
@@ -367,7 +363,7 @@ class IndentDropdown extends StatelessWidget {
           filled: true,
           fillColor: Colors.white,
           contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: indBorderColor)),
@@ -376,8 +372,7 @@ class IndentDropdown extends StatelessWidget {
               borderSide: const BorderSide(color: indBorderColor)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-              const BorderSide(color: indBlueColor, width: 1.5)),
+              borderSide: const BorderSide(color: indBlueColor, width: 1.5)),
         ),
       ),
     ]);
@@ -455,8 +450,7 @@ class IndentStepBar extends StatelessWidget {
           final idx = i ~/ 2;
           final isDone = current > idx;
           final isCurrent = current == idx;
-          return _stepDot(
-              idx: idx, isDone: isDone, isCurrent: isCurrent);
+          return _stepDot(idx: idx, isDone: isDone, isCurrent: isCurrent);
         }),
       ),
     );
@@ -473,8 +467,8 @@ class IndentStepBar extends StatelessWidget {
           color: isDone
               ? indBlueColor
               : isCurrent
-              ? indBlueLightColor
-              : indSurfaceColor,
+                  ? indBlueLightColor
+                  : indSurfaceColor,
           shape: BoxShape.circle,
           border: Border.all(
             color: isCurrent || isDone ? indBlueColor : indBorderColor,
@@ -485,17 +479,16 @@ class IndentStepBar extends StatelessWidget {
         child: isDone
             ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
             : Text('${idx + 1}',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: isCurrent ? indBlueColor : indTextSecondary)),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isCurrent ? indBlueColor : indTextSecondary)),
       ),
       const SizedBox(height: 4),
       Text(_steps[idx],
           style: TextStyle(
               fontSize: 9,
-              fontWeight:
-              isCurrent ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
               color: isCurrent ? indBlueColor : indTextSecondary)),
     ]);
   }
@@ -529,10 +522,10 @@ class PriorityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration:
-      BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
       child: Text(priority,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
+          style:
+              TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }
@@ -565,10 +558,10 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration:
-      BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
       child: Text(status,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
+          style:
+              TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }

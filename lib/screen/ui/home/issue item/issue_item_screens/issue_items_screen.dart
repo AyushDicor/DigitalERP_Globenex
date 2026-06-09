@@ -48,7 +48,7 @@ class IssueItemItemsScreen extends StatelessWidget {
                                     strokeWidth: 1.5,
                                     color: newBlueColor))
                                 : GestureDetector(
-                              onTap: ctrl.fetchPendingIndents,
+                          //    onTap: ctrl.fetchPendingIndents,
                               child: const Icon(Icons.refresh_rounded,
                                   size: 18, color: newBlueColor),
                             ),

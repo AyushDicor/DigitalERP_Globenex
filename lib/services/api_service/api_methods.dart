@@ -306,14 +306,14 @@ class ApiMethods {
 //  static const String getPendingPoItems = 'getpendingpo';
 
   /// Indent Module
-  String getIndentList         = '';
-  String getIndentDetail       = '';
-  String getIndentDropdownList = '';
-  String saveIndent            = '';
+  String getIndentList         = 'getindentlist';
+  String getIndentDetail       = 'indentfulldetail';
+  String getIndentDropdownList = 'indentandissuedropdown';
+  String saveIndent            = 'createindent';
   String getIndentItemStock    = '';
 
   ///Issue Item
- String getIssueItemDropdown = '';
+ String getIssueItemDropdown = 'indentandissuedropdown';
  String getPendingIndentList     = '';
  String processPendingIndentList = '';
  String saveIssueItem       = '';
