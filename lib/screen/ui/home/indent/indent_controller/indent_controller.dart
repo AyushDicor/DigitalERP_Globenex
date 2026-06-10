@@ -88,7 +88,7 @@ class IndentController extends AppBaseController {
   bool isLoadingJobType = false;
 
   // Priority  (static)
-  final List<String> priorityOptions = ['Low', 'Medium', 'High', 'Urgent'];
+  final List<String> priorityOptions = ['Low', 'Medium', 'High'];
   String selectedPriority = 'Medium';
 
   // Site

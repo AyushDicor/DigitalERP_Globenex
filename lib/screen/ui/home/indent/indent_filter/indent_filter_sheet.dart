@@ -1,8 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // indent_filter_sheet.dart
 //
-// Usage (inside IndentListScreen or wherever you open the sheet):
-//
+// Usage:
 //   showModalBottomSheet(
 //     context: context,
 //     isScrollControlled: true,
@@ -12,29 +11,63 @@
 //       activeFilter: ctrl.activeFilter,
 //       onApply:      ctrl.applyFilter,
 //       onReset:      ctrl.resetFilter,
+//       // Optional: pass a callback so the sheet can also trigger an API
+//       // re-fetch with a wider date window when the user picks dates
+//       // outside the currently loaded range.
+//       onFetchForDateRange: ctrl.fetchForDateRange,
 //     ),
 //   );
-//
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../indent_response/indent_model.dart';
 import '../indent_widgets.dart';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUICK-PRESET ENUM
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum _DatePreset {
+  today('Today', 0),
+  last7('Last 7 days', 6),
+  last30('Last 30 days', 29),
+  last90('Last 90 days', 89),
+  custom('Custom', -1);
+
+  final String label;
+  final int daysBack; // -1 = custom
+  const _DatePreset(this.label, this.daysBack);
+
+  DateTimeRange? get range {
+    if (daysBack < 0) return null;
+    final today = DateTime.now();
+    final from  = DateTime(today.year, today.month, today.day)
+        .subtract(Duration(days: daysBack));
+    final to    = DateTime(today.year, today.month, today.day);
+    return DateTimeRange(start: from, end: to);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FILTER MODEL
 // ═══════════════════════════════════════════════════════════════════════════
 
 class IndentFilter {
-  final Set<String> requestedBy;   // maps to IndentListItem.requestBy
-  final Set<String> siteNames;     // maps to IndentListItem.siteName
-  final Set<String> jobTypes;      // maps to IndentListItem.jobType
-  final Set<String> statuses;      // maps to IndentListItem.status
-  final Set<String> priorities;    // maps to IndentListItem.priority
-  final Set<String> departments;   // maps to IndentListItem.department
+  final Set<String> requestedBy;
+  final Set<String> siteNames;
+  final Set<String> jobTypes;
+  final Set<String> statuses;
+  final Set<String> priorities;
+  final Set<String> departments;
+
+  /// Date range filter — applied against IndentListItem.indentDate.
+  /// null means no date constraint.
+  final DateTime? fromDate;
+  final DateTime? toDate;
 
   const IndentFilter({
     this.requestedBy = const {},
@@ -43,6 +76,8 @@ class IndentFilter {
     this.statuses    = const {},
     this.priorities  = const {},
     this.departments = const {},
+    this.fromDate,
+    this.toDate,
   });
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -53,16 +88,19 @@ class IndentFilter {
           jobTypes.isNotEmpty    ||
           statuses.isNotEmpty    ||
           priorities.isNotEmpty  ||
-          departments.isNotEmpty;
+          departments.isNotEmpty ||
+          fromDate != null       ||
+          toDate != null;
 
   int get activeCount {
     int n = 0;
-    if (requestedBy.isNotEmpty)  n++;
-    if (siteNames.isNotEmpty)    n++;
-    if (jobTypes.isNotEmpty)     n++;
-    if (statuses.isNotEmpty)     n++;
-    if (priorities.isNotEmpty)   n++;
-    if (departments.isNotEmpty)  n++;
+    if (requestedBy.isNotEmpty)             n++;
+    if (siteNames.isNotEmpty)               n++;
+    if (jobTypes.isNotEmpty)                n++;
+    if (statuses.isNotEmpty)                n++;
+    if (priorities.isNotEmpty)              n++;
+    if (departments.isNotEmpty)             n++;
+    if (fromDate != null || toDate != null) n++;
     return n;
   }
 
@@ -73,6 +111,10 @@ class IndentFilter {
     Set<String>? statuses,
     Set<String>? priorities,
     Set<String>? departments,
+    DateTime? fromDate,
+    DateTime? toDate,
+    bool clearFromDate = false,
+    bool clearToDate   = false,
   }) =>
       IndentFilter(
         requestedBy:  requestedBy  ?? this.requestedBy,
@@ -81,18 +123,41 @@ class IndentFilter {
         statuses:     statuses     ?? this.statuses,
         priorities:   priorities   ?? this.priorities,
         departments:  departments  ?? this.departments,
+        fromDate: clearFromDate ? null : (fromDate ?? this.fromDate),
+        toDate:   clearToDate   ? null : (toDate   ?? this.toDate),
       );
 
   List<IndentListItem> apply(List<IndentListItem> all) {
     return all.where((item) {
-      if (requestedBy.isNotEmpty  && !requestedBy.contains(item.requestBy))   return false;
-      if (siteNames.isNotEmpty    && !siteNames.contains(item.siteName))       return false;
-      if (jobTypes.isNotEmpty     && !jobTypes.contains(item.jobType))         return false;
-      if (statuses.isNotEmpty     && !statuses.contains(item.status))          return false;
-      if (priorities.isNotEmpty   && !priorities.contains(item.priority))      return false;
-      if (departments.isNotEmpty  && !departments.contains(item.department))   return false;
+      if (requestedBy.isNotEmpty && !requestedBy.contains(item.requestBy))  return false;
+      if (siteNames.isNotEmpty   && !siteNames.contains(item.siteName))     return false;
+      if (jobTypes.isNotEmpty    && !jobTypes.contains(item.jobType))       return false;
+      if (statuses.isNotEmpty    && !statuses.contains(item.status))        return false;
+      if (priorities.isNotEmpty  && !priorities.contains(item.priority))    return false;
+      if (departments.isNotEmpty && !departments.contains(item.department)) return false;
+
+      // Date range — parse indentDate and compare
+      if (fromDate != null || toDate != null) {
+        final parsed = _parseDate(item.indentDate);
+        if (parsed == null) return false;
+        final d = DateTime(parsed.year, parsed.month, parsed.day);
+        if (fromDate != null && d.isBefore(fromDate!)) return false;
+        if (toDate   != null && d.isAfter(toDate!))    return false;
+      }
+
       return true;
     }).toList();
+  }
+
+  static DateTime? _parseDate(String raw) {
+    if (raw.isEmpty) return null;
+    try {
+      final dt = DateTime.tryParse(raw);
+      if (dt != null) return dt;
+      return DateFormat('dd-MM-yyyy').tryParseStrict(raw);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
@@ -106,12 +171,18 @@ class IndentFilterSheet extends StatefulWidget {
   final void Function(IndentFilter) onApply;
   final VoidCallback? onReset;
 
+  /// Optional: called with (fromDate, toDate) so the parent controller can
+  /// fire a new API request when the selected date window is wider than the
+  /// currently loaded data.
+  final void Function(DateTime from, DateTime to)? onFetchForDateRange;
+
   const IndentFilterSheet({
     super.key,
     required this.items,
     required this.activeFilter,
     required this.onApply,
     this.onReset,
+    this.onFetchForDateRange,
   });
 
   @override
@@ -121,7 +192,7 @@ class IndentFilterSheet extends StatefulWidget {
 class _IndentFilterSheetState extends State<IndentFilterSheet> {
   late IndentFilter _draft;
 
-  // option lists built from data
+  // option lists
   late List<String> _requestedByOptions;
   late List<String> _siteOptions;
   late List<String> _jobTypeOptions;
@@ -131,6 +202,7 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
 
   // accordion expand state
   final Map<String, bool> _expanded = {
+    'date':        false,
     'requestedBy': false,
     'site':        false,
     'jobType':     false,
@@ -139,18 +211,40 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
     'department':  false,
   };
 
-  // search state (only for large lists)
+  // search state
   final Map<String, String> _search = {
     'requestedBy': '',
     'site':        '',
     'department':  '',
   };
 
+  // date-range local state
+  _DatePreset _preset = _DatePreset.last30;
+
+  static final _fmt = DateFormat('dd MMM yyyy');
+
   @override
   void initState() {
     super.initState();
     _draft = widget.activeFilter;
     _buildOptions();
+    _syncPresetFromDraft();
+  }
+
+  void _syncPresetFromDraft() {
+    if (_draft.fromDate == null && _draft.toDate == null) {
+      _preset = _DatePreset.last30;
+      return;
+    }
+    for (final p in _DatePreset.values) {
+      if (p == _DatePreset.custom) continue;
+      final r = p.range!;
+      if (_draft.fromDate == r.start && _draft.toDate == r.end) {
+        _preset = p;
+        return;
+      }
+    }
+    _preset = _DatePreset.custom;
   }
 
   void _buildOptions() {
@@ -175,25 +269,68 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
     next.contains(item) ? next.remove(item) : next.add(item);
     setState(() {
       switch (field) {
-        case 'requestedBy':
-          _draft = _draft.copyWith(requestedBy: next);
-          break;
-        case 'site':
-          _draft = _draft.copyWith(siteNames: next);
-          break;
-        case 'jobType':
-          _draft = _draft.copyWith(jobTypes: next);
-          break;
-        case 'status':
-          _draft = _draft.copyWith(statuses: next);
-          break;
-        case 'priority':
-          _draft = _draft.copyWith(priorities: next);
-          break;
-        case 'department':
-          _draft = _draft.copyWith(departments: next);
-          break;
+        case 'requestedBy': _draft = _draft.copyWith(requestedBy: next); break;
+        case 'site':        _draft = _draft.copyWith(siteNames: next);   break;
+        case 'jobType':     _draft = _draft.copyWith(jobTypes: next);    break;
+        case 'status':      _draft = _draft.copyWith(statuses: next);    break;
+        case 'priority':    _draft = _draft.copyWith(priorities: next);  break;
+        case 'department':  _draft = _draft.copyWith(departments: next); break;
       }
+    });
+  }
+
+  // ── date helpers ─────────────────────────────────────────────────────────
+
+  void _applyPreset(_DatePreset p) {
+    setState(() {
+      _preset = p;
+      if (p != _DatePreset.custom) {
+        final r = p.range!;
+        _draft = _draft.copyWith(fromDate: r.start, toDate: r.end);
+      }
+    });
+  }
+
+  Future<void> _pickCustomRange() async {
+    final initial = (_draft.fromDate != null && _draft.toDate != null)
+        ? DateTimeRange(start: _draft.fromDate!, end: _draft.toDate!)
+        : DateTimeRange(
+      start: DateTime.now().subtract(const Duration(days: 29)),
+      end: DateTime.now(),
+    );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2018),
+      lastDate: DateTime.now(),
+      initialDateRange: initial,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: indBlueColor,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _preset = _DatePreset.custom;
+        _draft = _draft.copyWith(
+          fromDate: DateTime(picked.start.year, picked.start.month, picked.start.day),
+          toDate:   DateTime(picked.end.year, picked.end.month, picked.end.day),
+        );
+      });
+    }
+  }
+
+  void _clearDateRange() {
+    setState(() {
+      _preset = _DatePreset.last30;
+      _draft  = _draft.copyWith(clearFromDate: true, clearToDate: true);
     });
   }
 
@@ -201,7 +338,8 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
 
   void _reset() {
     setState(() {
-      _draft = const IndentFilter();
+      _draft  = const IndentFilter();
+      _preset = _DatePreset.last30;
       for (final k in _search.keys) _search[k] = '';
     });
     Navigator.pop(context);
@@ -210,6 +348,13 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
   }
 
   void _apply() {
+    // If a date range is active AND a fetch callback is wired up,
+    // signal the controller so it can re-fetch the API for that window.
+    if (widget.onFetchForDateRange != null &&
+        _draft.fromDate != null &&
+        _draft.toDate   != null) {
+      widget.onFetchForDateRange!(_draft.fromDate!, _draft.toDate!);
+    }
     Navigator.pop(context);
     widget.onApply(_draft);
   }
@@ -235,6 +380,25 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             children: [
+
+              // ── DATE RANGE (first — most used) ────────────────────────
+              _Accordion(
+                title:         'Date Range',
+                icon:          Icons.date_range_rounded,
+                selectedCount: (_draft.fromDate != null || _draft.toDate != null) ? 1 : 0,
+                expanded:      _expanded['date']!,
+                onToggle:      (v) => _toggleExpand('date', v),
+                child: _DateRangePanel(
+                  draft:           _draft,
+                  selectedPreset:  _preset,
+                  fmt:             _fmt,
+                  onPresetTap:     _applyPreset,
+                  onCustomTap:     _pickCustomRange,
+                  onClear:         _clearDateRange,
+                ),
+              ),
+              const SizedBox(height: 8),
+
               // ── Requested By ──────────────────────────────────────────
               _Accordion(
                 title:         'Requested By',
@@ -243,12 +407,12 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
                 expanded:      _expanded['requestedBy']!,
                 onToggle:      (v) => _toggleExpand('requestedBy', v),
                 child: _Checklist(
-                  options:          _requestedByOptions,
-                  selected:         _draft.requestedBy,
-                  search:           _search['requestedBy']!,
-                  onSearchChanged:  (v) => setState(() => _search['requestedBy'] = v),
-                  onToggle:         (o) => _toggleItem(_draft.requestedBy, o, 'requestedBy'),
-                  showSearch:       _requestedByOptions.length > 5,
+                  options:         _requestedByOptions,
+                  selected:        _draft.requestedBy,
+                  search:          _search['requestedBy']!,
+                  onSearchChanged: (v) => setState(() => _search['requestedBy'] = v),
+                  onToggle:        (o) => _toggleItem(_draft.requestedBy, o, 'requestedBy'),
+                  showSearch:      _requestedByOptions.length > 5,
                 ),
               ),
               const SizedBox(height: 8),
@@ -261,12 +425,12 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
                 expanded:      _expanded['site']!,
                 onToggle:      (v) => _toggleExpand('site', v),
                 child: _Checklist(
-                  options:          _siteOptions,
-                  selected:         _draft.siteNames,
-                  search:           _search['site']!,
-                  onSearchChanged:  (v) => setState(() => _search['site'] = v),
-                  onToggle:         (o) => _toggleItem(_draft.siteNames, o, 'site'),
-                  showSearch:       _siteOptions.length > 5,
+                  options:         _siteOptions,
+                  selected:        _draft.siteNames,
+                  search:          _search['site']!,
+                  onSearchChanged: (v) => setState(() => _search['site'] = v),
+                  onToggle:        (o) => _toggleItem(_draft.siteNames, o, 'site'),
+                  showSearch:      _siteOptions.length > 5,
                 ),
               ),
               const SizedBox(height: 8),
@@ -279,12 +443,12 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
                 expanded:      _expanded['department']!,
                 onToggle:      (v) => _toggleExpand('department', v),
                 child: _Checklist(
-                  options:          _departmentOptions,
-                  selected:         _draft.departments,
-                  search:           _search['department']!,
-                  onSearchChanged:  (v) => setState(() => _search['department'] = v),
-                  onToggle:         (o) => _toggleItem(_draft.departments, o, 'department'),
-                  showSearch:       _departmentOptions.length > 5,
+                  options:         _departmentOptions,
+                  selected:        _draft.departments,
+                  search:          _search['department']!,
+                  onSearchChanged: (v) => setState(() => _search['department'] = v),
+                  onToggle:        (o) => _toggleItem(_draft.departments, o, 'department'),
+                  showSearch:      _departmentOptions.length > 5,
                 ),
               ),
               const SizedBox(height: 8),
@@ -365,11 +529,9 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
       child: Column(children: [
-        // drag handle
         Center(
           child: Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
               borderRadius: BorderRadius.circular(2),
@@ -380,30 +542,20 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
         Row(children: [
           const Icon(Icons.filter_list_rounded, size: 20, color: indBlueColor),
           const SizedBox(width: 8),
-          Text(
-            'Filter Indent',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF1A1A2E),
-            ),
-          ),
+          Text('Filter Indent',
+              style: GoogleFonts.dmSans(
+                  fontSize: 18, fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A2E))),
           if (count > 0) ...[
             const SizedBox(width: 8),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: indBlueColor,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white),
-              ),
+                  color: indBlueColor, borderRadius: BorderRadius.circular(20)),
+              child: Text('$count',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: Colors.white)),
             ),
           ],
           const Spacer(),
@@ -411,14 +563,11 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
             TextButton(
               onPressed: _reset,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.red.shade600,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-              child: Text(
-                'Clear All',
-                style: GoogleFonts.dmSans(
-                    fontSize: 13, fontWeight: FontWeight.w600),
-              ),
+                  foregroundColor: Colors.red.shade600,
+                  padding: const EdgeInsets.symmetric(horizontal: 4)),
+              child: Text('Clear All',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
             ),
         ]),
       ]),
@@ -446,11 +595,9 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
                   borderRadius: BorderRadius.circular(12)),
               foregroundColor: Colors.grey.shade700,
             ),
-            child: Text(
-              'Reset',
-              style: GoogleFonts.dmSans(
-                  fontSize: 14, fontWeight: FontWeight.w600),
-            ),
+            child: Text('Reset',
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, fontWeight: FontWeight.w600)),
           ),
         ),
         const SizedBox(width: 12),
@@ -475,6 +622,130 @@ class _IndentFilterSheetState extends State<IndentFilterSheet> {
         ),
       ]),
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATE RANGE PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _DateRangePanel extends StatelessWidget {
+  final IndentFilter draft;
+  final _DatePreset selectedPreset;
+  final DateFormat fmt;
+  final void Function(_DatePreset) onPresetTap;
+  final VoidCallback onCustomTap;
+  final VoidCallback onClear;
+
+  const _DateRangePanel({
+    required this.draft,
+    required this.selectedPreset,
+    required this.fmt,
+    required this.onPresetTap,
+    required this.onCustomTap,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRange = draft.fromDate != null || draft.toDate != null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // ── preset chips ──────────────────────────────────────────────
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _DatePreset.values.map((p) {
+            final isSelected = selectedPreset == p;
+            final isCustom   = p == _DatePreset.custom;
+            return GestureDetector(
+              onTap: isCustom ? onCustomTap : () => onPresetTap(p),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? indBlueColor
+                      : indBlueLightColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? indBlueColor
+                        : indBorderColor,
+                  ),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (isCustom)
+                    Icon(
+                      Icons.edit_calendar_rounded,
+                      size: 13,
+                      color: isSelected ? Colors.white : indBlueColor,
+                    ),
+                  if (isCustom) const SizedBox(width: 4),
+                  Text(
+                    p.label,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : indTextSecondary,
+                    ),
+                  ),
+                ]),
+              ),
+            );
+          }).toList(),
+        ),
+
+        // ── selected range display ────────────────────────────────────
+        if (hasRange) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: indBlueLightColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: indBlueColor.withValues(alpha: 0.25)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.date_range_rounded,
+                  size: 15, color: indBlueColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _rangeLabel(),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: indBlueColor),
+                ),
+              ),
+              GestureDetector(
+                onTap: onClear,
+                child: Icon(Icons.close_rounded,
+                    size: 16, color: Colors.grey.shade500),
+              ),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  String _rangeLabel() {
+    if (draft.fromDate != null && draft.toDate != null) {
+      return '${fmt.format(draft.fromDate!)}  →  ${fmt.format(draft.toDate!)}';
+    } else if (draft.fromDate != null) {
+      return 'From ${fmt.format(draft.fromDate!)}';
+    } else if (draft.toDate != null) {
+      return 'Until ${fmt.format(draft.toDate!)}';
+    }
+    return '';
   }
 }
 
@@ -517,35 +788,30 @@ class _Accordion extends StatelessWidget {
           onTap: () => onToggle(!expanded),
           borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
             child: Row(children: [
               Icon(icon, size: 18, color: indBlueColor),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1A1A2E)),
-                ),
+                child: Text(title,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A2E))),
               ),
               if (selectedCount > 0) ...[
                 Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: indBlueColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '$selectedCount',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white),
-                  ),
+                      color: indBlueColor,
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text('$selectedCount',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -611,59 +877,58 @@ class _Checklist extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child:
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (showSearch) ...[
-          TextField(
-            onChanged: onSearchChanged,
-            style: GoogleFonts.dmSans(fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Search…',
-              hintStyle: GoogleFonts.dmSans(
-                  fontSize: 13, color: Colors.grey.shade400),
-              prefixIcon:
-              Icon(Icons.search, size: 18, color: Colors.grey.shade400),
-              isDense: true,
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              filled: true,
-              fillColor: const Color(0xFFF8F8F8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showSearch) ...[
+              TextField(
+                onChanged: onSearchChanged,
+                style: GoogleFonts.dmSans(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Search…',
+                  hintStyle: GoogleFonts.dmSans(
+                      fontSize: 13, color: Colors.grey.shade400),
+                  prefixIcon: Icon(Icons.search,
+                      size: 18, color: Colors.grey.shade400),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: const Color(0xFFF8F8F8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (filtered.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No options found',
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: Colors.grey.shade400),
-            ),
-          )
-        else
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: SingleChildScrollView(
-              child: Column(
-                children: filtered
-                    .map((opt) => _CheckItem(
-                  label:           opt,
-                  selected:        selected.contains(opt),
-                  onToggle:        () => onToggle(opt),
-                  showJobTypeDot:  showJobTypeDot,
-                  showStatusDot:   showStatusDot,
-                  showPriorityDot: showPriorityDot,
-                ))
-                    .toList(),
+              const SizedBox(height: 10),
+            ],
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('No options found',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, color: Colors.grey.shade400)),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: filtered
+                        .map((opt) => _CheckItem(
+                      label:           opt,
+                      selected:        selected.contains(opt),
+                      onToggle:        () => onToggle(opt),
+                      showJobTypeDot:  showJobTypeDot,
+                      showStatusDot:   showStatusDot,
+                      showPriorityDot: showPriorityDot,
+                    ))
+                        .toList(),
+                  ),
+                ),
               ),
-            ),
-          ),
-      ]),
+          ]),
     );
   }
 }
@@ -689,41 +954,39 @@ class _CheckItem extends StatelessWidget {
     this.showPriorityDot = false,
   });
 
-  // ── dot colour helpers ───────────────────────────────────────────────────
-
   Color _jobTypeColor(String s) {
     switch (s.toLowerCase().trim()) {
-      case 'electrical':        return const Color(0xFF2196F3);
-      case 'civil':             return const Color(0xFF795548);
-      case 'plumbing':          return const Color(0xFF00BCD4);
-      case 'fire fighting':     return const Color(0xFFF44336);
+      case 'electrical':             return const Color(0xFF2196F3);
+      case 'civil':                  return const Color(0xFF795548);
+      case 'plumbing':               return const Color(0xFF00BCD4);
+      case 'fire fighting':          return const Color(0xFFF44336);
       case 'fire alarm system':
       case 'fire alarm & pa system': return const Color(0xFFFF5722);
-      case 'cctv':              return const Color(0xFF9C27B0);
-      case 'networking':        return const Color(0xFF4CAF50);
-      case 'pa system':         return const Color(0xFF607D8B);
-      case 'access control':    return const Color(0xFF009688);
-      default:                  return newOrangeColor;
+      case 'cctv':                   return const Color(0xFF9C27B0);
+      case 'networking':             return const Color(0xFF4CAF50);
+      case 'pa system':              return const Color(0xFF607D8B);
+      case 'access control':         return const Color(0xFF009688);
+      default:                       return newOrangeColor;
     }
   }
 
   Color _statusColor(String s) {
     switch (s.toLowerCase().trim()) {
-      case 'approved':   return const Color(0xFF4CAF50);
-      case 'rejected':   return const Color(0xFFF44336);
-      case 'pending':    return const Color(0xFFFF9800);
-      case 'cancelled':  return const Color(0xFF9E9E9E);
-      case 'partial':    return const Color(0xFF2196F3);
-      default:           return const Color(0xFF9E9E9E);
+      case 'approved':  return const Color(0xFF4CAF50);
+      case 'rejected':  return const Color(0xFFF44336);
+      case 'pending':   return const Color(0xFFFF9800);
+      case 'cancelled': return const Color(0xFF9E9E9E);
+      case 'partial':   return const Color(0xFF2196F3);
+      default:          return const Color(0xFF9E9E9E);
     }
   }
 
   Color _priorityColor(String s) {
     switch (s.toLowerCase().trim()) {
-      case 'high':    return const Color(0xFFF44336);
-      case 'medium':  return const Color(0xFFFF9800);
-      case 'low':     return const Color(0xFF4CAF50);
-      default:        return const Color(0xFF9E9E9E);
+      case 'high':   return const Color(0xFFF44336);
+      case 'medium': return const Color(0xFFFF9800);
+      case 'low':    return const Color(0xFF4CAF50);
+      default:       return const Color(0xFF9E9E9E);
     }
   }
 
@@ -744,46 +1007,38 @@ class _CheckItem extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Row(children: [
-          // checkbox
           AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            width: 20,
-            height: 20,
+            width: 20, height: 20,
             decoration: BoxDecoration(
-              color:
-              selected ? indBlueColor : Colors.transparent,
+              color: selected ? indBlueColor : Colors.transparent,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(
-                color: selected ? indBlueColor : Colors.grey.shade300,
-                width: 1.5,
-              ),
+                  color: selected ? indBlueColor : Colors.grey.shade300,
+                  width: 1.5),
             ),
             child: selected
                 ? const Icon(Icons.check, size: 13, color: Colors.white)
                 : null,
           ),
           const SizedBox(width: 12),
-          // optional coloured dot
           if (_showDot)
             Container(
-              width: 8,
-              height: 8,
+              width: 8, height: 8,
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                   color: _dotColor, shape: BoxShape.circle),
             ),
           Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight:
-                selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected
-                    ? const Color(0xFF1A1A2E)
-                    : Colors.grey.shade700,
-              ),
-            ),
+            child: Text(label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight:
+                  selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected
+                      ? const Color(0xFF1A1A2E)
+                      : Colors.grey.shade700,
+                )),
           ),
         ]),
       ),
