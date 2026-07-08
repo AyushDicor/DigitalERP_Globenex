@@ -3,6 +3,7 @@ import 'package:digitalerp/screen/ui/home/approval/approval_list/approvals_list_
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import '../approval_hub_controller/approval_hub_controller.dart';
 import 'approval_hub_detail.dart';
@@ -39,7 +40,7 @@ class ApprovalHubDashboard extends StatelessWidget {
                           children: [
                             _StatsRow(ctrl: ctrl),
                             const SizedBox(height: 14),
-                            if (_hasOverdue(ctrl)) _OverdueBanner(),
+                            if (_hasOverdue(ctrl)) _OverdueBanner(ctrl: ctrl),
                             _SectionHead('By Category'),
                             const SizedBox(height: 10),
                             _CategoryGrid(ctrl: ctrl),
@@ -59,8 +60,7 @@ class ApprovalHubDashboard extends StatelessWidget {
     );
   }
 
-  bool _hasOverdue(ApprovalHubController ctrl) =>
-      ctrl.categories.any((c) => c.overdueCount > 0);
+  bool _hasOverdue(ApprovalHubController ctrl) => ctrl.totalOverdue > 0;
 }
 
 //  App bar
@@ -69,6 +69,10 @@ class _DashAppBar extends StatelessWidget {
   const _DashAppBar({required this.ctrl});
   @override
   Widget build(BuildContext context) {
+    final fmt = DateFormat('dd MMM yyyy');
+    final rangeLabel =
+        'Showing ${fmt.format(ctrl.filterFrom)} – ${fmt.format(ctrl.filterTo)}'
+        '${ctrl.filterStatus.isNotEmpty ? ' · ${ctrl.filterStatus}' : ''}';
     return Container(
       color: Colors.white,
       padding: EdgeInsets.only(
@@ -83,51 +87,51 @@ class _DashAppBar extends StatelessWidget {
           child: Container(
             width: 38,
             height: 38,
-            // decoration: BoxDecoration(
-            //     color: newSurfaceColor,
-            //     borderRadius: BorderRadius.circular(10)),
             alignment: Alignment.center,
             child: const Icon(Icons.arrow_back_ios_new,
                 size: 20, color: newTextPrimary),
           ),
         ),
         const SizedBox(width: 10),
-        const Expanded(
-            child: Text('Approval Hub',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: newTextPrimary))),
-        Stack(children: [
-          Container(
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              const Text('Approval Hub',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: newTextPrimary)),
+              const SizedBox(height: 2),
+              Row(children: [
+                const Icon(Icons.event_outlined,
+                    size: 12, color: newTextSecondary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(rangeLabel,
+                      style: const TextStyle(
+                          fontSize: 11, color: newTextSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+            ])),
+        // Filter button — date-only sheet (dashboard loads pending items only)
+        GestureDetector(
+          onTap: () => showFilterSheet(context, ctrl, showStatus: false),
+          child: Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: newBlueLightColor,
+                color:
+                    ctrl.isFilterActive ? purpleLightest : newBlueLightColor,
                 borderRadius: BorderRadius.circular(10)),
             alignment: Alignment.center,
-            child: const Icon(Icons.notifications_outlined,
-                size: 20, color: newBlueColor),
+            child: Icon(Icons.filter_list_sharp,
+                size: 20,
+                color: ctrl.isFilterActive ? purpleColor : newBlueColor),
           ),
-          if (ctrl.totalPending > 0)
-            Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(
-                      color: newRedColor, shape: BoxShape.circle),
-                  alignment: Alignment.center,
-                  child: Text(
-                    ctrl.totalPending > 99 ? '99+' : '${ctrl.totalPending}',
-                    style: const TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white),
-                  ),
-                )),
-        ]),
+        ),
       ]),
     );
   }
@@ -144,7 +148,7 @@ class _StatsRow extends StatelessWidget {
                 newRedLightColor)),
         const SizedBox(width: 10),
         Expanded(
-            child: _StatTile('${ctrl.totalOnHold}', 'On Hold', newOrangeColor,
+            child: _StatTile('${ctrl.totalOverdue}', 'Overdue', newOrangeColor,
                 newOrangeLightColor)),
         const SizedBox(width: 10),
         Expanded(
@@ -192,25 +196,31 @@ class _StatTile extends StatelessWidget {
 
 //  Overdue banner
 class _OverdueBanner extends StatelessWidget {
+  final ApprovalHubController ctrl;
+  const _OverdueBanner({required this.ctrl});
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-            color: newRedLightColor,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: newRedColor)),
-        child: const Row(children: [
-          Icon(Icons.warning_amber_rounded, size: 16, color: newRedColor),
-          SizedBox(width: 8),
-          Expanded(
-              child: Text('3 approvals overdue by more than 48 hours',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF991B1B)))),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final n = ctrl.totalOverdue;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+          color: newRedLightColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: newRedColor)),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_rounded, size: 16, color: newRedColor),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(
+                '$n approval${n == 1 ? '' : 's'} past due date',
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF991B1B)))),
+      ]),
+    );
+  }
 }
 
 //  Section heading
@@ -321,7 +331,7 @@ class _RecentList extends StatelessWidget {
   const _RecentList({required this.ctrl});
   @override
   Widget build(BuildContext context) {
-    final items = ctrl.allApprovals.take(4).toList();
+    final items = ctrl.recentApprovals;
     if (items.isEmpty)
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),

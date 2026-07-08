@@ -12,7 +12,9 @@ import 'package:digitalerp/screen/ui/home/home_controller.dart';
 import 'package:digitalerp/services/api_service/request_keys.dart';
 import 'package:digitalerp/utils/shared_pre.dart';
 import 'package:digitalerp/utils/show_message.dart';
+import 'package:digitalerp/payment_request/payment_request_model/payment_request_model.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import 'package:external_path/external_path.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -44,6 +46,98 @@ class DashboardController extends AppBaseController {
 
   ExecutiveDropdownData? selectedDropdownValue;
 
+  // ─── Home dashboard live metrics ───
+  int pendingApprovalCount = 0;
+  List<PaymentRequestModel> paymentRequests30d = [];
+  bool metricsLoading = false;
+
+  int get paymentRequest30dTotal => paymentRequests30d.length;
+
+  /// The only four buckets shown on the dashboard, in display order.
+  static const List<String> paymentRequestStatuses = [
+    'Pending',
+    'Approved',
+    'Paid',
+    'Rejected',
+  ];
+
+  /// Collapses any raw status spelling/casing (e.g. 'Reject', 'REJECTED') into
+  /// one of the four canonical buckets. Returns '' for anything unrecognised.
+  String _canonicalPrStatus(String? raw) {
+    final s = (raw ?? '').toLowerCase();
+    if (s.contains('pend')) return 'Pending';
+    if (s.contains('approv')) return 'Approved';
+    if (s.contains('paid')) return 'Paid';
+    if (s.contains('reject')) return 'Rejected';
+    return '';
+  }
+
+  int get pendingPaymentRequestCount => paymentRequests30d
+      .where((r) => _canonicalPrStatus(r.status) == 'Pending')
+      .length;
+
+  /// Fixed four buckets → count. Always returns all four keys (zeros included),
+  /// so reject variants collapse into a single 'Rejected' column.
+  Map<String, int> get paymentRequestStatusBreakdown {
+    final map = {for (final s in paymentRequestStatuses) s: 0};
+    for (final r in paymentRequests30d) {
+      final key = _canonicalPrStatus(r.status);
+      if (key.isNotEmpty) map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  Future<void> loadHomeMetrics() async {
+    metricsLoading = true;
+    update();
+    await Future.wait([_loadPendingApprovalCount(), _loadPaymentRequests30d()]);
+    metricsLoading = false;
+    update();
+  }
+
+  Future<void> _loadPendingApprovalCount() async {
+    try {
+      final body = {
+        RequestKeys.compId:
+            homeController.currentUserData?.compId.toString() ?? '',
+        RequestKeys.userId:
+            homeController.currentUserData?.userid.toString() ?? '',
+        RequestKeys.branchId:
+            homeController.currentUserData?.branchId.toString() ?? '',
+      };
+      final res = await api.getUnApprovalCount(body);
+      if (res.status == 200 && (res.data?.isNotEmpty ?? false)) {
+        pendingApprovalCount =
+            res.data!.first.counttotalunapproved?.toInt() ?? 0;
+      }
+    } catch (e) {
+      debugPrint('pendingApprovalCount error: $e');
+    }
+  }
+
+  Future<void> _loadPaymentRequests30d() async {
+    try {
+      final now = DateTime.now();
+      final from = now.subtract(const Duration(days: 30));
+      final body = <String, dynamic>{
+        'userid': homeController.currentUserData?.userid ?? '',
+        'compid': homeController.currentUserData?.compId ?? '',
+        'branchid': homeController.currentUserData?.branchId ?? '',
+        'fromdate': DateFormat('yyyy-MM-dd').format(from),
+        'todate': DateFormat('yyyy-MM-dd').format(now),
+      };
+      final res = await api.getPaymentRequestList(body);
+      if (res.status == 200) {
+        final rawList = res.data ?? [];
+        paymentRequests30d = (rawList as List<dynamic>)
+            .map((e) => PaymentRequestModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('paymentRequests30d error: $e');
+    }
+  }
+
   void setSelectDropdownValue(ExecutiveDropdownData value) {
     selectedDropdownValue = value;
     getDashboardDetails(value.executiveId.toString());
@@ -64,6 +158,7 @@ class DashboardController extends AppBaseController {
     }
 
     getCartList();
+    loadHomeMetrics();
     super.onInit();
   }
 

@@ -602,6 +602,8 @@ import '../../../../homeview_new_controller.dart';
 import '../../../../utils/app_constant_new.dart';
 import '../approval/approval_list/approval_list_Screen.dart';
 import '../attendance/attendance_controller.dart';
+import '../mis_module/attendance_report/attendance_report_controller.dart';
+import '../mis_module/attendance_report/attendance_report_view.dart';
 import '../home_controller.dart';
 
 class DashboardView extends StatelessWidget {
@@ -628,13 +630,9 @@ class DashboardView extends StatelessWidget {
                       const SizedBox(height: 20),
                       _statsRow(controller),
                       const SizedBox(height: 24),
-                      _sectionTitle('Revenue'),
+                      _sectionTitle('Payment Requests · Last 30 Days'),
                       const SizedBox(height: 12),
-                      _revenueChart(controller),
-                      const SizedBox(height: 24),
-                      _sectionTitle('Users Visits'),
-                      const SizedBox(height: 12),
-                      _visitsChart(controller),
+                      _paymentRequestBreakdown(controller),
                       const SizedBox(height: 24),
                       _sectionTitle('Attendance'),
                       const SizedBox(height: 12),
@@ -643,6 +641,10 @@ class DashboardView extends StatelessWidget {
                             ? Get.find<AttendanceController>()
                             : Get.put(AttendanceController()),
                       ),
+                      const SizedBox(height: 24),
+                      _sectionTitle('Team Attendance'),
+                      const SizedBox(height: 12),
+                      _teamAttendanceSection(),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -752,30 +754,26 @@ class DashboardView extends StatelessWidget {
     );
   }
 
-  //  Stats row 
+  //  Stats row (live data)
   Widget _statsRow(DashboardController controller) {
+    final loading = controller.metricsLoading;
     return Row(
       children: [
         Expanded(
-            child: _statCard('TOTAL ORDERS', '1200',
-                Icons.shopping_bag_outlined, newBlueColor, newBlueLightColor,
-                badge: '+5.2%')),
+            child: _statCard(
+                'PENDING APPROVALS',
+                loading ? '—' : '${controller.pendingApprovalCount}',
+                Icons.approval_outlined,
+                newBlueColor,
+                newBlueLightColor)),
         const SizedBox(width: 12),
         Expanded(
             child: _statCard(
-                'PENDING VISITS',
-                '15',
-                Icons.person_pin_circle_outlined,
+                'PENDING PAYMENT REQ.',
+                loading ? '—' : '${controller.pendingPaymentRequestCount}',
+                Icons.account_balance_wallet_outlined,
                 newOrangeColor,
                 newOrangeLightColor)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _statCard(
-                'PAYMENT DUE',
-                '₹1.2L',
-                Icons.account_balance_wallet_outlined,
-                newRedColor,
-                newRedLightColor)),
       ],
     );
   }
@@ -1579,6 +1577,304 @@ class DashboardView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  //  Payment requests status breakdown (last 30 days, live data)
+  Widget _paymentRequestBreakdown(DashboardController controller) {
+    final breakdown = controller.paymentRequestStatusBreakdown;
+    final total = controller.paymentRequest30dTotal;
+    // Keep the fixed canonical order (Pending, Approved, Paid, Rejected).
+    final entries = breakdown.entries.toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Total requests',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: newTextSecondary)),
+              const Spacer(),
+              Text('$total',
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: newTextPrimary)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (controller.metricsLoading && total == 0)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                  child: CircularProgressIndicator(
+                      color: newBlueColor, strokeWidth: 2)),
+            )
+          else if (total == 0)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text('No payment requests in the last 30 days',
+                    style: TextStyle(fontSize: 13, color: newTextSecondary)),
+              ),
+            )
+          else
+            ...entries.map((e) {
+              final color = _prStatusColor(e.key);
+              final frac = total == 0 ? 0.0 : e.value / total;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration:
+                              BoxDecoration(color: color, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(_capitalize(e.key),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: newTextPrimary)),
+                        const Spacer(),
+                        Text('${e.value}',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: color)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: frac,
+                        minHeight: 7,
+                        backgroundColor: newSurfaceColor,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Color _prStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return newBlueColor;
+      case 'finalised':
+        return const Color(0xFF9C27B0);
+      case 'paid':
+        return newGreenColor;
+      case 'rejected':
+        return newRedColor;
+      case 'pending':
+        return newOrangeColor;
+      default:
+        return newTextSecondary;
+    }
+  }
+
+  String _capitalize(String s) => s.isEmpty
+      ? s
+      : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
+
+  //  Team attendance (per-employee, current month)
+  Widget _teamAttendanceSection() {
+    return GetBuilder<AttendanceReportController>(
+      init: AttendanceReportController(),
+      builder: (c) => (c.isBusy && c.attendanceReportList.isEmpty)
+          ? Container(
+              height: 120,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2))
+                ],
+              ),
+              child: const CircularProgressIndicator(
+                  color: newBlueColor, strokeWidth: 2),
+            )
+          : _teamAttendanceTable(c),
+    );
+  }
+
+  Widget _teamAttendanceTable(AttendanceReportController controller) {
+    final list = controller.attendanceReportList;
+    final display = list.take(6).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Column(
+        children: [
+          //  Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: newSurfaceColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                    flex: 5,
+                    child: Text('Employee',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: newTextSecondary,
+                            letterSpacing: 0.4))),
+                Expanded(
+                    flex: 3,
+                    child: Text('Present',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: newTextSecondary,
+                            letterSpacing: 0.4))),
+                Expanded(
+                    flex: 3,
+                    child: Text('Absent',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: newTextSecondary,
+                            letterSpacing: 0.4))),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: newBorderColor),
+
+          //  Empty state
+          if (display.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text('No attendance records',
+                    style: TextStyle(fontSize: 13, color: newTextSecondary)),
+              ),
+            )
+          else
+            ...display.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isLast = index == display.length - 1;
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    color: index.isOdd ? newSurfaceColor : Colors.white,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: Text(
+                            item.name ?? '-',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: newTextPrimary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Expanded(
+                            flex: 3,
+                            child: _countPill(item.presentdays ?? '0',
+                                newGreenColor, newGreenLightColor)),
+                        Expanded(
+                            flex: 3,
+                            child: _countPill(item.absentdays ?? '0',
+                                newRedColor, newRedLightColor)),
+                      ],
+                    ),
+                  ),
+                  if (!isLast) const Divider(height: 1, color: newBorderColor),
+                ],
+              );
+            }),
+
+          //  View All button
+          Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: newBorderColor, width: 0.5)),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+            ),
+            child: TextButton(
+              onPressed: () => Get.to(() => const AttendanceReportView()),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('View All',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: newBlueColor)),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: newBlueColor),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //  Present/Absent count pill
+  Widget _countPill(String value, Color color, Color bg) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        child: Text(value,
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
       ),
     );
   }

@@ -60,7 +60,10 @@ flutter build apk --split-per-abi
 
 2)Release APK (for sharing / production)
 paste this ---------
-9981705001
+flutter clean
+flutter pub get
+flutter build apk --release
+
     
 3)Debug APK (for testing)
 paste this ------------

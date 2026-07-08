@@ -696,14 +696,7 @@ class ExecutiveAttendanceView extends StatelessWidget {
                 Icons.person_pin_circle_outlined,
                 newOrangeColor,
                 newOrangeLightColor)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _statCard(
-                'PAYMENT DUE',
-                controller.paymentDue,
-                Icons.account_balance_wallet_outlined,
-                newRedColor,
-                newRedLightColor)),
+        // Payment Due tile hidden — value was a hardcoded ₹0 placeholder.
       ],
     );
   }

@@ -136,19 +136,24 @@ class _AppBar extends StatelessWidget {
 
 //  Filter bottom sheet
 
-void showFilterSheet(BuildContext context, ApprovalHubController ctrl) {
+void showFilterSheet(BuildContext context, ApprovalHubController ctrl,
+    {bool showStatus = true}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _FilterSheet(ctrl: ctrl),
+    builder: (_) => _FilterSheet(ctrl: ctrl, showStatus: showStatus),
   );
 }
 
 class _FilterSheet extends StatefulWidget {
   final ApprovalHubController ctrl;
 
-  const _FilterSheet({required this.ctrl});
+  /// When false, the Status section is hidden and the sheet filters by date
+  /// only (used by the dashboard, which loads pending items only).
+  final bool showStatus;
+
+  const _FilterSheet({required this.ctrl, this.showStatus = true});
 
   @override
   State<_FilterSheet> createState() => _FilterSheetState();
@@ -183,7 +188,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     super.initState();
     _from = widget.ctrl.filterFrom;
     _to = widget.ctrl.filterTo;
-    _status = widget.ctrl.filterStatus;
+    _status = widget.showStatus ? widget.ctrl.filterStatus : '';
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -333,48 +338,49 @@ class _FilterSheetState extends State<_FilterSheet> {
                       onTap: () => _pickDate(isFrom: false))),
             ]),
           ),
-          const SizedBox(height: 20),
-
-          //  Status filter
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Status',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: newTextSecondary)),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _statuses.map((s) {
-                final label = s.isEmpty ? 'All' : s;
-                final isOn = _status == s;
-                return GestureDetector(
-                  onTap: () => setState(() => _status = s),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 140),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isOn ? newBlueColor : newSurfaceColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: isOn ? newBlueColor : newBorderColor),
-                    ),
-                    child: Text(label,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isOn ? Colors.white : newTextSecondary)),
-                  ),
-                );
-              }).toList(),
+          //  Status filter (hidden on the dashboard — pending only)
+          if (widget.showStatus) ...[
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Status',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: newTextSecondary)),
             ),
-          ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _statuses.map((s) {
+                  final label = s.isEmpty ? 'All' : s;
+                  final isOn = _status == s;
+                  return GestureDetector(
+                    onTap: () => setState(() => _status = s),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isOn ? newBlueColor : newSurfaceColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: isOn ? newBlueColor : newBorderColor),
+                      ),
+                      child: Text(label,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isOn ? Colors.white : newTextSecondary)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
           const SizedBox(height: 28),
 
           //  Apply button
@@ -382,7 +388,12 @@ class _FilterSheetState extends State<_FilterSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: GestureDetector(
               onTap: () {
-                widget.ctrl.applyFilter(from: _from, to: _to, status: _status);
+                // Dashboard (showStatus == false) filters by date only and
+                // loads pending items; the list screen also filters by status.
+                widget.ctrl.applyFilter(
+                    from: _from,
+                    to: _to,
+                    status: widget.showStatus ? _status : '');
                 Get.back();
               },
               child: Container(

@@ -282,7 +282,7 @@ class ApprovalHubController extends AppBaseController {
   static const List<String> _fallbackEmojis = ['📑', '🗂', '📊', '🔖', '📝'];
 
   // Stats
-  int totalPending = 0, totalOnHold = 0, totalThisMonth = 0;
+  int totalPending = 0, totalOnHold = 0, totalThisMonth = 0, totalOverdue = 0;
 
   List<ApprovalCategory> categories = [];
 
@@ -331,13 +331,21 @@ class ApprovalHubController extends AppBaseController {
         lightColor: Color(style['light'] as int),
       );
     }
-    final i = fallbackIndex % _fallbackColors.length;
+    // Deterministic style derived from the category name, so a given approval
+    // type always renders with the same colour/emoji regardless of the order
+    // it was discovered in — and any brand-new type gets a stable, distinct
+    // look instead of a generic one.
+    final hash = key.isEmpty
+        ? fallbackIndex
+        : key.codeUnits.fold<int>(7, (h, c) => (h * 31 + c) & 0x7fffffff);
+    final ci = hash % _fallbackColors.length;
+    final ei = hash % _fallbackEmojis.length;
     return ApprovalCategory(
       key: key,
       label: _humanize(key),
-      emoji: _fallbackEmojis[i % _fallbackEmojis.length],
-      color: Color(_fallbackColors[i]),
-      lightColor: Color(_fallbackLights[i]),
+      emoji: _fallbackEmojis[ei],
+      color: Color(_fallbackColors[ci]),
+      lightColor: Color(_fallbackLights[ci]),
     );
   }
 
@@ -404,25 +412,11 @@ class ApprovalHubController extends AppBaseController {
       }).toList();
     }
 
-    // Date range filter — parse DocumentDate 'dd-MM-yyyy'
-    list = list.where((a) {
-      if (a.documentDate == null || a.documentDate!.isEmpty) return true;
-      try {
-        final parts = a.documentDate!.split('-');
-        if (parts.length != 3) return true;
-        final date = DateTime(
-          int.parse(parts[2]), // year
-          int.parse(parts[1]), // month
-          int.parse(parts[0]), // day
-        );
-        return !date.isBefore(
-                DateTime(filterFrom.year, filterFrom.month, filterFrom.day)) &&
-            !date
-                .isAfter(DateTime(filterTo.year, filterTo.month, filterTo.day));
-      } catch (_) {
-        return true;
-      }
-    }).toList();
+    // NOTE: No date-range filter here on purpose. The date range is already
+    // applied once, at the source, in _fetchAllApprovals() via _inDateRange().
+    // Because the tile counts are computed from that same fetched set, the
+    // category tile count and this list are guaranteed to match.
+    // Changing the date range re-fetches via applyFilter()/resetFilter().
 
     return list;
   }
@@ -630,20 +624,22 @@ class ApprovalHubController extends AppBaseController {
     // This month — pending items whose date falls in current month
     final now = DateTime.now();
     totalThisMonth = allApprovals.where((a) {
-      if (a.documentDate == null || a.documentDate!.isEmpty) return false;
-      try {
-        final parts = a.documentDate!.split('-');
-        if (parts.length != 3) return false;
-        final date = DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        );
-        return date.month == now.month && date.year == now.year;
-      } catch (_) {
-        return false;
-      }
+      final date = _parseDate(a.documentDate);
+      if (date == null) return false;
+      return date.month == now.month && date.year == now.year;
     }).length;
+
+    // Overdue — items past their due date, overall and per category
+    totalOverdue = allApprovals.where(isOverdue).length;
+    for (final c in categories) {
+      c.overdueCount = 0;
+    }
+    for (final a in allApprovals) {
+      if (!isOverdue(a)) continue;
+      final cat = categories.firstWhereOrNull(
+          (c) => c.key == a.approvalTypeCode || c.key == a.approvalType);
+      if (cat != null) cat.overdueCount++;
+    }
 
     update();
   }
@@ -672,6 +668,9 @@ class ApprovalHubController extends AppBaseController {
         final seen = <String>{};
         return res.data!.where((a) {
           if (a.documentId == null) return false;
+          // Honor the selected date range (by DocumentDate) here, at the source,
+          // so tile counts, stats and the list all reflect the same set.
+          if (!_inDateRange(a)) return false;
           // ✅ Deduplicate by documentId + approvalTypeCode together
           final key =
               '${a.documentId}_${a.approvalTypeCode ?? a.approvalType ?? ""}';
@@ -1251,6 +1250,60 @@ class ApprovalHubController extends AppBaseController {
   }
 
   //  Helpers
+
+  /// Parses a 'dd-MM-yyyy' date string (e.g. '30-06-2026') to a DateTime.
+  /// Returns null for missing/blank/unparseable values. Shared by the date
+  /// range, overdue and recent-sort logic so they all agree on parsing.
+  DateTime? _parseDate(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      final parts = s.split('-');
+      if (parts.length != 3) return null;
+      return DateTime(
+        int.parse(parts[2]), // year
+        int.parse(parts[1]), // month
+        int.parse(parts[0]), // day
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// True if the item's DocumentDate falls within the selected [filterFrom,
+  /// filterTo] range. Items with a missing/unparseable date are kept.
+  /// Single source of truth used by BOTH the tile counts and the list, so the
+  /// category tile and its list can never disagree.
+  bool _inDateRange(ApprovalListData a) {
+    final date = _parseDate(a.documentDate);
+    if (date == null) return true; // keep undated items
+    return !date.isBefore(
+            DateTime(filterFrom.year, filterFrom.month, filterFrom.day)) &&
+        !date.isAfter(DateTime(filterTo.year, filterTo.month, filterTo.day));
+  }
+
+  /// True if the item is past its due date (overdue). Items without a due date
+  /// are never treated as overdue.
+  bool isOverdue(ApprovalListData a) {
+    final due = _parseDate(a.dueDate);
+    if (due == null) return false;
+    final now = DateTime.now();
+    return due.isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  /// The most recently submitted items (newest DocumentDate first), for the
+  /// dashboard's "Recently Submitted" section.
+  List<ApprovalListData> get recentApprovals {
+    final list = List<ApprovalListData>.from(allApprovals);
+    list.sort((a, b) {
+      final da = _parseDate(a.documentDate);
+      final db = _parseDate(b.documentDate);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1; // undated items sink to the bottom
+      if (db == null) return -1;
+      return db.compareTo(da); // newest first
+    });
+    return list.take(5).toList();
+  }
 
   // Base params shared by all API calls
   Map<String, String> _base() => {
