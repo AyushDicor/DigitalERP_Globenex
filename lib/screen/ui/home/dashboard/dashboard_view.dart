@@ -641,10 +641,15 @@ class DashboardView extends StatelessWidget {
                             ? Get.find<AttendanceController>()
                             : Get.put(AttendanceController()),
                       ),
-                      const SizedBox(height: 24),
-                      _sectionTitle('Team Attendance'),
-                      const SizedBox(height: 12),
-                      _teamAttendanceSection(),
+                      // Team Attendance is only for admins/managers (users who
+                      // oversee more than one executive). Everyone else sees
+                      // just their own attendance section above.
+                      if (controller.isManager) ...[
+                        const SizedBox(height: 24),
+                        _sectionTitle('Team Attendance'),
+                        const SizedBox(height: 12),
+                        _teamAttendanceSection(),
+                      ],
                       const SizedBox(height: 20),
                     ],
                   ),
