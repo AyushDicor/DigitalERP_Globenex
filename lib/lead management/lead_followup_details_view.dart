@@ -653,7 +653,8 @@ import 'package:digitalerp/screen/ui/home/approval/approval_filtter/approval_fil
 import 'package:digitalerp/screen/ui/home/home_controller.dart';
 import 'package:digitalerp/screen/ui/home/order/select_brand/select_brand_view.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
-import 'package:digitalerp/utils/date_widget.dart';
+// date_widget removed — the Next Follow up Entry Date now uses this screen's
+// own _styledDateField instead of the legacy AppDateWidgetNew.
 import 'package:digitalerp/utils/show_message.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/foundation.dart';
@@ -786,7 +787,12 @@ Widget _dropdownShell({required String hint, List<DropdownMenuItem>? items}) =>
       ),
     );
 
+// NOTE: these two used `CircleBorder`, which forces a circular outline while
+// the button still lays out at full row width — so the label rendered outside
+// the circle ("Submit" spilling past its edge). Full-width rounded rectangles
+// are what the rest of the app uses.
 Widget _solidButton(String label, VoidCallback onTap) => SizedBox(
+      width: double.infinity,
       height: 48,
       child: ElevatedButton(
         onPressed: onTap,
@@ -794,8 +800,7 @@ Widget _solidButton(String label, VoidCallback onTap) => SizedBox(
           backgroundColor: _kBlue,
           foregroundColor: _kWhite,
           elevation: 0,
-          shape:
-                  const CircleBorder(side: BorderSide(color: Colors.white, width: 2)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: Text(label,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -803,14 +808,14 @@ Widget _solidButton(String label, VoidCallback onTap) => SizedBox(
     );
 
 Widget _outlineButton(String label, VoidCallback onTap) => SizedBox(
+      width: double.infinity,
       height: 48,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: _kBlue,
           side: const BorderSide(color: _kBorder, width: 1.5),
-          shape:
-                  const CircleBorder(side: BorderSide(color: Colors.white, width: 2)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: Text(label,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -946,6 +951,16 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
   }
 
   Widget _datePickerField(BuildContext context, LeadManagementController ctrl) {
+    return _styledDateField(
+        context, ctrl.selectDatef.toString(), ctrl.setSelectedDatef);
+  }
+
+  /// Extracted so the "Next Follow up Details" Entry Date can reuse it. That
+  /// field previously used the shared `AppDateWidgetNew`, whose legacy
+  /// gradient styling clashed with every other plain bordered field on this
+  /// screen.
+  Widget _styledDateField(
+      BuildContext context, String value, ValueChanged<String> onPicked) {
     return GestureDetector(
       onTap: () async {
         final picked = await showDatePicker(
@@ -962,7 +977,7 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
           ),
         );
         if (picked != null) {
-          ctrl.setSelectedDatef(DateFormat(AppString.ddMMyyyy).format(picked));
+          onPicked(DateFormat(AppString.ddMMyyyy).format(picked));
         }
       },
       child: Container(
@@ -973,7 +988,7 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
             border: Border.all(color: _kBorder)),
         child: Row(children: [
           Expanded(
-            child: Text(ctrl.selectDatef.toString(),
+            child: Text(value,
                 style: const TextStyle(fontSize: 14, color: _kTextPrimary)),
           ),
           const Icon(Icons.calendar_today_outlined, size: 16, color: _kTextSub),
@@ -998,9 +1013,8 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
                 fontWeight: FontWeight.w700,
                 color: _kTextPrimary)),
         const SizedBox(height: 14),
-        AppDateWidgetNew(
-            value: controller.selectDate2,
-            onSelectDate: controller.setSelectedDate2),
+        _styledDateField(
+            context, controller.selectDate2.toString(), controller.setSelectedDate2),
         const SizedBox(height: 14),
         _sectionLabel('Follow up Time'),
         _textField(

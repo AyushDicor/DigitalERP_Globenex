@@ -59,6 +59,17 @@ class NewVisitPlanningFilterController extends AppBaseController {
   void onChangedStateListValue(Object? newValue) {
     //indexOfSelectedValue = dropdownList1.indexOf(newValue);
     selectedStateNewVisit = newValue;
+    // Was never pushed to the parent controller, so the chosen State was
+    // silently dropped and never reached the API.
+    newVisitPlanController.newVisitStateFilterSelectedValue = selectedStateNewVisit;
+    // Changing State invalidates the previously picked City/Area — they belong
+    // to the old state's lists, so clear them rather than leaving a stale pair.
+    selectedCityNewVisit = null;
+    selectedAreaNewVisit = null;
+    newVisitPlanController.newVisitCityFilterSelectedValue = null;
+    newVisitPlanController.newVisitAreaFilterSelectedValue = null;
+    newVisitFilterCityList = [];
+    newVisitFilterAreaList = [];
     getCity(selectedStateNewVisit.stateid.toString());
     if (newVisitPlanController != null) {
       update();

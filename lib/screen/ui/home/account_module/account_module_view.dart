@@ -115,17 +115,9 @@ const Color _kText   = Color(0xFF111827);
 const Color _kSub    = Color(0xFF6B7280);
 const Color _kBorder = Color(0xFFE4E7EF);
 
-// Icon map per menu index
-const List<IconData> _menuIcons = [
-  Icons.payments_outlined,           // Payment Entry
-  Icons.receipt_long_outlined,       // Receipt Entry
-  Icons.account_balance_outlined,    // Collection
-  Icons.money_off_outlined,          // Expenses
-  Icons.swap_horiz_outlined,         // Party Ledger
-  Icons.compare_arrows_outlined,     // Contra
-  Icons.book_outlined,               // Journal
-  Icons.person_search_outlined,      // Party Transactions
-];
+// Icons now live on each AccountMenu (see account_menu_model.dart). They used
+// to be looked up by list index, which breaks once the list is filtered by
+// user access — the icons would silently shift to the wrong tiles.
 
 class AccountModuleView extends StatelessWidget {
   const AccountModuleView({Key? key}) : super(key: key);
@@ -155,31 +147,67 @@ class AccountModuleView extends StatelessWidget {
             child: Container(color: _kBorder, height: 1),
           ),
         ),
-        floatingActionButton: MenuFab(parentMenuId: 2382),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.15,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
+        floatingActionButton: MenuFab(
+            parentMenuId: AccountModuleController.accountsParentMenuId),
+        body: _buildBody(controller),
+      ),
+    );
+  }
+}
+
+Widget _buildBody(AccountModuleController controller) {
+  if (controller.menuAccessLoading) {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  final items = controller.visibleMenuList;
+
+  if (items.isEmpty) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline_rounded, size: 44, color: _kSub),
+            const SizedBox(height: 14),
+            const Text(
+              'No access',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: _kText),
             ),
-            itemCount: controller.menuList.length,
-            itemBuilder: (context, index) => _MenuCard(
-              name: controller.menuList[index].name,
-              color1: controller.menuList[index].color1,
-              color2: controller.menuList[index].color2,
-              icon: index < _menuIcons.length
-                  ? _menuIcons[index]
-                  : Icons.widgets_outlined,
-              onTap: () => controller.tapOnCard(index),
+            const SizedBox(height: 6),
+            const Text(
+              "You don't have access to any Account features. "
+              'Please contact your administrator.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: _kSub, height: 1.4),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+    child: GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.15,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) => _MenuCard(
+        name: items[index].name,
+        color1: items[index].color1,
+        color2: items[index].color2,
+        icon: items[index].icon ?? Icons.widgets_outlined,
+        onTap: () => controller.tapOnMenu(items[index]),
+      ),
+    ),
+  );
 }
 
 class _MenuCard extends StatelessWidget {

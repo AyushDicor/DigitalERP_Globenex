@@ -59,6 +59,9 @@ class MethodName {
   static const getQuestionAgainLeads = "Quotation/getleadForQuotation";
   static const insertQuote = "InsertQuotation/saveQuotation";
   static const getQuote = "GetQuotation/getleadForQuotation";
+  static const getCallLogs = "GetCalllog/GetCalllogslist";
+  static const leadSources = "leadsource/leadsourcedropdown";
+  static const String agentParty = 'agentparty';
 
   /// group and main group
   ///

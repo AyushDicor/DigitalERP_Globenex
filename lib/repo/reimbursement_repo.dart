@@ -22,19 +22,21 @@ class ReimbursementRepo {
     }
   }
 
-  //  Currency dropdown 
-  // static Future<ResponseItem> currencyDropDownList(
-  //     Map<String, dynamic> requestData) async {
-  //   try {
-  //     final url = AppUrls.baseUrl + MethodName.selectCurrency;
-  //     return await BaseApiHelper.postRequest(url, requestData);
-  //   } catch (e) {
-  //     return ResponseItem(
-  //       status: false,
-  //       message: "currencyDropDownList: ${e.toString()}",
-  //     );
-  //   }
-  // }
+  //  Currency dropdown
+  // Re-enabled for the Lead "Create Quote" screen, which needs the currency
+  // list. The endpoint was already declared in base_url.dart.
+  static Future<ResponseItem> currencyDropDownList(
+      Map<String, dynamic> requestData) async {
+    try {
+      final url = AppUrls.baseUrl + MethodName.selectCurrency;
+      return await BaseApiHelper.postRequest(url, requestData);
+    } catch (e) {
+      return ResponseItem(
+        status: false,
+        message: "currencyDropDownList: ${e.toString()}",
+      );
+    }
+  }
 
   //  Submit reimbursement 
   static Future<ResponseItem> submitReimbursementMethod(

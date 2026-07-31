@@ -819,8 +819,11 @@ class _QtyController extends StatelessWidget {
                 ),
                 controller: controller.quantityTextController,
                 focusNode: controller.quantityTextFocus,
+                autofocus: true,
                 onFieldSubmitted: (value) =>
                     controller.onSubmitTextFieldQty(value, index),
+                onTapOutside: (_) => controller.onSubmitTextFieldQty(
+                    controller.quantityTextController.text, index),
               ),
             )
                 : GestureDetector(

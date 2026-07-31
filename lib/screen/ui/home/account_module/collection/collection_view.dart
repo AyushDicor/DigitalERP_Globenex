@@ -3,14 +3,19 @@ import 'dart:io';
 
 import 'package:digitalerp/response/cash_bank_ledger_response.dart';
 import 'package:digitalerp/response/collection_customer_list_response.dart';
-import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/fab/menu_fab.dart';
 import 'package:digitalerp/screen/ui/home/account_module/collection/collection_controller.dart';
-import 'package:digitalerp/utils/app_assets.dart';
-import 'package:digitalerp/utils/app_bottom_button.dart';
-import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/app_constant_new.dart'
+    show
+        AppString,
+        newTextPrimary,
+        newTextSecondary,
+        newTextHint,
+        newBorderColor,
+        newSurfaceColor,
+        newBlueColor,
+        newBlueLightColor;
 import 'package:digitalerp/utils/app_loader.dart';
-import 'package:digitalerp/utils/my_app_bar_new.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,218 +31,95 @@ class CollectionView extends StatelessWidget {
       init: CollectionController(),
       builder: (controller) => Scaffold(
         resizeToAvoidBottomInset: false,
-        body: Center(
-          child: Stack(
+        backgroundColor: newSurfaceColor,
+        body: SafeArea(
+          child: Column(
             children: [
-              Positioned(
-                top: 0,
-                bottom: 0,
-                right: 0,
-                left: 0,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(AppAssets.dashboardBg),
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  child: SafeArea(
-                    child: MyAppBar(
-                      title: 'Collection',
-                      onBackTap: () => controller.backTap(),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 0,
-                left: 0,
-                bottom: 0,
-                top: Get.height * 0.135,
+              _appBar(controller),
+              Expanded(
                 child: controller.isBusy
                     ? const AppLoader()
                     : SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: Get.height * 0.02),
-                              controller.argument == null
-                                  ? _dropdown(controller)
-                                  : Container(
-                                      width: Get.width,
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                          color: dropdownBoxColor,
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      child: Text(
-                                        controller.customerName,
-                                        style:
-                                            const TextStyle().bold.copyWith(),
-                                      ),
-                                    ),
-                              const SizedBox(height: 20),
-                              _dateView(
-                                  context, controller.selectDate, controller),
-                              const SizedBox(height: 15),
-                              TextFormField(
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                maxLength: 6,
-                                style: const TextStyle().light,
-                                keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.next,
-                                controller: controller.amountController,
-                                focusNode: controller.amountFocus,
-                                decoration:
-                                    const InputDecoration().txtFieldStyle2(
-                                  hintText: AppString.enterAmount,
-                                  labelName: AppString.amount,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text('  ${AppString.paymentMode}',
-                                  style: const TextStyle().normal.copyWith(
-                                      color: red2Color, fontSize: 12)),
-                              ListView.builder(
-                                shrinkWrap: true,
-                                padding: EdgeInsets.zero,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: controller.paymentOptionList.length,
-                                itemBuilder: (context, index) {
-                                  return Column(
-                                    children: [
-                                      controller.selectedIndex == 1
-                                          ? paymentCard2(
-                                              controller, index, context)
-                                          : paymentCard(controller, index),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              _cashAndBankLedgerDropdown(controller),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              TextFormField(
-                                style: const TextStyle().light,
-                                minLines: 4,
-                                maxLines: 6,
-                                keyboardType: TextInputType.text,
-                                textInputAction: TextInputAction.next,
-                                controller: controller.remarkController,
-                                focusNode: controller.remarkFocus,
-                                decoration:
-                                    const InputDecoration().txtFieldStyle2(
-                                  hintText: AppString.type,
-                                  labelName: AppString.remark,
-                                ),
-                              ),
-                              const SizedBox(height: 15),
-                              Material(
-                                child: InkWell(
-                                  onTap: () => _showImageDialog(controller),
-                                  child: Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionLabel('Customer'),
+                            const SizedBox(height: 8),
+                            controller.argument == null
+                                ? _customerDropdown(controller)
+                                : Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(10),
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            grBottomColor.withValues(
-                                                alpha: 0.2),
-                                            grTopColor.withValues(alpha: 0.2),
-                                          ],
-                                        )),
-                                    padding: EdgeInsets.symmetric(
-                                      vertical:
-                                          controller.selectedImage.value == ''
-                                              ? 45
-                                              : 0,
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: newBorderColor),
                                     ),
-                                    alignment: Alignment.center,
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Visibility(
-                                      visible:
-                                          controller.selectedImage.value == '',
-                                      child: Image.asset(
-                                        AppAssets.uploadIcon,
-                                        height: 28,
-                                        width: 28,
-                                      ),
-                                      replacement: Image.file(
-                                        File(controller.selectedImage.value),
-                                        fit: BoxFit.fill,
-                                      ),
+                                    child: Text(
+                                      controller.customerName,
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: newTextPrimary),
                                     ),
                                   ),
+                            const SizedBox(height: 16),
+                            _sectionLabel('Select Date'),
+                            const SizedBox(height: 8),
+                            _dateField(context, controller),
+                            const SizedBox(height: 16),
+                            _sectionLabel(AppString.amount),
+                            const SizedBox(height: 8),
+                            _boxField(
+                              controller: controller.amountController,
+                              focusNode: controller.amountFocus,
+                              hint: AppString.enterAmount,
+                              maxLength: 6,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            ),
+                            const SizedBox(height: 16),
+                            _sectionLabel(AppString.paymentMode),
+                            const SizedBox(height: 8),
+                            ...List.generate(
+                              controller.paymentOptionList.length,
+                              (index) => _paymentCard(controller, index, context),
+                            ),
+                            const SizedBox(height: 8),
+                            _sectionLabel(AppString.selectCollectionLedger),
+                            const SizedBox(height: 8),
+                            _ledgerDropdown(controller),
+                            const SizedBox(height: 16),
+                            _sectionLabel(AppString.remark),
+                            const SizedBox(height: 8),
+                            _boxField(
+                              controller: controller.remarkController,
+                              focusNode: controller.remarkFocus,
+                              hint: AppString.type,
+                              maxLines: 4,
+                            ),
+                            const SizedBox(height: 16),
+                            _imageUploadSection(controller),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: () => controller.tapOnSubmit(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: newBlueColor,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Submit',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
                                 ),
                               ),
-                              Align(
-                                alignment: Alignment.center,
-                                child: TextButton(
-                                  onPressed: () => _showImageDialog(controller),
-                                  child: Text(
-                                      controller.selectedImage.value == ''
-                                          ? 'Upload picture'
-                                          : 'Change image',
-                                      style: const TextStyle().normal.copyWith(
-                                          color: red2Color, fontSize: 12)),
-                                ),
-                              ),
-                              const SizedBox(height: 80),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
                       ),
               ),
-              Positioned(
-                bottom: 80,
-                right: 20,
-                child: Visibility(
-                  visible: false,
-                  child: InkWell(
-                    onTap: () {
-                      controller.onTabAccountModule();
-                    },
-                    child: Container(
-                      height: 60,
-                      width: 60,
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15),
-                          gradient: gr2,
-                          boxShadow: const [
-                            BoxShadow(
-                              blurRadius: 10,
-                              color: purpleColor,
-                            )
-                          ]),
-                      padding: const EdgeInsets.all(10),
-                      alignment: Alignment.center,
-                      child: Image.asset(
-                        AppAssets.accountsModuleIcon,
-                        height: 18,
-                        width: 28,
-                        fit: BoxFit.fill,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: AppBottomButton(
-                    onPressed: () {
-                      controller.tapOnSubmit();
-                    },
-                    name: 'Submit'),
-              )
             ],
           ),
         ),
@@ -246,341 +128,291 @@ class CollectionView extends StatelessWidget {
     );
   }
 
-  Widget _dateView(
-      BuildContext context, String value, CollectionController ctrl) {
-    return InkWell(
-      onTap: () => ctrl.tapOnDate(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+  Widget _appBar(CollectionController controller) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          IconButton(
+            onPressed: () => controller.backTap(),
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: newTextPrimary, size: 20),
+          ),
+          Text(
+            'Collection',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: newTextPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label) {
+    return Text(
+      label,
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: newTextSecondary),
+    );
+  }
+
+  Widget _dateField(BuildContext context, CollectionController controller) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => controller.tapOnDate(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: newBorderColor),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              controller.selectDate,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: newTextPrimary),
+            ),
+            Icon(Icons.calendar_today_rounded, size: 16, color: newBlueColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _boxField({
+    required TextEditingController controller,
+    required String hint,
+    FocusNode? focusNode,
+    int maxLines = 1,
+    int? maxLength,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: newBorderColor),
+      ),
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        maxLines: maxLines,
+        maxLength: maxLength,
+        keyboardType: maxLines > 1 ? TextInputType.multiline : keyboardType,
+        textInputAction: maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+        inputFormatters: inputFormatters,
+        style: TextStyle(fontSize: 14, color: newTextPrimary),
+        decoration: InputDecoration(
+          counterText: '',
+          hintText: hint,
+          hintStyle: TextStyle(fontSize: 14, color: newTextHint),
+          filled: false,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentCard(CollectionController controller, int index, BuildContext context) {
+    final bool selected = controller.selectedIndex == index;
+    final bool isCheque = index == 1;
+    return GestureDetector(
+      onTap: () => controller.setSelectedIndex(index),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? newBlueColor : newBorderColor, width: selected ? 1.5 : 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Select Date',
-                  style: const TextStyle()
-                      .bold
-                      .copyWith(color: red2Color, fontSize: 12),
+                  controller.paymentOptionList[index],
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: newTextPrimary),
                 ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(value, style: const TextStyle().normal),
-                    Image.asset(
-                      AppAssets.calendarIcon,
-                      width: 18,
-                      height: 18,
-                    )
-                  ],
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  color: selected ? newBlueColor : newTextHint,
+                  size: 22,
                 ),
               ],
             ),
-          ),
-          const Divider(
-            color: purpleColor,
-            thickness: 1,
-            height: 2,
-          ),
-        ],
+            if (selected && isCheque) ...[
+              const SizedBox(height: 12),
+              _boxField(
+                controller: controller.chequeNoController,
+                hint: 'Cheque No.',
+                maxLength: 6,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => controller.tapOnChequeDate(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F6FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: newBorderColor),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        controller.selectChequeDate,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: newTextSecondary),
+                      ),
+                      Icon(Icons.calendar_today_rounded, size: 16, color: newBlueColor),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget paymentCard(
-    CollectionController controller,
-    int index,
-  ) {
-    return SizedBox(
-      height: 60,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            right: 14,
-            bottom: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.transparent,
-                border: Border.all(width: 1, color: purpleColor),
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12.5),
+  Widget _customerDropdown(CollectionController controller) {
+    return _styledDropdown<CustomerData>(
+      value: controller.selectedDropdownValue,
+      hint: AppString.selectCustomer,
+      items: controller.customerDataList
+          .map((e) => DropdownMenuItem<CustomerData>(
+                value: e,
+                child: Text(
+                  e.partyname.toString(),
+                  style: TextStyle(fontSize: 14, color: newTextPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ))
+          .toList(),
+      onChanged: (newValue) => controller.setDropdownValue(newValue),
+    );
+  }
+
+  Widget _ledgerDropdown(CollectionController controller) {
+    return _styledDropdown<CashAndBankLedgerDataList>(
+      value: controller.selectedCollectionLedgerValue,
+      hint: AppString.selectCollectionLedger,
+      items: controller.cashAndBankLedgerList
+          .map((e) => DropdownMenuItem<CashAndBankLedgerDataList>(
+                value: e,
+                child: Text(
+                  e.partyname.toString(),
+                  style: TextStyle(fontSize: 14, color: newTextPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ))
+          .toList(),
+      onChanged: (newValue) => controller.setCashAndBankLedgerDropdownValue(newValue),
+    );
+  }
+
+  Widget _styledDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton2<T>(
+        isExpanded: true,
+        buttonHeight: 50,
+        buttonPadding: const EdgeInsets.symmetric(horizontal: 16),
+        buttonDecoration: BoxDecoration(
+          color: const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: newBorderColor),
+        ),
+        dropdownDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          border: Border.all(color: newBorderColor),
+        ),
+        dropdownMaxHeight: 220,
+        value: value,
+        hint: Text(
+          hint,
+          style: TextStyle(fontSize: 14, color: newTextHint),
+          overflow: TextOverflow.ellipsis,
+        ),
+        icon: Icon(Icons.keyboard_arrow_down_rounded, color: newTextSecondary, size: 22),
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _imageUploadSection(CollectionController controller) {
+    final bool hasImage = controller.selectedImage.value != '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Attachment'),
+        const SizedBox(height: 8),
+        InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _showImageDialog(controller),
+          child: Container(
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: newBorderColor),
+            ),
+            padding: EdgeInsets.symmetric(vertical: hasImage ? 0 : 28),
+            alignment: Alignment.center,
+            child: hasImage
+                ? Image.file(
+                    File(controller.selectedImage.value),
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: newBlueLightColor, borderRadius: BorderRadius.circular(50)),
+                        child: Icon(Icons.cloud_upload_outlined, color: newBlueColor, size: 28),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upload picture',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: newBlueColor),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        if (hasImage) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: () => _showImageDialog(controller),
               child: Text(
-                controller.paymentOptionList[index],
-                style: const TextStyle()
-                    .bold
-                    .copyWith(fontSize: 12, color: purpleColor),
+                'Change image',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: newBlueColor),
               ),
             ),
           ),
-          Positioned(
-            right: 0,
-            top: 16,
-            child: InkWell(
-              onTap: () => controller.setSelectedIndex(index),
-              child: Container(
-                height: 28,
-                width: 28,
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5),
-                    gradient: gr1,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: purpleColor,
-                        blurRadius: 5,
-                        offset: Offset(
-                          -3,
-                          1,
-                        ),
-                      ),
-                    ]),
-                alignment: Alignment.center,
-                child: Image.asset(
-                  controller.selectedIndex == index
-                      ? AppAssets.checkIcon
-                      : AppAssets.uncheckIcon,
-                  width: 10,
-                  height: 10,
-                ),
-              ),
-            ),
-          )
         ],
-      ),
-    );
-  }
-
-  Widget paymentCard2(
-      CollectionController controller, int index, BuildContext context) {
-    return SizedBox(
-      height: controller.selectedIndex == index ? 160 : 60,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            right: 14,
-            bottom: 0,
-            child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: Colors.transparent,
-                  border: Border.all(width: 1, color: purpleColor),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12.5,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      controller.paymentOptionList[index],
-                      style: const TextStyle().bold.copyWith(
-                            fontSize: 12,
-                            color: purpleColor,
-                          ),
-                    ),
-                    Visibility(
-                      visible: controller.selectedIndex == index,
-                      child: const SizedBox(
-                        height: 10,
-                      ),
-                    ),
-                    Visibility(
-                      visible: controller.selectedIndex == index,
-                      child: Container(
-                        height: 40,
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                grBottomColor.withValues(alpha: 0.2),
-                                grTopColor.withValues(alpha: 0.2),
-                              ],
-                            )),
-                        child: TextFormField(
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          maxLength: 6,
-                          decoration:
-                              const InputDecoration().newTxtFieldStyle(),
-                          controller: controller.chequeNoController,
-                          focusNode: FocusNode(),
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.search,
-                          onChanged: (value) {},
-                        ),
-                      ),
-                    ),
-                    Visibility(
-                      visible: controller.selectedIndex == index,
-                      child: const SizedBox(height: 10),
-                    ),
-                    Visibility(
-                      visible: controller.selectedIndex == index,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        height: 40,
-                        width: double.maxFinite,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              grBottomColor.withValues(alpha: 0.2),
-                              grTopColor.withValues(alpha: 0.2),
-                            ],
-                          ),
-                        ),
-                        child: InkWell(
-                          onTap: () {
-                            controller.tapOnChequeDate(context);
-                          },
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              controller.selectChequeDate,
-                              style: const TextStyle().normal.copyWith(
-                                    fontSize: 12,
-                                    color: medGreyColor,
-                                  ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  ],
-                )),
-          ),
-          Positioned(
-            right: 0,
-            top: 16,
-            child: InkWell(
-              onTap: () => controller.setSelectedIndex(index),
-              child: Container(
-                height: 28,
-                width: 28,
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5),
-                    gradient: gr1,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: purpleColor,
-                        blurRadius: 5,
-                        offset: Offset(
-                          -3,
-                          1,
-                        ),
-                      ),
-                    ]),
-                alignment: Alignment.center,
-                child: Image.asset(
-                  controller.selectedIndex == index
-                      ? AppAssets.checkIcon
-                      : AppAssets.uncheckIcon,
-                  width: 10,
-                  height: 10,
-                ),
-              ),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _dropdown(CollectionController controller) {
-    return DropdownButtonHideUnderline(
-      child: DropdownButton2<CustomerData>(
-        buttonHeight: 40,
-        buttonPadding: const EdgeInsets.symmetric(horizontal: 20),
-        dropdownDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: dropdownBoxColor,
-        ),
-        buttonDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: dropdownBoxColor,
-        ),
-        isExpanded: true,
-        value: controller.selectedDropdownValue,
-        hint: Text(
-          AppString.selectCustomer,
-          style: const TextStyle().normal.copyWith(fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-        ),
-        icon: Image.asset(
-          AppAssets.dropdownIcon,
-          width: 15,
-          height: 15,
-        ),
-        items: controller.customerDataList.map(
-          (items) {
-            return DropdownMenuItem<CustomerData>(
-              value: items,
-              child: Text(items.partyname.toString()),
-            );
-          },
-        ).toList(),
-        onChanged: (newValue) {
-          controller.setDropdownValue(newValue);
-        },
-      ),
-    );
-  }
-
-  Widget _cashAndBankLedgerDropdown(CollectionController controller) {
-    return DropdownButtonHideUnderline(
-      child: DropdownButton2<CashAndBankLedgerDataList>(
-        buttonHeight: 40,
-        buttonPadding: const EdgeInsets.symmetric(horizontal: 20),
-        dropdownDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: dropdownBoxColor,
-        ),
-        buttonDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: dropdownBoxColor,
-        ),
-        isExpanded: true,
-        value: controller.selectedCollectionLedgerValue,
-        hint: Text(
-          AppString.selectCollectionLedger,
-          style: const TextStyle().normal.copyWith(fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-        ),
-        icon: Image.asset(
-          AppAssets.dropdownIcon,
-          width: 15,
-          height: 15,
-        ),
-        items: controller.cashAndBankLedgerList.map(
-          (items) {
-            return DropdownMenuItem<CashAndBankLedgerDataList>(
-              value: items,
-              child: Text(items.partyname.toString()),
-            );
-          },
-        ).toList(),
-        onChanged: (newValue) {
-          controller.setCashAndBankLedgerDropdownValue(newValue);
-        },
-      ),
+      ],
     );
   }
 
@@ -588,7 +420,7 @@ class CollectionView extends StatelessWidget {
     return Get.defaultDialog(
       title: AppString.chooseOption,
       radius: 8,
-      titleStyle: const TextStyle().normal,
+      titleStyle: TextStyle(color: newTextPrimary, fontWeight: FontWeight.w700),
       content: Column(
         children: [
           InkWell(
@@ -597,7 +429,7 @@ class CollectionView extends StatelessWidget {
             },
             child: Text(
               AppString.selectImageFromGallery,
-              style: const TextStyle().normal,
+              style: TextStyle(color: newTextPrimary),
             ),
           ),
           SizedBox(height: Get.height * .02),
@@ -607,7 +439,7 @@ class CollectionView extends StatelessWidget {
             },
             child: Text(
               AppString.takePicture,
-              style: const TextStyle().normal,
+              style: TextStyle(color: newTextPrimary),
             ),
           ),
         ],

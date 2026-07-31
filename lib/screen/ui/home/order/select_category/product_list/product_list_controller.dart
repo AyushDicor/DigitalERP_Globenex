@@ -51,36 +51,34 @@ class ProductListController extends AppBaseController {
     categoryId = selectCategoryController.categoryListItem[selectCategoryController.selectedIndex].categoryid;
     firstPageSelectedBrandId = selectBrandController.brandId;
 
+    quantityTextFocus.addListener(() {
+      if (!quantityTextFocus.hasFocus) {
+        final index = productList.indexWhere((e) => e.isTextField ?? false);
+        if (index != -1) commitQuantityText(index);
+      }
+    });
+
     getSubCategoryList();
     super.onInit();
   }
 
+  /// Quantity picked here is local-only (not yet sent to the server) until
+  /// [addToCart] is called — the add-to-cart API is additive server-side
+  /// (calling it again on an already-added item adds to its quantity rather
+  /// than setting it, confirmed against the live backend), so this stepper
+  /// intentionally never fires an API call on its own. Once the item is in
+  /// the cart, quantity changes belong on the Cart screen, which uses the
+  /// correct set-quantity endpoint.
   void productQtyDecrease(int index) {
-    productList[index].quantity = productList[index].quantity! - 1;
-    productList[index].isInCart = false;
-
-    update();
-  }
-
-  void productQtyDecreaseFromTextField(int index) {
-    productList[index].quantity = double.parse(quantityTextController.text) - 1;
-    quantityTextController.text = (double.parse(quantityTextController.text) - 1).toString();
-    productList[index].isInCart = false;
-
-    update();
+    final current = productList[index].quantity ?? 1;
+    if (current > 1) {
+      productList[index].quantity = current - 1;
+      update();
+    }
   }
 
   void productQtyIncrease(int index) {
-    productList[index].quantity = productList[index].quantity! + 1;
-    productList[index].isInCart = false;
-    update();
-  }
-
-  void productQtyIncreaseFromTextField(int index) {
-    productList[index].quantity = double.parse(quantityTextController.text) + 1;
-    quantityTextController.text = (double.parse(quantityTextController.text) + 1).toString();
-    productList[index].isInCart = false;
-
+    productList[index].quantity = (productList[index].quantity ?? 1) + 1;
     update();
   }
 
@@ -97,13 +95,26 @@ class ProductListController extends AppBaseController {
     for (var element in productList) {
       element.isTextField = false;
     }
-    quantityTextController.clear();
     productList[index].isTextField = true;
+    final current = (productList[index].quantity ?? 1).toInt();
+    quantityTextController.text = current.toString();
+    quantityTextController.selection = TextSelection(
+        baseOffset: 0, extentOffset: quantityTextController.text.length);
     update();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => quantityTextFocus.requestFocus());
   }
 
-  void onChangeQuantityText(int index, String value) {
-    productList[index].quantity = double.parse(value);
+  /// Parses and applies whatever is currently typed, then exits edit mode.
+  /// Called on keyboard submit and on focus loss so a value is never lost.
+  void commitQuantityText(int index) {
+    if (!(productList[index].isTextField ?? false)) return;
+    final parsed = double.tryParse(quantityTextController.text);
+    if (parsed != null && parsed > 0) {
+      productList[index].quantity = parsed;
+    }
+    productList[index].isTextField = false;
+    update();
   }
 
   void checkItemInCart() async {

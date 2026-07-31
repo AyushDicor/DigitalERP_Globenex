@@ -1,5 +1,6 @@
 import 'package:digitalerp/app_routes/app_routes.dart';
 import 'package:digitalerp/catalouge/catalouge_list_view.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/all_quotation_screen.dart';
 import 'package:digitalerp/change_company/change_company_view.dart';
 import 'package:digitalerp/download_document_management/download_documents_view.dart';
 import 'package:digitalerp/home_view_new.dart';
@@ -455,6 +456,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.reimbursement,
       page: () => ReimbursementListScreen(),
+    ),
+    // Balaji declares this route constant but never registers a page for it, so
+    // "View All Quotations" dead-ends there. Registered here so it works.
+    GetPage(
+      name: AppRoutes.allQuotationScreen,
+      page: () => AllQuotationScreen(),
     ),
   ];
 }

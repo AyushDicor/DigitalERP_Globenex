@@ -15,6 +15,7 @@ class ApiClient extends GetConnect {
   }
   ApiClient._internal();
   static const baseAppUrl = 'http://supportapi.digitalerp.biz/api/';
+ // static const baseAppUrl = 'http://salewebservice.digitalerp.biz/api/';
   @override
   void onInit() {
     baseUrl = baseAppUrl;

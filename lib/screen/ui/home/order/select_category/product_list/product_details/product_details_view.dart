@@ -1092,7 +1092,7 @@ import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/order/select_category/product_list/product_details/product_details_controller.dart';
 import 'package:digitalerp/utils/app_constant.dart';
 import 'package:digitalerp/utils/app_network_image.dart';
-import 'package:digitalerp/utils/my_app_bar.dart';
+import 'package:digitalerp/utils/my_app_bar_new.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -1109,14 +1109,11 @@ class ProductDetailsView extends StatelessWidget {
             ? const Center(child: CircularProgressIndicator(color: newBlueColor))
             : Column(
           children: [
-            SafeArea(
-              bottom: false,
-              child: MyAppBar(
-                title: 'Detail',
-                onBackTap: () => ctrl.backTap(),
-                showCartIcon: true,
-                onCartTap: () => ctrl.tapOnCart2(),
-              ),
+            MyAppBar(
+              title: 'Detail',
+              onBackTap: () => ctrl.backTap(),
+              showCartIcon: true,
+              onCartTap: () => ctrl.tapOnCart2(),
             ),
             Expanded(
               child: SingleChildScrollView(

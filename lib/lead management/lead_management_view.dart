@@ -742,11 +742,20 @@ import 'package:digitalerp/lead%20management/lead_entry_view.dart';
 import 'package:digitalerp/lead%20management/lead_filtter_view.dart';
 import 'package:digitalerp/lead%20management/lead_followup_details_view.dart';
 import 'package:digitalerp/lead%20management/lead_followup_history.dart';
+import 'package:digitalerp/model/getleadentry_response_model.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/order/select_brand/select_brand_view.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/call_logs_screen.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/create_quote_screen.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/lead_managment_screen.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/notes_screen.dart';
+import 'package:digitalerp/screen/ui/issue_ticket/lead_view/view_lead_screen.dart'
+    show LeadDetailsScreen;
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/show_message.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 //  Design tokens 
 const Color _kPrimary       = Color(0xFF4361EE);
@@ -884,13 +893,157 @@ class _LeadManagementViewState extends State<LeadManagementView> {
 
 //  Lead Card 
 class _LeadCard extends StatelessWidget {
-  final dynamic item;
+  /// Deliberately TYPED, not `dynamic`. This card previously used `dynamic`
+  /// and read invented field names (leadnumber / contactperson / handler /
+  /// nextfollowupdate) that don't exist on the model. That compiled fine and
+  /// only avoided crashing because the lead list was hardcoded empty — the
+  /// moment real data arrived it would have thrown NoSuchMethodError.
+  /// Typing it means the compiler catches any wrong field name.
+  final GetleadentryList? item;
   const _LeadCard({required this.item});
+
+  /// Actions sheet: Call / WhatsApp / Follow-ups / Notes / Call Logs / Quote /
+  /// View Details. These all existed in the Balaji build but had no entry point
+  /// here — the card only ever opened the follow-up form.
+  void _showLeadActions(BuildContext context) {
+    final lead = item;
+    if (lead == null) return;
+    final mobile = (lead.mobileNo ?? '').trim();
+
+    void close() => Navigator.pop(context);
+
+    void warnNoMobile() => ShowMessage.showSnackBar(
+        'No mobile number', 'This lead has no mobile number saved.');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 5,
+              width: 50,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              (lead.leadName.isNotEmpty) ? lead.leadName : (lead.companyName ?? 'Lead'),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: _kTextPrimary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (mobile.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(mobile,
+                    style: const TextStyle(
+                        fontSize: 12, color: _kTextSecondary)),
+              ),
+            const SizedBox(height: 18),
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 14,
+              childAspectRatio: 0.85,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _sheetAction(Icons.visibility_outlined, _kPrimary,
+                    _kAccentLight, 'View Details', () {
+                  close();
+                  Get.to(() => LeadDetailsScreen(
+                        onUpdate: () {},
+                        id: lead.leadEntryId?.toString(),
+                      ));
+                }),
+                _sheetAction(Icons.call_outlined, _kGreen, _kGreenLight, 'Call',
+                    () async {
+                  close();
+                  if (mobile.isEmpty) return warnNoMobile();
+                  await launchUrl(Uri(scheme: 'tel', path: mobile));
+                }),
+                _sheetAction(Icons.chat, const Color(0xFF25D366),
+                    _kGreenLight, 'WhatsApp', () async {
+                  close();
+                  if (mobile.isEmpty) return warnNoMobile();
+                  await launchUrl(Uri.parse('https://wa.me/$mobile'),
+                      mode: LaunchMode.externalApplication);
+                }),
+                _sheetAction(Icons.event_note_outlined, _kOrange,
+                    _kOrangeLight, 'Follow-ups', () {
+                  close();
+                  Get.to(() =>
+                      LeadRemarksScreen(lead: lead, type: 'Followup'));
+                }),
+                _sheetAction(Icons.sticky_note_2_outlined, _kAccent,
+                    _kAccentLight, 'Notes', () {
+                  close();
+                  Get.to(() => LeadRemarksScreen(lead: lead, type: 'Notes'));
+                }),
+                _sheetAction(Icons.phone_callback_outlined, _kPrimary,
+                    _kPrimaryLight, 'Call Logs', () {
+                  close();
+                  Get.to(() => CallLogsScreen(lead: lead));
+                }),
+                _sheetAction(Icons.request_quote_outlined, _kOrange,
+                    _kOrangeLight, 'Quote', () {
+                  close();
+                  Get.to(() => CreateQuoteScreen(lead: lead));
+                }),
+                _sheetAction(Icons.history_rounded, _kAccent, _kAccentLight,
+                    'History', () {
+                  close();
+                  Get.to(const LeadFolloupHistory());
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetAction(IconData icon, Color color, Color bg, String label,
+          VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                  color: bg, borderRadius: BorderRadius.circular(14)),
+              child: Icon(icon, color: color, size: 23),
+            ),
+            const SizedBox(height: 6),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: _kTextSecondary),
+                maxLines: 2),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.to(const LeadFollowupDetailsView()),
+      onLongPress: () => _showLeadActions(context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
@@ -923,7 +1076,7 @@ class _LeadCard extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: _kPrimary)),
-                  Text(item?.leadnumber?.toString() ?? 'N/A',
+                  Text(item?.leadEntryId.toString() ?? 'N/A',
                       style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -937,16 +1090,16 @@ class _LeadCard extends StatelessWidget {
                   const Icon(Icons.calendar_today_outlined,
                       size: 12, color: _kTextSecondary),
                   const SizedBox(width: 4),
-                  Text(item?.leaddate ?? 'N/A',
+                  Text(item?.leadDate ?? 'N/A',
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color: _kTextSecondary)),
                 ]),
               ),
-              // Edit
+              // Edit — was a no-op; opens the lead in the edit form.
               GestureDetector(
-                onTap: () {},
+                onTap: () => Get.to(() => LeadManagementScreen(editLead: item)),
                 child: Container(
                   width: 32,
                   height: 32,
@@ -966,9 +1119,12 @@ class _LeadCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: Row(children: [
-              _bracketBox('Company', item?.companyname ?? 'N/A'),
+              _bracketBox('Company', item?.companyName ?? 'N/A'),
               const SizedBox(width: 10),
-              _bracketBox('Contact Person', item?.contactperson ?? 'N/A'),
+              // leadName is the lead/contact person on this endpoint; it can be
+              // returned blank, so fall back rather than showing an empty box.
+              _bracketBox('Contact Person',
+                  (item?.leadName.isNotEmpty ?? false) ? item!.leadName : 'N/A'),
             ]),
           ),
 
@@ -977,13 +1133,17 @@ class _LeadCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: Row(children: [
               _miniField(Icons.phone_outlined, 'Mobile',
-                  item?.mobilenumber ?? 'N/A'),
+                  item?.mobileNo ?? 'N/A'),
               _vDivider(),
-              _miniField(Icons.flag_outlined, 'Status',
-                  item?.status ?? 'N/A'),
+              // Was 'Status' → the lead-list model has no status field at all.
+              // Source is real data this endpoint can return.
+              _miniField(Icons.flag_outlined, 'Source',
+                  item?.sourceName ?? 'N/A'),
               _vDivider(),
-              _miniField(Icons.person_outline_rounded, 'Handler',
-                  item?.handler ?? 'N/A'),
+              // Was 'Handler' → no such field exists. Ageing (days since the
+              // lead was raised) IS returned by the endpoint.
+              _miniField(Icons.person_outline_rounded, 'Ageing',
+                  item?.ageing ?? 'N/A'),
             ]),
           ),
 
@@ -998,11 +1158,13 @@ class _LeadCard extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Next Followup',
+                      // Was 'Next Followup' → no such field on the lead-list
+                      // model. lastCommunicationDate is the real equivalent.
+                      const Text('Last Contact',
                           style: TextStyle(
                               fontSize: 10, color: _kTextSecondary)),
                       const SizedBox(height: 2),
-                      Text(item?.nextfollowupdate ?? 'N/A',
+                      Text(item?.lastCommunicationDate ?? 'N/A',
                           style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1016,11 +1178,10 @@ class _LeadCard extends StatelessWidget {
               _iconBtn(Icons.history_rounded, _kOrange, _kOrangeLight,
                       () => Get.to(const LeadFolloupHistory())),
               const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () {},
-                child: Image.asset('assets/images/pdf.png',
-                    width: 28, height: 28),
-              ),
+              // Was a dead PDF button (onTap did nothing). Now the entry point
+              // to the Call / WhatsApp / Notes / Quote / Details actions.
+              _iconBtn(Icons.more_horiz_rounded, _kPrimary, _kPrimaryLight,
+                  () => _showLeadActions(context)),
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: () => Get.to(SelectBrandView()),

@@ -1016,7 +1016,7 @@ class PaymentRequestListScreen extends StatelessWidget {
                       controller.isBusy && controller.paymentRequestList.isEmpty
                           ? _buildSkeletonList()
                           : controller.filteredPaymentRequestList.isEmpty
-                              ? _buildEmptyState()
+                              ? _buildEmptyState(context, controller)
                               : _buildPaymentRequestList(controller),
                 ),
               ],
@@ -1431,7 +1431,12 @@ class PaymentRequestListScreen extends StatelessWidget {
     return formatter.format(amount);
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(
+      BuildContext context, PaymentRequestListController controller) {
+    // Spell out the window that was searched — an empty list is almost always a
+    // date-range question, and leaving it unsaid makes the module look broken.
+    final range = '${controller.firstDate}  to  ${controller.lastDate}';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1451,9 +1456,23 @@ class PaymentRequestListScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Try adjusting your filters or create a new request',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              'Showing $range',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => _showFilterBottomSheet(context, controller),
+              icon: const Icon(Icons.date_range_outlined, size: 18),
+              label: const Text('Change date range'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: purpleColor,
+                side: BorderSide(color: purpleColor.withValues(alpha: 0.4)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),

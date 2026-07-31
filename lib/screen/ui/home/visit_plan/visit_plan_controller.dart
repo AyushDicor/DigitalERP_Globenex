@@ -74,6 +74,10 @@ class VisitPlanController extends AppBaseController {
         RequestKeys.fromDate: fromDate,
         RequestKeys.toDate: toDate,
         RequestKeys.executiveId: executiveId,
+        // stateId was previously captured into selectedStateId by the filter
+        // but never sent here — a dead write, so filtering by State did
+        // nothing at all. City and Area were already being sent.
+        RequestKeys.stateId: selectedStateId.isEmpty ? '0' : selectedStateId,
         RequestKeys.cityId: selectedCityId.isEmpty ? '0' : selectedCityId,
         RequestKeys.areaId: selectedAreaId.isEmpty ? '0' : selectedAreaId,
         RequestKeys.branchId: homeController.currentUserData?.branchId.toString()??'',

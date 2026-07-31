@@ -19,6 +19,7 @@ class NewVisitPlaningController extends AppBaseController {
   var defaultDate = 'Select Date'.obs;
 
   var newVisitnearbyFilterSelectedValue;
+  var newVisitStateFilterSelectedValue;
   var newVisitAreaFilterSelectedValue;
   var newVisitCityFilterSelectedValue;
 
@@ -114,6 +115,12 @@ class NewVisitPlaningController extends AppBaseController {
       body[RequestKeys.partyId] = '0';
       body[RequestKeys.nearby] =
       distanceValue==null ? '0' : distanceValue.toString();
+      // stateId and cityId were never sent here, so filtering this screen by
+      // State (or City) had no effect at all — only Area was applied.
+      body[RequestKeys.stateId] =
+          newVisitStateFilterSelectedValue == null ? '0' : newVisitStateFilterSelectedValue.stateid.toString();
+      body[RequestKeys.cityId] =
+          newVisitCityFilterSelectedValue == null ? '0' : newVisitCityFilterSelectedValue.cityid.toString();
       body[RequestKeys.areaId] =
           newVisitAreaFilterSelectedValue == null ? '0' : newVisitAreaFilterSelectedValue.areaid.toString();
       body[RequestKeys.latitude] = location.latitude.toString();

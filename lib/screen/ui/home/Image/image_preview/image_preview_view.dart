@@ -1,11 +1,14 @@
 import 'package:digitalerp/response/stcok_category_data_response.dart';
+// base_controller provides the `.bold` TextStyle extension used by the
+// watermark overlay below.
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/Image/image_controller.dart';
 import 'package:digitalerp/screen/ui/home/Image/image_preview/image_preview_controller.dart';
-import 'package:digitalerp/utils/app_assets.dart';
-import 'package:digitalerp/utils/app_bottom_button.dart';
+// NOTE: this app's app_constant.dart already defines the new design tokens
+// (newBlueColor / newTextPrimary / newTextSecondary / newTextHint /
+// newBorderColor), so importing app_constant_new here too would make every
+// one of those names ambiguous. Deliberately using app_constant only.
 import 'package:digitalerp/utils/app_constant.dart';
-import 'package:digitalerp/utils/my_app_bar_new.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,50 +20,50 @@ class ImagePreviewView extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<ImagePreviewController>(
       init: ImagePreviewController(
-          ModalRoute.of(context)!.settings.arguments as ImagePreviewArgument, context),
+          ModalRoute.of(context)!.settings.arguments as ImagePreviewArgument,
+          context),
       builder: (controller) => Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: Center(
-          child: Stack(
+        backgroundColor: const Color(0xFFF5F6FA),
+        body: SafeArea(
+          child: Column(
             children: [
-              Positioned(
-                top: 0,
-                bottom: 0,
-                right: 0,
-                left: 0,
-                child: Container(
-                  decoration: const BoxDecoration(
-                      image: DecorationImage(
-                          image: AssetImage(AppAssets.dashboardBg), fit: BoxFit.fill)),
-                  child: SafeArea(
-                      child:
-                          MyAppBar(title: 'Image Preview', onBackTap: () => controller.backTap())),
-                ),
-              ),
-              Positioned(
-                right: 0,
-                left: 0,
-                bottom: 0,
-                top: Get.height * 0.135,
+              _appBar(controller),
+              Expanded(
                 child: controller.isBusy
-                    ? showLoader()
+                    ? const Center(
+                        child: CircularProgressIndicator(color: newBlueColor))
                     : SingleChildScrollView(
-                        padding: EdgeInsets.only(
-                            bottom: (MediaQuery.of(context).viewInsets.bottom > 0) ? 200 : 0,
-                            left: 20,
-                            right: 20),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             card(controller),
-                            txtField(controller),
+                            const SizedBox(height: 24),
+                            _label('Group'),
+                            const SizedBox(height: 8),
+                            _groupDropdown(controller),
+                            const SizedBox(height: 18),
+                            _label('Title'),
+                            const SizedBox(height: 8),
+                            _textField(
+                              controller: controller.titleController,
+                              focusNode: controller.titleFocus,
+                              hint: 'Enter Title',
+                            ),
+                            const SizedBox(height: 18),
+                            _label('Description'),
+                            const SizedBox(height: 8),
+                            _textField(
+                              controller: controller.descriptionController,
+                              focusNode: controller.descriptionFocus,
+                              hint: 'Enter Description',
+                              maxLines: 5,
+                            ),
                           ],
                         ),
                       ),
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: AppBottomButton(onPressed: () => controller.onTapSave(), name: 'Save'),
-              )
+              _saveBar(controller),
             ],
           ),
         ),
@@ -68,171 +71,207 @@ class ImagePreviewView extends StatelessWidget {
     );
   }
 
-  Widget card(ImagePreviewController controller) => Stack(
-    children: [
-      Container(
-        height: 200,
-        width: double.maxFinite,
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 5))
-            ]),
-        margin: const EdgeInsets.only(bottom: 10),
-        clipBehavior: Clip.antiAlias,
-        child: Image.file(
-          controller.captureImage.file,
-          fit: BoxFit.cover,
-        ),
-      ),
-      RepaintBoundary(
-        key: controller.globalKey,
-        child: SizedBox(
-          height: 200,
-          child: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 10,
-                child: Container(
-                  // decoration: BoxDecoration(
-                  //     color: blueColor.withValues(alpha:0.3),
-                  //     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(15))),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                  // alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        // '3929 Jehovah Drive Fredericksburg',
-                        'LAT - ${controller.captureImage.lat}',
-                        style: const TextStyle().bold.copyWith(fontSize: 12, color: Colors.white),
-                      ),
-                      const SizedBox(
-                        height: 3,
-                      ),
-                      Text(
-                        // '3929 Jehovah Drive Fredericksburg',
-                        'LON - ${controller.captureImage.long}',
-                        style: const TextStyle().bold.copyWith(fontSize: 12, color: Colors.white),
-                      ),
-                      const SizedBox(
-                        height: 3,
-                      ),
-                      Text(
-                        // '3929 Jehovah Drive Fredericksburg',
-                        'ADD - ${controller.captureImage.location}',
-                        style: const TextStyle().bold.copyWith(fontSize: 12, color: Colors.white),
-                      ),
-                      const SizedBox(
-                        height: 3,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+  //  Flat white app bar (replaces the old full-screen Stack + background
+  //  image layout, which stretched the app bar over the whole page and left
+  //  its title floating in the middle of the screen).
+  Widget _appBar(ImagePreviewController controller) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => controller.backTap(),
+            child: const Icon(Icons.arrow_back_ios_new,
+                color: newTextPrimary, size: 22),
           ),
-        ),
-      )
-    ],
-  );
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text('Image Preview',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: newTextPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget txtField(ImagePreviewController controller) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 23),
-        child: Column(
-          children: [
-            groupDropdown(controller),
-            TextFormField(
-              style: const TextStyle().light,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.next,
-              controller: controller.titleController,
-              focusNode: controller.titleFocus,
-              decoration: const InputDecoration().txtFieldStyle2(
-                  hintText: 'Enter Title', labelName: 'Title', bottomAlwaysPurple: true),
+  Widget _label(String text) => Text(text,
+      style: const TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600, color: newTextPrimary));
+
+  //  IMPORTANT: the internals of this card are deliberately unchanged.
+  //  `makeImage()` captures ONLY the RepaintBoundary (the LAT/LON/ADD block)
+  //  as a stamp, and `makeImage2()` then composites that stamp onto the
+  //  original photo at dstX:0, dstY:0. Changing the overlay's size, padding
+  //  or position would move the watermark on the saved image.
+  Widget card(ImagePreviewController controller) => Stack(
+        children: [
+          Container(
+            height: 200,
+            width: double.maxFinite,
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Colors.black12, blurRadius: 3, offset: Offset(0, 5))
+                ]),
+            margin: const EdgeInsets.only(bottom: 10),
+            clipBehavior: Clip.antiAlias,
+            child: Image.file(
+              controller.captureImage.file,
+              fit: BoxFit.cover,
             ),
-            TextFormField(
-              style: const TextStyle().light,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.next,
-              controller: controller.descriptionController,
-              minLines: 5,
-              maxLines: 5,
-              focusNode: controller.descriptionFocus,
-              decoration: const InputDecoration().txtFieldStyle2(
-                  hintText: 'Enter Description',
-                  labelName: 'Description',
-                  bottomAlwaysPurple: true),
+          ),
+          RepaintBoundary(
+            key: controller.globalKey,
+            child: SizedBox(
+              height: 200,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 10),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LAT - ${controller.captureImage.lat}',
+                            style: const TextStyle()
+                                .bold
+                                .copyWith(fontSize: 12, color: Colors.white),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'LON - ${controller.captureImage.long}',
+                            style: const TextStyle()
+                                .bold
+                                .copyWith(fontSize: 12, color: Colors.white),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'ADD - ${controller.captureImage.location}',
+                            style: const TextStyle()
+                                .bold
+                                .copyWith(fontSize: 12, color: Colors.white),
+                          ),
+                          const SizedBox(height: 3),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 100),
-          ],
-        ),
+          )
+        ],
       );
 
-  Widget groupTxtField(ImagePreviewController controller) {
+  Widget _textField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hint,
+    int maxLines = 1,
+  }) {
     return TextFormField(
-      style: const TextStyle().light,
-      keyboardType: TextInputType.text,
-      textInputAction: TextInputAction.next,
-      controller: controller.groupController,
-      focusNode: controller.groupFocus,
-      decoration: const InputDecoration()
-          .txtFieldStyle2(hintText: 'Enter group', labelName: 'Group', bottomAlwaysPurple: true),
+      controller: controller,
+      focusNode: focusNode,
+      minLines: maxLines,
+      maxLines: maxLines,
+      keyboardType:
+          maxLines > 1 ? TextInputType.multiline : TextInputType.text,
+      textInputAction:
+          maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+      style: const TextStyle(fontSize: 14, color: newTextPrimary),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 14, color: newTextHint),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: newBorderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: newBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: newBlueColor, width: 1.4),
+        ),
+      ),
     );
   }
 
-  Widget groupDropdown(ImagePreviewController controller) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 40),
-        Padding(
-          padding: const EdgeInsets.only(left: 5),
-          child: Text(
-            'Group',
-            style: const TextStyle().medium.copyWith(color: red2Color, fontSize: 12),
-          ),
+  //  NOTE: dropdown_button2 here is v1.9.4 — the OLD API
+  //  (buttonHeight / buttonPadding / buttonDecoration / dropdownDecoration).
+  //  The newer buttonStyleData API does not compile against this version.
+  Widget _groupDropdown(ImagePreviewController controller) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton2<StockCategoryList>(
+        isExpanded: true,
+        buttonHeight: 52,
+        buttonPadding: const EdgeInsets.symmetric(horizontal: 14),
+        buttonDecoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: newBorderColor),
         ),
-        DropdownButtonHideUnderline(
-          child: DropdownButton2<StockCategoryList>(
-            buttonHeight: 40,
-            buttonPadding: const EdgeInsets.all(5),
-            dropdownDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              color: dropdownBoxColor,
-            ),
-            buttonDecoration: const BoxDecoration(
-                color: Colors.transparent,
-                // color: Colors.green,
-                border: Border(bottom: BorderSide(color: purpleColor, width: 1.25))),
-            dropdownPadding: EdgeInsets.zero,
-            isExpanded: true,
-            hint: Text(
-              'Select Group',
-              style: const TextStyle().normal.copyWith(fontSize: 12),
-            ),
-            value: controller.selectedGroupDropdownValue,
-            icon: Image.asset(
-              AppAssets.dropdownIcon,
-              width: 15,
-              height: 15,
-            ),
-            items: controller.groupList?.map((StockCategoryList value) {
-              return DropdownMenuItem(
-                value: value,
-                child: Text(value.categoryname.toString()),
-              );
-            }).toList(),
-            onChanged: controller.setSelectGroup,
-          ),
+        dropdownDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          border: Border.all(color: newBorderColor),
         ),
-        const SizedBox(height: 5),
-      ],
+        dropdownMaxHeight: 240,
+        hint: const Text('Select Group',
+            style: TextStyle(fontSize: 14, color: newTextHint)),
+        value: controller.selectedGroupDropdownValue,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+            color: newTextSecondary, size: 22),
+        items: controller.groupList?.map((StockCategoryList value) {
+          return DropdownMenuItem(
+            value: value,
+            child: Text(value.categoryname.toString(),
+                style: const TextStyle(fontSize: 14, color: newTextPrimary),
+                overflow: TextOverflow.ellipsis),
+          );
+        }).toList(),
+        onChanged: controller.setSelectGroup,
+      ),
+    );
+  }
+
+  Widget _saveBar(ImagePreviewController controller) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton(
+          onPressed: () => controller.onTapSave(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: newBlueColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+          ),
+          child: const Text('Save',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ),
+      ),
     );
   }
 }

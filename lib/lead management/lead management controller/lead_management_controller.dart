@@ -293,6 +293,8 @@
 // }
 
 import 'dart:convert';
+import 'package:digitalerp/model/getleadentry_response_model.dart';
+import 'package:digitalerp/repo/lead_management_repo.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/home_controller.dart';
 import 'package:digitalerp/utils/app_constant.dart';
@@ -303,9 +305,8 @@ import 'package:get/get.dart';
 class LeadManagementController extends AppBaseController {
   HomeController homeController = Get.find<HomeController>();
 
-  //  Lead list 
-  // Replace `dynamic` with your actual LeadData model once the API returns data
-  List<dynamic> leadList = [];
+  //  Lead list
+  List<GetleadentryList> leadList = [];
 
   @override
   void onInit() {
@@ -313,22 +314,27 @@ class LeadManagementController extends AppBaseController {
     getLeadList(); // ✅ FIX: fetch leads on init so the list is never null/empty
   }
 
-  /// Fetch the lead list from the API.
-  /// Replace the body/endpoint below with your actual implementation.
+  /// Fetch the lead list from the existing getleadentry endpoint.
+  ///
+  /// This used to be a placeholder that unconditionally set `leadList = []`,
+  /// so the Lead Management list was permanently empty even though the data
+  /// existed. `getleadentry/getleadentry` was already declared in base_url.dart
+  /// but never called from anywhere — no new backend work was needed.
   void getLeadList() async {
     setBusy(true);
     try {
-      //  TODO: swap this with your real API call 
-      // Example:
-      //   final res = await api.getLeadList(homeController.currentUserData?.companyId ?? '');
-      //   if (res.status == 200) {
-      //     leadList = res.data ?? [];
-      //   } else {
-      //     ShowMessage.showSnackBar('Error', res.message.toString());
-      //   }
-      // 
-      // Placeholder: keeps list empty until API is wired up
-      leadList = [];
+      final requestData = {
+        "userId": homeController.currentUserData?.userid.toString() ?? '',
+        "compId": homeController.currentUserData?.compId.toString() ?? '',
+        "branchid": homeController.currentUserData?.branchId.toString() ?? '',
+      };
+      final result = await LeadManagementRepo.getLeadEntryMethod(requestData);
+      if (result.statusCode == 200 && result.data != null) {
+        final model = GetleadentryResponseModel.fromJson(result.data);
+        leadList = model.data.toList();
+      } else {
+        leadList = [];
+      }
     } catch (e) {
       ShowMessage.showSnackBar('Error', '$e');
     } finally {

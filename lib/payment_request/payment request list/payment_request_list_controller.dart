@@ -694,14 +694,33 @@ class PaymentRequestListController extends AppBaseController {
 
 //Payment Request Filter
   PaymentRequestFilter activeFilter = const PaymentRequestFilter();
+
   void applyFilter(PaymentRequestFilter f) {
     activeFilter = f;
+
+    // The date range has to reach the API. GetPaymentRequestList only returns
+    // rows inside fromdate/todate, so filtering the loaded list client-side can
+    // never surface a record that was never fetched — picking an older From
+    // date used to do nothing at all.
+    final String newFirst =
+        f.fromDate != null ? DateFormat(AppString.ddMMyyyy).format(f.fromDate!) : firstDate;
+    final String newLast =
+        f.toDate != null ? DateFormat(AppString.ddMMyyyy).format(f.toDate!) : lastDate;
+
+    if (newFirst != firstDate || newLast != lastDate) {
+      firstDate = newFirst;
+      lastDate = newLast;
+      getPaymentRequestList(isRefresh: true); // calls update() when it lands
+      return;
+    }
     update();
   }
 
   void resetFilter() {
     activeFilter = const PaymentRequestFilter();
-    update();
+    firstDate = _defaultFirstDate();
+    lastDate = DateFormat(AppString.ddMMyyyy).format(DateTime.now());
+    getPaymentRequestList(isRefresh: true);
   }
   // Search controller
   TextEditingController searchController = TextEditingController();
@@ -712,14 +731,15 @@ class PaymentRequestListController extends AppBaseController {
   int itemsPerPage = 20;
   bool hasMoreData = true;
 
-  // Date range
-  String firstDate = DateFormat(AppString.ddMMyyyy).format(DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day - 30,
-      DateTime.now().hour,
-      DateTime.now().minute,
-      DateTime.now().second));
+  // Date range. Matches the 30-day default used by the other list modules.
+  // If it comes up empty the user widens it from the filter sheet — that now
+  // re-queries the API instead of only re-filtering what was already loaded.
+  static const int defaultWindowDays = 30;
+
+  static String _defaultFirstDate() => DateFormat(AppString.ddMMyyyy)
+      .format(DateTime.now().subtract(const Duration(days: defaultWindowDays)));
+
+  String firstDate = _defaultFirstDate();
   String lastDate = DateFormat(AppString.ddMMyyyy).format(DateTime.now());
 
   void setDate(String value, bool isFirstDate) {
@@ -759,8 +779,7 @@ class PaymentRequestListController extends AppBaseController {
 
   // Clear all filters
   void clearFilters() {
-    firstDate = DateFormat(AppString.ddMMyyyy)
-        .format(DateTime.now().subtract(const Duration(days: 30)));
+    firstDate = _defaultFirstDate();
     lastDate = DateFormat(AppString.ddMMyyyy).format(DateTime.now());
     selectedParty = null;
     selectedBranch = null;
@@ -770,7 +789,9 @@ class PaymentRequestListController extends AppBaseController {
     toDate = null;
     searchController.clear();
     currentPage = 1;
-    applyFilters();
+    activeFilter = const PaymentRequestFilter();
+    // Date window changed, so this needs a fresh fetch — not just a re-filter.
+    getPaymentRequestList(isRefresh: true);
     update();
   }
 

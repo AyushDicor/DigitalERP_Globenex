@@ -105,5 +105,8 @@ class AppRoutes {
 
   static const String approvalHub = '/approvalHubDashboard';  // ← ADD
 
+  // Lead module — "View All Quotations" from the Create Quote screen.
+  static const allQuotationScreen = '/AllQuotationScreen';
+
 }
 

@@ -138,7 +138,7 @@ class ProductDataList {
       rate: json["rate"],
       requiredpoint: json["requiredpoint"],
       quantity: json["quantity"],
-      isInCart: json["isInCart"] == null ? false : json["quantity"],
+      isInCart: json["isInCart"] ?? false,
       unitid: json["unitid"],
       isTextField: json["isTextField"] ?? false);
 

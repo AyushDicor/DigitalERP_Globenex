@@ -897,44 +897,101 @@ class ProductListView extends StatelessWidget {
     );
   }
 
-  //  Qty row 
+  //  Qty row
   Widget _qtyRow(ProductListController ctrl, int index) {
     final item = ctrl.productList[index];
-    if (!(item.isInCart ?? false)) {
+    if (item.isInCart ?? false) {
+      // Already sent to the cart at this quantity — further changes belong
+      // on the Cart screen (the add-to-cart API is additive, not a "set"
+      // op, so we deliberately don't offer a live-editable stepper here).
       return GestureDetector(
-        onTap: () => ctrl.addToCart(index),
+        onTap: () => ctrl.tapOnCart2(),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-              color: newBlueColor, borderRadius: BorderRadius.circular(20)),
-          child: const Icon(Icons.add, color: Colors.white, size: 16),
+              color: newGreenColor, borderRadius: BorderRadius.circular(20)),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_rounded, color: Colors.white, size: 14),
+              SizedBox(width: 4),
+              Text('In Cart',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
         ),
       );
     }
-    return Container(
-      decoration: BoxDecoration(
-          border: Border.all(color: newBlueColor),
-          borderRadius: BorderRadius.circular(20)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _qtyBtn(Icons.remove, () {
-            if ((item.quantity ?? 1) > 1)
-              ctrl.productQtyDecrease(index);
-            else
-              ctrl.removeFromCart(index);
-          }),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text('${item.quantity?.toInt() ?? 1}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: newBlueColor)),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+              border: Border.all(color: newBlueColor),
+              borderRadius: BorderRadius.circular(20)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _qtyBtn(Icons.remove, () => ctrl.productQtyDecrease(index)),
+              _qtyText(ctrl, index),
+              _qtyBtn(Icons.add, () => ctrl.productQtyIncrease(index),
+                  filled: true),
+            ],
           ),
-          _qtyBtn(Icons.add, () => ctrl.productQtyIncrease(index),
-              filled: true),
-        ],
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => ctrl.addToCart(index),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+                color: newBlueColor, borderRadius: BorderRadius.circular(20)),
+            child: const Icon(Icons.shopping_cart_outlined,
+                color: Colors.white, size: 15),
+          ),
+        ),
+      ],
+    );
+  }
+
+  //  Tap the number to type a quantity directly instead of stepping
+  Widget _qtyText(ProductListController ctrl, int index) {
+    final item = ctrl.productList[index];
+    if (item.isTextField ?? false) {
+      return SizedBox(
+        width: 40,
+        child: TextFormField(
+          controller: ctrl.quantityTextController,
+          focusNode: ctrl.quantityTextFocus,
+          autofocus: true,
+          maxLines: 1,
+          textAlign: TextAlign.center,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: newBlueColor),
+          decoration: const InputDecoration(
+            counterText: '',
+            contentPadding: EdgeInsets.zero,
+            border: InputBorder.none,
+            isDense: true,
+          ),
+          onFieldSubmitted: (_) => ctrl.commitQuantityText(index),
+          onTapOutside: (_) => ctrl.commitQuantityText(index),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => ctrl.tapOnQuantityText(index),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Text('${item.quantity?.toInt() ?? 1}',
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: newBlueColor)),
       ),
     );
   }

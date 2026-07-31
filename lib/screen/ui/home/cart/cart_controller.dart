@@ -36,6 +36,14 @@ class CartController extends AppBaseController {
   void onInit() {
     // TODO: implement onInit
     init();
+    quantityTextFocus.addListener(() {
+      if (!quantityTextFocus.hasFocus) {
+        final index = cartList.indexWhere((e) => e.isTextField ?? false);
+        if (index != -1) {
+          onSubmitTextFieldQty(quantityTextController.text, index);
+        }
+      }
+    });
     super.onInit();
   }
 
@@ -85,8 +93,12 @@ class CartController extends AppBaseController {
     }
 
     cartList[index].isTextField = true ;
-    quantityTextController.clear();
+    quantityTextController.text = (cartList[index].quantity?.toInt() ?? 1).toString();
+    quantityTextController.selection = TextSelection(
+        baseOffset: 0, extentOffset: quantityTextController.text.length);
     update();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => quantityTextFocus.requestFocus());
   }
 
   void productQtyDecrease(int index) {
@@ -130,15 +142,20 @@ class CartController extends AppBaseController {
     update();
   }
 
- void onSubmitTextFieldQty(String qty, int index){
-if(quantityTextController.text.isNotEmpty && double.parse(quantityTextController.text) > 0){
-  //cartList[index].quantity = int.parse(qty);
-  var item = cartList[index];
-  updateCartAPI(item.id.toString(), qty);
-}else{
-  ShowMessage.showSnackBar('MSG', 'QUANTITY MUST BE GRATER THEN 0');
-}
-
+ void onSubmitTextFieldQty(String qty, int index) async {
+   if (!(cartList[index].isTextField ?? false)) return;
+   final parsed = double.tryParse(qty);
+   if (parsed != null && parsed > 0) {
+     final item = cartList[index];
+     final updated = await updateCartAPI(item.id.toString(), parsed.toString());
+     if (updated) {
+       cartList[index].quantity = parsed;
+     }
+   } else {
+     ShowMessage.showSnackBar('MSG', 'QUANTITY MUST BE GRATER THEN 0');
+   }
+   cartList[index].isTextField = false;
+   update();
  }
 
 
