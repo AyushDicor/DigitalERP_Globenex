@@ -185,10 +185,18 @@ class _BottomSheet extends StatelessWidget {
   }
 
   Widget _sliderView(BuildContext context) {
+    final double max = controller.maxDistance;
     return FlutterSlider(
-      values: [controller.lowerValue, controller.upperValue],
+      // FlutterSlider captures min/max/values in initState, so it must be
+      // rebuilt from scratch when the distance master arrives and changes the
+      // ceiling — otherwise it keeps the old bound.
+      key: ValueKey('visit-distance-slider-$max'),
+      values: [
+        controller.lowerValue.clamp(0, max),
+        controller.upperValue.clamp(0, max),
+      ],
       rangeSlider: true,
-      max: 100,
+      max: max,
       min: 0,
       visibleTouchArea: false,
       trackBar: FlutterSliderTrackBar(

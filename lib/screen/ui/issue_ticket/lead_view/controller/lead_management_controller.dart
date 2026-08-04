@@ -248,7 +248,9 @@ class LeadViewController extends GetxController {
       decisionTime: data.decisionTime,
       leadDate: data.leadDate.toString(),
       ageing: data.ageing.toString(),
-      leadItems: data.leadItems!
+      // `data.leadItems!` — a bang on a nullable list. A lead saved with no
+      // tagged products would have thrown here and blanked the edit form.
+      leadItems: (data.leadItems ?? [])
           .map((e) => LeadItem(
                 itemId: e.itemId,
                 itemName: e.itemName,
@@ -851,27 +853,48 @@ class LeadViewController extends GetxController {
   DeleteLeadResponseModel? deleteLeadResponseModel;
 
   Future<void> deleteLeadFun(int? id) async {
+    if (id == null) return;
     try {
       isLoading = true;
       final requestData = {
         "compid": homeController.currentUserData!.compId.toString(),
         "branchid": homeController.currentUserData!.branchId.toString(),
         "leadId": id,
-        "userid": homeController.currentUserData!.compId.toString()
+        // ✅ FIX: this sent compId as the userid, so every delete was
+        // attributed to the company id instead of the signed-in user.
+        "userid": homeController.currentUserData!.userid.toString()
       };
       log('requestData for deleteLeadFun =================>>>>>${requestData}');
       final result = await LeadManagementRepo.deleteLeads(requestData);
 
-      if (result.statusCode == 200) {
-        deleteLeadResponseModel = DeleteLeadResponseModel.fromJson(result.data);
-        log('deleteLeadFun  :::::::::::::  ${jsonEncode(deleteLeadResponseModel)}');
-        Get.to(const LeadListScreen());
-        update();
+      deleteLeadResponseModel = result.data == null
+          ? null
+          : DeleteLeadResponseModel.fromJson(result.data);
+      log('deleteLeadFun  :::::::::::::  ${jsonEncode(deleteLeadResponseModel)}');
+
+      // ✅ FIX: this only checked the HTTP status. This server answers a failed
+      // delete with HTTP 200 and "status": 500 in the body, so a refused delete
+      // navigated away as though it had worked and the lead was still there.
+      final bool deleted = result.statusCode == 200 &&
+          (deleteLeadResponseModel?.success == true ||
+              deleteLeadResponseModel?.status == 200);
+
+      if (deleted) {
+        Get.snackbar('Deleted',
+            deleteLeadResponseModel?.message ?? 'Lead deleted successfully.');
+        // ✅ FIX: was Get.to(...), which pushed ANOTHER list screen on top of
+        // the stack every time. Go back to the existing list and refresh it.
+        Get.back(result: true);
+        getLeadEntryApiMethod();
       } else {
+        Get.snackbar('Could not delete',
+            deleteLeadResponseModel?.message ?? result.message.toString());
         log("deleteLeadFun error: ${result.message}");
       }
+      update();
     } catch (e, s) {
       log("Error in deleteLeadFun: $e", stackTrace: s);
+      Get.snackbar('Could not delete', '$e');
     } finally {
       isLoading = false;
       update();

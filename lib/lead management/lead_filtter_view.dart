@@ -476,6 +476,7 @@ import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/approval/approval_filtter/approval_filter_controller.dart';
 import 'package:digitalerp/screen/ui/home/home_controller.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -492,14 +493,29 @@ const Color _kTextHint      = Color(0xFFB0B8C8);
 const Color _kCardShadow    = Color(0x0A000000);
 
 //  Filter chip row 
+/// Filter dropdown.
+///
+/// This was previously a `const` widget holding a label, a grey box and a
+/// chevron — no items, no selection, no onChanged. Being const it could not
+/// hold state at all, which is why none of the filters ever did anything.
 class _FilterDropdown extends StatelessWidget {
   final String label;
   final IconData icon;
+  final String? value;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
 
-  const _FilterDropdown({required this.label, required this.icon});
+  const _FilterDropdown({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bool disabled = options.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -516,28 +532,58 @@ class _FilterDropdown extends StatelessWidget {
                 letterSpacing: 0.4,
               ),
             ),
+            if (value != null) ...[
+              const Spacer(),
+              GestureDetector(
+                onTap: () => onChanged(null),
+                child: const Text('Clear',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _kPrimary)),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 6),
         Container(
           height: 48,
           decoration: BoxDecoration(
-            color: _kSurface,
+            color: disabled ? _kBg : _kSurface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _kBorder),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Select $label',
-                  style: const TextStyle(fontSize: 14, color: _kTextHint),
-                ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton2<String>(
+              isExpanded: true,
+              // Guard the "exactly one item with value" assertion.
+              value: options.contains(value) ? value : null,
+              hint: Text(
+                disabled ? 'No $label values' : 'Select $label',
+                style: const TextStyle(fontSize: 14, color: _kTextHint),
+                overflow: TextOverflow.ellipsis,
               ),
-              const Icon(Icons.keyboard_arrow_down_rounded,
+              items: options
+                  .map((e) => DropdownMenuItem<String>(
+                        value: e,
+                        child: Text(e,
+                            style: const TextStyle(
+                                fontSize: 14, color: _kTextPrimary),
+                            overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: disabled ? null : onChanged,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
                   color: _kTextSecondary, size: 20),
-            ],
+              buttonHeight: 46,
+              buttonPadding: EdgeInsets.zero,
+              dropdownMaxHeight: 320,
+              dropdownDecoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
       ],
@@ -622,8 +668,13 @@ class LeadFilterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<ApprovalFilterController>(
-      init: ApprovalFilterController(),
+    // Was GetBuilder<ApprovalFilterController> — the Approval module's
+    // controller, copy-pasted. It held none of the lead state, so nothing this
+    // screen did could ever reach the lead list.
+    return GetBuilder<LeadManagementController>(
+      init: Get.isRegistered<LeadManagementController>()
+          ? Get.find<LeadManagementController>()
+          : LeadManagementController(),
       builder: (controller) => Scaffold(
         backgroundColor: _kBg,
         appBar: AppBar(
@@ -691,26 +742,43 @@ class LeadFilterScreen extends StatelessWidget {
                       title: 'Filter Options',
                       icon: Icons.tune_rounded,
                       iconColor: const Color(0xFF7C3AED),
+                      // Company and Contact Person are the only list fields the
+                      // API actually returns, so they're the only ones that can
+                      // be filtered. Lead Type / Status / Handler are absent
+                      // from getleadentry's payload entirely — see the note
+                      // below. They were removed rather than left as dead boxes.
                       child: Column(
-                        children: const [
-                          _FilterDropdown(
-                            label: 'Lead Type',
-                            icon: Icons.label_outline_rounded,
-                          ),
-                          SizedBox(height: 14),
+                        children: [
                           _FilterDropdown(
                             label: 'Company',
                             icon: Icons.business_outlined,
+                            value: controller.filterCompany,
+                            options: controller.filterCompanyOptions,
+                            onChanged: controller.setLeadFilterCompany,
                           ),
-                          SizedBox(height: 14),
+                          const SizedBox(height: 14),
                           _FilterDropdown(
-                            label: 'Status',
-                            icon: Icons.flag_outlined,
-                          ),
-                          SizedBox(height: 14),
-                          _FilterDropdown(
-                            label: 'Handler',
+                            label: 'Contact Person',
                             icon: Icons.person_outline_rounded,
+                            value: controller.filterContact,
+                            options: controller.filterContactOptions,
+                            onChanged: controller.setLeadFilterContact,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Icon(Icons.info_outline_rounded,
+                                  size: 13, color: _kTextSecondary),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Lead Type, Status and Handler are not returned by the lead list API, so they cannot be filtered yet.',
+                                  style: TextStyle(
+                                      fontSize: 11, color: _kTextSecondary),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -734,7 +802,11 @@ class LeadFilterScreen extends StatelessWidget {
                   SizedBox(
                     height: 48,
                     child: OutlinedButton.icon(
-                      onPressed: () {},
+                      // Was an empty onPressed.
+                      onPressed: () {
+                        controller.resetLeadFilter();
+                        Get.back();
+                      },
                       icon: const Icon(Icons.restart_alt_rounded,
                           size: 16, color: _kTextSecondary),
                       label: const Text(
@@ -842,27 +914,25 @@ class LeadFilterScreen extends StatelessWidget {
   }
 
   Widget _dateRangeRow(
-      ApprovalFilterController controller, BuildContext context) {
-    final int currentYear = int.parse(
-        '${controller.homeController.currentUserData?.yearId?.split('-').first}');
+      LeadManagementController controller, BuildContext context) {
+    // The old version did int.parse('${yearId.split('-').first}') — which
+    // throws on a null/non-numeric yearId — and then pinned firstDate to that
+    // "year", which is why previous years were unreachable. AppConst supplies
+    // proper bounds (2000–2050).
+    String fmt(DateTime? d) =>
+        d == null ? AppString.dateTimeEmpty : DateFormat(AppString.ddMMyyyy).format(d);
 
     return Row(
       children: [
         _DatePickerTile(
           label: 'FROM DATE',
-          value: controller.firstDate,
+          value: fmt(controller.filterFromDate),
           onTap: () async {
-            final String date = controller.firstDate;
-            final DateTime initDate = date != AppString.dateTimeEmpty
-                ? DateTime.parse(
-                formatDate(date, AppString.ddMMyyyy, AppString.yyyyMMdd))
-                : DateTime.now();
-
             final picked = await showDatePicker(
               context: context,
-              initialDate: initDate,
-              firstDate: DateTime(currentYear),
-              lastDate: DateTime.now(),
+              initialDate: controller.filterFromDate ?? DateTime.now(),
+              firstDate: AppConst.calenderFirstDate,
+              lastDate: AppConst.calenderLastDate,
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
                   colorScheme: const ColorScheme.light(
@@ -873,11 +943,7 @@ class LeadFilterScreen extends StatelessWidget {
                 child: child!,
               ),
             );
-            if (picked != null) {
-              final fmt = DateFormat(AppString.ddMMyyyy).format(picked);
-              controller.setDate(fmt, true);
-              controller.setDateByDate(picked, true);
-            }
+            if (picked != null) controller.setLeadFilterFromDate(picked);
           },
         ),
         Padding(
@@ -890,19 +956,13 @@ class LeadFilterScreen extends StatelessWidget {
         ),
         _DatePickerTile(
           label: 'TO DATE',
-          value: controller.lastDate,
+          value: fmt(controller.filterToDate),
           onTap: () async {
-            final String date = controller.lastDate;
-            final DateTime initDate = date != AppString.dateTimeEmpty
-                ? DateTime.parse(
-                formatDate(date, AppString.ddMMyyyy, AppString.yyyyMMdd))
-                : DateTime.now();
-
             final picked = await showDatePicker(
               context: context,
-              initialDate: initDate,
-              firstDate: DateTime(currentYear),
-              lastDate: DateTime.now(),
+              initialDate: controller.filterToDate ?? DateTime.now(),
+              firstDate: controller.filterFromDate ?? AppConst.calenderFirstDate,
+              lastDate: AppConst.calenderLastDate,
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
                   colorScheme: const ColorScheme.light(
@@ -913,11 +973,7 @@ class LeadFilterScreen extends StatelessWidget {
                 child: child!,
               ),
             );
-            if (picked != null) {
-              final fmt = DateFormat(AppString.ddMMyyyy).format(picked);
-              controller.setDate(fmt, false);
-              controller.setDateByDate(picked, false);
-            }
+            if (picked != null) controller.setLeadFilterToDate(picked);
           },
         ),
       ],

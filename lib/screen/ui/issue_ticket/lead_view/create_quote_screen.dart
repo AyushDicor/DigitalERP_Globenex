@@ -600,6 +600,7 @@
 //     );
 //   }
 // }
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
@@ -915,15 +916,9 @@ class _CreateQuoteScreenState extends State<CreateQuoteScreen> {
       builder: (controller) {
         return Scaffold(
           backgroundColor: const Color(0xFFF5F6FA),
-          appBar: AppBar(
-            title: Text("Create Quote",
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: newTextPrimary)),
-            backgroundColor: Colors.white,
-            foregroundColor: newTextPrimary,
-            elevation: 0,
+          appBar: LeadAppBar(
+            title: 'Create Quote',
+            subtitle: widget.lead?.companyName ?? widget.lead?.leadName,
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),

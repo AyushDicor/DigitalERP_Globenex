@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'package:digitalerp/model/getleadentry_response_model.dart';
 import 'package:digitalerp/screen/ui/issue_ticket/lead_view/controller/get_all_quotation_controller.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
@@ -158,42 +159,12 @@ class _CallLogsScreenState extends State<CallLogsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // App bar
-            Container(
-              color: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Icon(Icons.arrow_back_ios_new,
-                        color: newTextPrimary, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Call Logs',
-                      style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: newTextPrimary),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _pickDateRange,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: newBlueLightColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.date_range,
-                          color: newBlueColor, size: 20),
-                    ),
-                  ),
-                ],
-              ),
+            LeadAppBar(
+              title: 'Call Logs',
+              subtitle: widget.lead.leadName,
+              actions: [
+                leadAppBarAction(Icons.date_range_rounded, _pickDateRange),
+              ],
             ),
             Expanded(
               child: Obx(

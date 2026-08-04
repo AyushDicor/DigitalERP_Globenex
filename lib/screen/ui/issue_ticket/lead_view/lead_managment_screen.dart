@@ -64,7 +64,23 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     ]);
 
     if (widget.editLead != null) {
-      loadLeadData(widget.editLead!);
+      // The lead LIST endpoint (getleadentry/getleadentry) returns only six
+      // fields — LeadEntryId, LeadName, CompanyName, MobileNo, LeadDate,
+      // Ageing. Opening this form straight from a list card therefore left
+      // email, website, address, remarks, business/industry type and source
+      // all blank, because those values simply were not in the object handed
+      // over. Fetch the full record by id first; fall back to whatever was
+      // passed only if that call fails.
+      GetleadentryList lead = widget.editLead!;
+      await controller.getLeadEntryDetailFromId(lead.leadEntryId);
+      final full = controller.getLeadDetailFromIdResponseModel?.data;
+      if (full != null) {
+        lead = controller.fromApiToLeadModel(full);
+      } else {
+        log('Edit Lead: detail fetch failed for ${lead.leadEntryId}, '
+            'falling back to the list row');
+      }
+      loadLeadData(lead);
     } else {
       controller.clearLeadData();
     }
@@ -82,8 +98,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     controller.altContactController.text = lead.alternateMobile ?? "";
     controller.emailController.text = lead.email ?? "";
     controller.websiteController.text = lead.website ?? "";
-    controller.leadDateController.text = lead.leadDate ?? "";
-    controller.lastCommDateController.text = lead.lastCommunicationDate ?? "";
+    // The API returns a full timestamp ("2026-08-04T00:00:00"), which rendered
+    // raw in the box. Normalise to the same yyyy-MM-dd the date picker writes
+    // and getAgeing() parses, so all three agree.
+    controller.leadDateController.text = _dateOnly(lead.leadDate);
+    controller.lastCommDateController.text =
+        _dateOnly(lead.lastCommunicationDate);
     controller.remarksController.text = lead.requirement ?? "";
     controller.addressController.text = lead.address ?? "";
 
@@ -158,7 +178,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   InputDecoration inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       prefixIcon: Icon(icon, color: purpleColor),
-      hintText: hint,
+      // Every field on this screen is pre-filled from the lead, and `hintText`
+      // is hidden as soon as a field has a value — so the form rendered as a
+      // column of values with nothing saying what any of them were. A label
+      // pinned above the box stays visible whether the field is filled or not.
+      labelText: hint,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      labelStyle: GoogleFonts.poppins(
+          color: Colors.grey.shade700, fontSize: 12.5, fontWeight: FontWeight.w600),
+      floatingLabelStyle: GoogleFonts.poppins(
+          color: purpleColor, fontSize: 13, fontWeight: FontWeight.w600),
       hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 14),
       filled: true,
       fillColor: whiteColor,
@@ -209,6 +238,99 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       }
     }
     return null;
+  }
+
+  /// One titled card per group of fields.
+  ///
+  /// The screen used to be a single 20-padded white box holding ~15 unlabelled
+  /// inputs in one column, which read as an undifferentiated wall. Cards match
+  /// the Lead Entry screen's layout so both halves of the module look alike.
+  Widget sectionCard(
+      String title, IconData icon, Color accent, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, size: 16, color: accent),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: newTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// Read-only row for a value the user cannot edit (Ageing).
+  Widget readOnlyRow(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.grey.shade600),
+          const SizedBox(width: 12),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
+          const Spacer(),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  color: purpleColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  /// Strips the time off an API date so the field shows "2026-08-04" rather
+  /// than "2026-08-04T00:00:00". Returns '' for null/unparseable input.
+  String _dateOnly(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '';
+    final parsed = DateTime.tryParse(raw.trim());
+    if (parsed == null) return raw.trim();
+    return DateFormat('yyyy-MM-dd').format(parsed);
   }
 
   Future<void> pickDate(TextEditingController controller) async {
@@ -318,74 +440,147 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
         log('selectedSourcesValue=================>>>>>${selectedSourcesValue}');
 
+        final bool isEdit = widget.editLead != null;
+
         return Scaffold(
           key: scaffoldKey,
           backgroundColor: const Color(0xFFF5F6FA),
+          // A real app bar: title, the record being edited, and a back button.
+          // The old header was a plain white Row inside the scroll view, so it
+          // scrolled away and offered no way back.
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            shadowColor: const Color(0xFFE8EAF0),
+            surfaceTintColor: Colors.transparent,
+            centerTitle: false,
+            // Boxed chevron, matching the Lead Management list app bar. The
+            // Material default back arrow looked nothing like the rest of the
+            // module.
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                margin: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFF5F6FA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE8EAF0))),
+                child: Icon(Icons.arrow_back_ios_new_rounded,
+                    color: newTextPrimary, size: 16),
+              ),
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  isEdit ? "Edit Lead" : "New Lead",
+                  style: GoogleFonts.poppins(
+                      color: newTextPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  isEdit
+                      ? (widget.editLead?.companyName ??
+                          widget.editLead?.leadName ??
+                          'Update lead details')
+                      : 'Create a new lead record',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                      color: Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400),
+                ),
+              ],
+            ),
+            actions: [
+              // Same 38x38 boxed action button the list screen uses for its
+              // filter, so both app bars in the module read as one design.
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const LeadListScreen()));
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F3FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.list_alt_rounded,
+                      color: Color(0xFF5B5FC7), size: 20),
+                ),
+              ),
+            ],
+          ),
+          // The save button used to sit at the bottom of a very long scroll,
+          // so it was only reachable after scrolling past every field.
+          bottomNavigationBar: Container(
+            padding: EdgeInsets.fromLTRB(
+                16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [purpleColor, blueColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    if (isEdit) {
+                      controller.updateLeadEntry(widget.editLead!.leadEntryId);
+                    } else {
+                      controller.saveLeadEntry(context);
+                    }
+                  }
+                },
+                icon: const Icon(Icons.save, color: Colors.white, size: 20),
+                label: Text(
+                  isEdit ? "Update Lead" : "Save Lead",
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
           body: SafeArea(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Column(
                 children: [
-                  // Header
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.assignment_outlined,
-                            color: newTextPrimary, size: 24),
-                        const SizedBox(width: 10),
-                        Text(
-                          widget.editLead != null
-                              ? "Edit Lead"
-                              : "Lead Management",
-                          style: GoogleFonts.poppins(
-                              color: newTextPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const LeadListScreen()));
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: newBlueLightColor,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.list_alt,
-                                color: newBlueColor, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Form
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: Form(
+                  Form(
                         key: formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            sectionCard('Contact Details', Icons.person_outline,
+                                const Color(0xFF2563EB), [
+
                             buildTextField(ctrl.nameController,
                                 "Lead Name - contact person", Icons.person,
                                 validator: (v) =>
@@ -400,6 +595,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                 "Alternate Contact (optional)",
                                 Icons.phone_android,
                                 type: TextInputType.phone),
+
+                            ]),
+
+                            sectionCard('Source & Address',
+                                Icons.location_on_outlined,
+                                const Color(0xFF7C3AED), [
 
                             buildDropdown(
                               "Sources",
@@ -478,6 +679,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                 validator: validateEmail),
                             buildTextField(ctrl.websiteController, "Website",
                                 Icons.language),
+
+                            ]),
+
+                            sectionCard('Dates',
+                                Icons.calendar_month_outlined,
+                                const Color(0xFF059669), [
+
                             GestureDetector(
                               onTap: () => pickDate(ctrl.leadDateController),
                               child: AbsorbPointer(
@@ -493,29 +701,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                       "Last Comm. Date",
                                       Icons.date_range)),
                             ),
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: whiteColor,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text("Ageing",
-                                      style: GoogleFonts.poppins(
-                                          color: Colors.grey.shade700,
-                                          fontSize: 14)),
-                                  Text(getAgeing(),
-                                      style: GoogleFonts.poppins(
-                                          color: purpleColor, fontSize: 14)),
-                                ],
-                              ),
-                            ),
+                            // Ageing is derived, not editable — rendered as a
+                            // read-only row so it reads differently from the
+                            // inputs around it.
+                            readOnlyRow('Ageing', getAgeing(),
+                                Icons.hourglass_bottom_rounded),
+
+                            ]),
+
+                            sectionCard('Classification',
+                                Icons.category_outlined,
+                                const Color(0xFFEA580C), [
 
                             // Dropdowns
                             buildDropdown(
@@ -557,6 +753,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                 ctrl.update();
                               },
                             ),
+
+                            ]),
+
+                            sectionCard('Requirement & Products',
+                                Icons.notes_outlined,
+                                const Color(0xFF0891B2), [
 
                             buildTextField(
                                 ctrl.productsController,
@@ -707,55 +909,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               ),
                             ),
 
-                            const SizedBox(height: 20),
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [purpleColor, blueColor],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30)),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                onPressed: () {
-                                  if (formKey.currentState!.validate()) {
-                                    if (widget.editLead != null) {
-                                      controller.updateLeadEntry(
-                                          widget.editLead!.leadEntryId);
-                                    } else {
-                                      controller.saveLeadEntry(context);
-                                    }
-                                  }
-                                },
-                                icon:
-                                    const Icon(Icons.save, color: Colors.white),
-                                label: Text(
-                                  widget.editLead != null
-                                      ? "Update Lead"
-                                      : "Save Lead",
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            ]),
+                            // The Save/Update button now lives in the sticky
+                            // bottomNavigationBar instead of down here.
                           ],
                         ),
                       ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -854,7 +1013,18 @@ class _CompanyAutocomplete extends StatelessWidget {
                   : null,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.business, color: purpleColor),
-                hintText: "Company Name",
+                // Same fix as inputDecoration(): this field is pre-filled, so a
+                // hint-only label was never visible.
+                labelText: "Company Name",
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                labelStyle: GoogleFonts.poppins(
+                    color: Colors.grey.shade700,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600),
+                floatingLabelStyle: GoogleFonts.poppins(
+                    color: purpleColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600),
                 hintStyle: GoogleFonts.poppins(
                     color: Colors.grey.shade500, fontSize: 14),
                 filled: true,

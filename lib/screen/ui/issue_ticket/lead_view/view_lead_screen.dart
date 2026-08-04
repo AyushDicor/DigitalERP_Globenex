@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:digitalerp/app_routes/app_routes.dart';
@@ -345,49 +346,10 @@ class _LeadListScreenState extends State<LeadListScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Get.toNamed(AppRoutes.home);
-                        },
-                        child: Icon(
-                          Icons.arrow_back_ios_new,
-                          color: newTextPrimary,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        "Leads",
-                        style: GoogleFonts.poppins(
-                          color: newTextPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      // InkWell(
-                      //   onTap: () async {
-                      //     await Navigator.push(
-                      //       context,
-                      //       MaterialPageRoute(builder: (_) => const LeadManagementScreen()),
-                      //     );
-                      //     loadLeads();
-                      //   },
-                      //   child: Container(
-                      //     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                      //     padding: const EdgeInsets.all(8),
-                      //     child: const Icon(Icons.add, color: purpleColor),
-                      //   ),
-                      // ),
-                    ],
-                  ),
+                LeadAppBar(
+                  title: 'Leads',
+                  subtitle: 'Manage and track your leads',
+                  onBack: () => Get.toNamed(AppRoutes.home),
                 ),
                 if (controller.isLoading)
                   const Expanded(child: Center(child: CircularProgressIndicator()))
@@ -562,6 +524,42 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
     super.initState();
     // fetch details from API
     controller.getLeadEntryDetailFromId(int.parse(widget.id!));
+  }
+
+  /// Confirmation gate for the Delete button.
+  ///
+  /// The button previously called deleteLeadFun directly, so one stray tap
+  /// permanently removed a lead from live data with no way back.
+  Future<void> _confirmDeleteLead(
+      BuildContext context, int? leadId, String? label) async {
+    if (leadId == null) return;
+
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this lead?'),
+        content: Text(
+          label == null || label.trim().isEmpty
+              ? 'This permanently deletes the lead. It cannot be undone.'
+              : '"$label" will be permanently deleted. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: redColor),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      await controller.deleteLeadFun(leadId);
+    }
   }
 
   Future<void> _deleteLead(BuildContext context) async {
@@ -808,29 +806,10 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             child: Column(
             children: [
               // Header
-              Container(
-                width: double.infinity,
-                color: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(Icons.arrow_back_ios_new,
-                          color: newTextPrimary, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      "Lead Details",
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: newTextPrimary,
-                      ),
-                    ),
-                  ],
-                ),
+              LeadAppBar(
+                title: 'Lead Details',
+                subtitle: data?.companyName ?? data?.leadName,
+                onBack: () => Navigator.pop(context),
               ),
 
               // Body
@@ -1031,9 +1010,11 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {
-                          controller.deleteLeadFun(data?.leadEntryId);
-                        },
+                        // Deleting a lead is irreversible and this used to fire
+                        // on a single tap with no confirmation at all.
+                        onPressed: () =>
+                            _confirmDeleteLead(context, data?.leadEntryId,
+                                data?.leadName ?? data?.companyName),
                         icon: const Icon(Icons.delete, color: Colors.white),
                         label: Text("Delete", style: GoogleFonts.poppins(color: Colors.white)),
                       ),

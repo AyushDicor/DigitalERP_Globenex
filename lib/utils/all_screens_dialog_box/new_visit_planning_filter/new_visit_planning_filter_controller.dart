@@ -25,6 +25,19 @@ class NewVisitPlanningFilterController extends AppBaseController {
   double lowerValue = 0;
   double upperValue = 100;
 
+  /// Upper bound of the distance slider, taken from the Distance master
+  /// (Distancefilterdropdown/getdistancefilter) rather than hardcoded — that
+  /// master currently holds 5 / 100 / 150, so a fixed max of 100 made the
+  /// 150 km option unreachable. Falls back to 100 until the list loads.
+  double get maxDistance {
+    double max = 0;
+    for (final d in distanceDetailsList) {
+      final v = double.tryParse(d.distance ?? '') ?? 0;
+      if (v > max) max = v;
+    }
+    return max > 0 ? max : 100;
+  }
+
 
   List<NearByDataList> nearByDataList = [];
   List<StateDataList> newVisitFilterStateList = [];
@@ -166,7 +179,11 @@ class NewVisitPlanningFilterController extends AppBaseController {
       var res = await api.getCityData(body);
       if (res.status == 200) {
         newVisitFilterCityList = res.data ?? [];
-        selectedCityNewVisit = newVisitFilterCityList.first;
+        // Was `newVisitFilterCityList.first` — StateError on any state with no
+        // cities, which crashed the app. Auto-selecting was wrong anyway: it
+        // put a city in the dropdown the user never picked.
+        selectedCityNewVisit = null;
+        newVisitPlanController.newVisitCityFilterSelectedValue = null;
         //update();
       } else {
         //ShowMessage.showSnackBar('Server Res', res.message.toString());
@@ -187,7 +204,9 @@ class NewVisitPlanningFilterController extends AppBaseController {
       var res = await api.getAreaData(body);
       if (res.status == 200) {
         newVisitFilterAreaList = res.data ?? [];
-        selectedAreaNewVisit = newVisitFilterAreaList.first;
+        // Same empty-list crash as getCity — see the note there.
+        selectedAreaNewVisit = null;
+        newVisitPlanController.newVisitAreaFilterSelectedValue = null;
         //update();
       } else {
         //ShowMessage.showSnackBar('Server Res', res.message.toString());
@@ -201,17 +220,20 @@ class NewVisitPlanningFilterController extends AppBaseController {
   }
 
   void onApplyFilter() {
+    // Push EVERY selection to the parent. State and City were only being set
+    // from their onChanged handlers, so an auto-selected value could show in
+    // the dropdown while the request still sent 0.
     newVisitPlanController.newVisitnearbyFilterSelectedValue = selectedNearByItem;
+    newVisitPlanController.newVisitStateFilterSelectedValue = selectedStateNewVisit;
+    newVisitPlanController.newVisitCityFilterSelectedValue = selectedCityNewVisit;
     newVisitPlanController.newVisitAreaFilterSelectedValue = selectedAreaNewVisit;
-    if (selectedNearByItem == null &&
-        selectedStateNewVisit == null &&
-        selectedCityNewVisit == null &&
-        selectedAreaNewVisit == null) {
-      ShowMessage.showSnackBar('msg', 'please select any filter value ');
-    } else {
-      newVisitPlanController.getCustomerList(upperValue.toInt());
-      Get.back();
-    }
+
+    // The old guard refused to apply unless a dropdown was chosen. The Nearby
+    // dropdown was replaced by the distance slider, so selectedNearByItem is
+    // now always null — which meant moving only the slider and tapping Apply
+    // did nothing at all. Distance is a filter in its own right, so just apply.
+    newVisitPlanController.getCustomerList(upperValue.toInt());
+    Get.back();
   }
 }
 /*  void setSelectDropdownValue(var newValue) {

@@ -980,9 +980,20 @@
 //
 
 import 'package:digitalerp/lead%20management/lead%20management%20controller/lead_management_controller.dart';
+import 'package:digitalerp/contactsview/Designation_dropdown_responce.dart';
+import 'package:digitalerp/model/lead_businesstype_response_model.dart';
+import 'package:digitalerp/model/lead_existing_client_response_model.dart';
+import 'package:digitalerp/model/lead_industry_response_model.dart';
+import 'package:digitalerp/model/lead_sources_response_model.dart';
+import 'package:digitalerp/response/area_data_response.dart';
+import 'package:digitalerp/response/city_data_response.dart';
+import 'package:digitalerp/response/state_data_response.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
+import 'package:digitalerp/screen/ui/home/approval/approval_filtter/approval_filtter_responce/client_list_responce.dart';
+import 'package:digitalerp/screen/ui/home/indent/indent_response/indent_model.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:digitalerp/utils/date_widget.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -1133,6 +1144,375 @@ class _LeadTextField extends StatelessWidget {
 }
 
 //  Plain dropdown row 
+/// A real, working dropdown for the lead form.
+///
+/// [_DropdownRow] below is the original placeholder — a grey box with a chevron
+/// and no items, no selection and no tap handler. This one is backed by data.
+class _LeadDropdown<T> extends StatelessWidget {
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onChanged;
+  final bool isLoading;
+
+  /// Message shown when [items] is empty — usually "pick the parent first".
+  final String emptyHint;
+
+  const _LeadDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+    this.isLoading = false,
+    this.emptyHint = '',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool disabled = isLoading || items.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: disabled ? _kBg : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton2<T>(
+            isExpanded: true,
+            // Guard against the "exactly one item with value" assertion: if a
+            // stale selection is no longer in the list, fall back to null.
+            value: items.contains(value) ? value : null,
+            hint: Row(
+              children: [
+                if (isLoading) ...[
+                  const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    isLoading
+                        ? 'Loading $label…'
+                        : (items.isEmpty && emptyHint.isNotEmpty
+                            ? emptyHint
+                            : 'Select $label'),
+                    style: const TextStyle(fontSize: 14, color: _kTextHint),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            items: items
+                .map((e) => DropdownMenuItem<T>(
+                      value: e,
+                      child: Text(
+                        itemLabel(e),
+                        style: const TextStyle(
+                            fontSize: 14, color: _kTextPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ))
+                .toList(),
+            onChanged: disabled ? null : onChanged,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                color: _kTextSecondary, size: 20),
+            buttonHeight: 48,
+            buttonPadding: EdgeInsets.zero,
+            dropdownMaxHeight: 320,
+            dropdownDecoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//  Company Name picker
+/// Company Name was a plain text field. It now opens the client master used by
+/// the Approval filter's Client dropdown (`Allclientlistfilter/clientdrpdon`).
+///
+/// The list is ~274 rows on a live account, so it opens in a searchable sheet
+/// rather than an inline menu. A lead is often a company that is not a client
+/// yet, so the sheet also offers the typed text as-is — picking from the list
+/// additionally keeps the client id, typing does not.
+class _CompanyPickerField extends StatelessWidget {
+  final LeadManagementController controller;
+
+  const _CompanyPickerField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final String current = controller.companyNameController.text.trim();
+    final bool hasValue = current.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: GestureDetector(
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _CompanyPickerSheet(controller: controller),
+        ),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorder),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasValue ? current : 'Select Company Name',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: hasValue ? _kTextPrimary : _kTextHint,
+                    fontWeight: hasValue ? FontWeight.w500 : FontWeight.w400,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (controller.isClientLoading)
+                const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                const Icon(Icons.keyboard_arrow_down_rounded,
+                    color: _kTextSecondary, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompanyPickerSheet extends StatefulWidget {
+  final LeadManagementController controller;
+
+  const _CompanyPickerSheet({required this.controller});
+
+  @override
+  State<_CompanyPickerSheet> createState() => _CompanyPickerSheetState();
+}
+
+class _CompanyPickerSheetState extends State<_CompanyPickerSheet> {
+  final TextEditingController _search = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _search.text = widget.controller.companyNameController.text.trim();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<ClientListData> get _matches {
+    final q = _search.text.trim().toLowerCase();
+    final all = widget.controller.clientOptions;
+    if (q.isEmpty) return all;
+    return all
+        .where((e) => (e.clientname ?? '').toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// True when the typed text is not already a client — the only case where
+  /// offering "use this name" adds anything.
+  bool get _canUseTyped {
+    final q = _search.text.trim();
+    if (q.isEmpty) return false;
+    return !widget.controller.clientOptions
+        .any((e) => (e.clientname ?? '').toLowerCase() == q.toLowerCase());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = _matches;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.78,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _kBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Company Name',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _kTextPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        color: _kTextSecondary, size: 20),
+                  ),
+                ],
+              ),
+            ),
+
+            //  Search / free-text entry
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _search,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(fontSize: 14, color: _kTextPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search or type a new company',
+                  hintStyle: const TextStyle(fontSize: 14, color: _kTextHint),
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      color: _kTextSecondary, size: 20),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : GestureDetector(
+                          onTap: () {
+                            _search.clear();
+                            setState(() {});
+                          },
+                          child: const Icon(Icons.clear_rounded,
+                              color: _kTextSecondary, size: 18),
+                        ),
+                  filled: true,
+                  fillColor: _kBg,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorderFocus, width: 1.8),
+                  ),
+                ),
+              ),
+            ),
+
+            //  Use the typed name — a lead need not be an existing client
+            if (_canUseTyped)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.add_circle_outline_rounded,
+                    color: _kPrimary, size: 20),
+                title: Text(
+                  'Use "${_search.text.trim()}"',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _kPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text(
+                  'Not in the client list',
+                  style: TextStyle(fontSize: 11, color: _kTextSecondary),
+                ),
+                onTap: () {
+                  widget.controller.setCompanyNameManually(_search.text);
+                  Navigator.of(context).pop();
+                },
+              ),
+
+            const Divider(height: 16, color: _kBorder),
+
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(
+                      child: Text(
+                        widget.controller.isClientLoading
+                            ? 'Loading companies…'
+                            : 'No matching company',
+                        style: const TextStyle(
+                            fontSize: 13, color: _kTextSecondary),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      itemCount: matches.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: _kBorder),
+                      itemBuilder: (_, i) {
+                        final client = matches[i];
+                        final bool isSelected =
+                            widget.controller.selectedClient?.clientid ==
+                                client.clientid;
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            client.clientname ?? '',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _kTextPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check_rounded,
+                                  color: _kPrimary, size: 18)
+                              : null,
+                          onTap: () {
+                            widget.controller.onClientChanged(client);
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DropdownRow extends StatelessWidget {
   final String label;
   const _DropdownRow(this.label);
@@ -1359,7 +1739,14 @@ class _LeadEntryViewState extends State<LeadEntryView> {
                     focusNode: controller.requirementFocus,
                     maxLines: 3,
                   ),
-                  _DropdownRow('Lead Type'),
+                  // Lead Type — fixed two-value list, no API behind it.
+                  _LeadDropdown<String>(
+                    label: 'Lead Type',
+                    value: controller.selectedLeadType,
+                    items: controller.leadTypeOptions,
+                    itemLabel: (e) => e,
+                    onChanged: controller.onLeadTypeChanged,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -1370,35 +1757,122 @@ class _LeadEntryViewState extends State<LeadEntryView> {
                 icon: Icons.business_outlined,
                 iconColor: const Color(0xFF7C3AED),
                 children: [
-                  _LeadTextField(
-                    label: 'Company Name',
-                    controller: controller.companyNameController,
-                    focusNode: controller.companyNameFocus,
-                  ),
+                  // Company Name — picker over the client master, the same
+                  // list the Approval filter's Client dropdown uses.
+                  _CompanyPickerField(controller: controller),
                   _LeadTextField(
                     label: 'Owner Name',
                     controller: controller.ownerNameController,
                     focusNode: controller.ownerNameFocus,
                   ),
-                  _LeadTextField(
-                    label: 'Contact Person',
-                    controller: controller.contactPersonController,
-                    focusNode: controller.contactPersonFocus,
+                  // Contact Person is a dropdown of the selected client's own
+                  // contacts, and falls back to a plain field for a company
+                  // that is not a client yet (or has no contacts on file).
+                  if (controller.isClientDetailLoading)
+                    _LeadDropdown<ClientContact>(
+                      label: 'Contact Person',
+                      value: null,
+                      items: const [],
+                      itemLabel: (e) => e.contactperson ?? '',
+                      isLoading: true,
+                      onChanged: controller.onContactPersonChanged,
+                    )
+                  else if (controller.clientContacts.isNotEmpty)
+                    _LeadDropdown<ClientContact>(
+                      label: 'Contact Person',
+                      value: controller.selectedContact,
+                      items: controller.clientContacts,
+                      itemLabel: (e) => e.contactperson ?? '',
+                      onChanged: controller.onContactPersonChanged,
+                    )
+                  else
+                    _LeadTextField(
+                      label: 'Contact Person',
+                      controller: controller.contactPersonController,
+                      focusNode: controller.contactPersonFocus,
+                    ),
+                  // Designation — the master always existed; what was missing
+                  // was a column to store it. leadentrywithstatecity has one.
+                  _LeadDropdown<DesignationData>(
+                    label: 'Designation',
+                    value: controller.selectedDesignation,
+                    items: controller.designationOptions,
+                    itemLabel: (e) => e.designnation ?? '',
+                    isLoading: controller.isDesignationLoading,
+                    onChanged: controller.onDesignationChanged,
                   ),
-                  _DropdownRow('Designation'),
                   _LeadTextField(
                     label: 'Company Address',
                     controller: controller.companyAddressController,
                     focusNode: controller.companyAddresFocus,
                     maxLines: 2,
                   ),
-                  _DropdownRow('Source'),
-                  _LeadTextField(
-                    label: 'Business Nature',
-                    controller: controller.businessNatureController,
-                    focusNode: controller.businessFocus,
+
+                  //  State → City → Area (cascading)
+                  _LeadDropdown<StateDataList>(
+                    label: 'State',
+                    value: controller.selectedState,
+                    items: controller.stateList,
+                    itemLabel: (e) => e.statename ?? '',
+                    isLoading: controller.isStateLoading,
+                    onChanged: controller.onStateChanged,
                   ),
-                  _DropdownRow('Priority'),
+                  _LeadDropdown<CityDataList>(
+                    label: 'City',
+                    value: controller.selectedCity,
+                    items: controller.cityList,
+                    itemLabel: (e) => e.cityname ?? '',
+                    isLoading: controller.isCityLoading,
+                    emptyHint: 'Select a State first',
+                    onChanged: controller.onCityChanged,
+                  ),
+                  _LeadDropdown<AreaDataList>(
+                    label: 'Area',
+                    value: controller.selectedArea,
+                    items: controller.areaList,
+                    itemLabel: (e) => e.areaname ?? '',
+                    isLoading: controller.isAreaLoading,
+                    emptyHint: 'Select a City first',
+                    onChanged: controller.onAreaChanged,
+                  ),
+
+                  // Source is a real dropdown now — leadsource/leadsourcedropdown
+                  _LeadDropdown<LeadSourcesData>(
+                    label: 'Source',
+                    value: controller.selectedSource,
+                    items: controller.sourceList,
+                    itemLabel: (e) => e.sourcename ?? '',
+                    onChanged: controller.onSourceChanged,
+                  ),
+                  // Business Type — was a free-text "Business Nature" field.
+                  // Fed by the same master the lead detail screen reads.
+                  _LeadDropdown<LeadBusinessList>(
+                    label: 'Business Type',
+                    value: controller.selectedBusinessType,
+                    items: controller.businessTypeOptions,
+                    itemLabel: (e) => e.businessType ?? '',
+                    isLoading: controller.isBusinessTypeLoading,
+                    onChanged: controller.onBusinessTypeChanged,
+                  ),
+                  // Industry Type — same master the lead detail screen reads.
+                  _LeadDropdown<LeadIndustry>(
+                    label: 'Industry Type',
+                    value: controller.selectedIndustryType,
+                    items: controller.industryTypeOptions,
+                    itemLabel: (e) => e.industryType ?? '',
+                    isLoading: controller.isIndustryTypeLoading,
+                    onChanged: controller.onIndustryTypeChanged,
+                  ),
+                  // Priority — shared indent/issue master, same list the
+                  // Indent header screen shows.
+                  _LeadDropdown<IndentDropdownOption>(
+                    label: 'Priority',
+                    value: controller.selectedPriority,
+                    items: controller.priorityOptions,
+                    itemLabel: (e) => e.label,
+                    isLoading: controller.isPriorityLoading,
+                    onChanged: controller.onPriorityChanged,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -1484,6 +1958,7 @@ class _LeadEntryViewState extends State<LeadEntryView> {
                         controller.phoneNumberController.clear();
                         controller.businessNatureController.clear();
                         controller.clearSelectedDate();
+                        controller.clearLeadEntryDropdowns();
                       },
                       style: _ButtonStyle.danger,
                     ),

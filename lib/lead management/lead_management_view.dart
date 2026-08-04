@@ -758,8 +758,8 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 //  Design tokens 
-const Color _kPrimary       = Color(0xFF4361EE);
-const Color _kPrimaryLight  = Color(0xFFEEF1FF);
+const Color _kPrimary       = purpleColor;
+final Color _kPrimaryLight  = purpleLightest;
 const Color _kBg            = Color(0xFFF6F7FB);
 const Color _kSurface       = Colors.white;
 const Color _kBorder        = Color(0xFFE4E7F0);
@@ -767,10 +767,10 @@ const Color _kDivider       = Color(0xFFEFF2F7);
 const Color _kTextPrimary   = Color(0xFF111827);
 const Color _kTextSecondary = Color(0xFF6B7280);
 const Color _kCardShadow    = Color(0x0A000000);
-const Color _kGreen         = Color(0xFF27AE60);
-const Color _kGreenLight    = Color(0xFFE8F8EF);
-const Color _kOrange        = Color(0xFFF39C12);
-const Color _kOrangeLight   = Color(0xFFFFF4E0);
+const Color _kGreen         = newGreenColor;
+const Color _kGreenLight    = newGreenLightColor;
+const Color _kOrange        = newOrangeColor;
+const Color _kOrangeLight   = newOrangeLightColor;
 const Color _kAccent        = Color(0xFF5B5FC7);
 const Color _kAccentLight   = Color(0xFFF0F3FF);
 
@@ -799,12 +799,12 @@ class _LeadManagementViewState extends State<LeadManagementView> {
             onTap: () => Get.back(),
             child: Container(
               margin: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: _kBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder)),
+              // decoration: BoxDecoration(
+              //     color: _kBg,
+              //     borderRadius: BorderRadius.circular(10),
+              //     border: Border.all(color: _kBorder)),
               child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: _kTextPrimary, size: 16),
+                  color: _kTextPrimary, size: 18),
             ),
           ),
           title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
@@ -828,7 +828,7 @@ class _LeadManagementViewState extends State<LeadManagementView> {
                 height: 38,
                 decoration: BoxDecoration(
                     color: _kAccentLight,
-                    borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(18)),
                 child: const Icon(Icons.filter_list_rounded,
                     color: _kAccent, size: 20),
               ),
@@ -849,23 +849,23 @@ class _LeadManagementViewState extends State<LeadManagementView> {
             ? Center(
             child: CircularProgressIndicator(
                 color: _kPrimary, strokeWidth: 2.5))
-            : controller.leadList.isEmpty
-            ? _emptyState()
+            : controller.filteredLeadList.isEmpty
+            ? _emptyState(controller.isLeadFilterActive)
             : RefreshIndicator(
           color: _kPrimary,
           onRefresh: () async => controller.getLeadList(),
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            itemCount: controller.leadList.length,
+            itemCount: controller.filteredLeadList.length,
             itemBuilder: (ctx, i) =>
-                _LeadCard(item: controller.leadList[i]),
+                _LeadCard(item: controller.filteredLeadList[i]),
           ),
         ),
       ),
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState([bool filterActive = false]) {
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
@@ -884,8 +884,11 @@ class _LeadManagementViewState extends State<LeadManagementView> {
                 fontWeight: FontWeight.w700,
                 color: _kTextPrimary)),
         const SizedBox(height: 6),
-        const Text('Tap + to add a new lead',
-            style: TextStyle(fontSize: 13, color: _kTextSecondary)),
+        Text(
+            filterActive
+                ? 'No leads match the current filter.'
+                : 'Tap + to add a new lead',
+            style: const TextStyle(fontSize: 13, color: _kTextSecondary)),
       ]),
     );
   }
@@ -1098,16 +1101,33 @@ class _LeadCard extends StatelessWidget {
                 ]),
               ),
               // Edit — was a no-op; opens the lead in the edit form.
+              // The edit screen re-fetches the full record by id, because this
+              // list row only carries six fields. Refresh on return so an
+              // edited lead doesn't keep showing its old values here.
               GestureDetector(
-                onTap: () => Get.to(() => LeadManagementScreen(editLead: item)),
+                onTap: () =>
+                    Get.to(() => LeadManagementScreen(editLead: item))?.then((_) {
+                  if (Get.isRegistered<LeadManagementController>()) {
+                    Get.find<LeadManagementController>().getLeadList();
+                  }
+                }),
+                // Labelled, not a bare icon — a pencil square on its own left
+                // users guessing what the button does.
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                       color: _kAccentLight,
                       borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.edit_outlined,
-                      color: _kAccent, size: 16),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.edit_outlined, color: _kAccent, size: 14),
+                    SizedBox(width: 5),
+                    Text('Edit',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _kAccent)),
+                  ]),
                 ),
               ),
             ]),
@@ -1153,56 +1173,72 @@ class _LeadCard extends StatelessWidget {
           //  Footer: next followup, spec, action icons 
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 12, 12),
-            child: Row(children: [
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Was 'Next Followup' → no such field on the lead-list
-                      // model. lastCommunicationDate is the real equivalent.
-                      const Text('Last Contact',
-                          style: TextStyle(
-                              fontSize: 10, color: _kTextSecondary)),
-                      const SizedBox(height: 2),
-                      Text(item?.lastCommunicationDate ?? 'N/A',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _kTextPrimary)),
-                    ]),
-              ),
-              // Action icon buttons
-              _iconBtn(Icons.person_add_alt_1_outlined, _kGreen,
-                  _kGreenLight, () => Get.to(const LeadFollowupDetailsView())),
-              const SizedBox(width: 6),
-              _iconBtn(Icons.history_rounded, _kOrange, _kOrangeLight,
-                      () => Get.to(const LeadFolloupHistory())),
-              const SizedBox(width: 6),
-              // Was a dead PDF button (onTap did nothing). Now the entry point
-              // to the Call / WhatsApp / Notes / Quote / Details actions.
-              _iconBtn(Icons.more_horiz_rounded, _kPrimary, _kPrimaryLight,
-                  () => _showLeadActions(context)),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => Get.to(SelectBrandView()),
-                child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: _kAccentLight,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Row(children: [
-                    Icon(Icons.add_rounded, color: _kAccent, size: 14),
-                    SizedBox(width: 4),
-                    Text('Add Item',
-                        style: TextStyle(
+            // Last Contact now sits on its own line, and the actions get a
+            // full-width row underneath. Previously four unlabelled icon
+            // squares competed with the text for horizontal space, so they
+            // were both cramped and unreadable.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  // Was 'Next Followup' → no such field on the lead-list
+                  // model. lastCommunicationDate is the real equivalent.
+                  const Text('Last Contact',
+                      style:
+                          TextStyle(fontSize: 10, color: _kTextSecondary)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(item?.lastCommunicationDate ?? 'N/A',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _kAccent)),
-                  ]),
-                ),
-              ),
-            ]),
+                            color: _kTextPrimary)),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(
+                    child: _labelledAction(
+                        Icons.person_add_alt_1_outlined,
+                        'Follow-up',
+                        _kGreen,
+                        _kGreenLight,
+                        () => Get.to(const LeadFollowupDetailsView())),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _labelledAction(
+                        Icons.history_rounded,
+                        'History',
+                        _kOrange,
+                        _kOrangeLight,
+                        () => Get.to(const LeadFolloupHistory())),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _labelledAction(
+                        Icons.add_rounded,
+                        'Add Item',
+                        _kAccent,
+                        _kAccentLight,
+                        () => Get.to(SelectBrandView())),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    // Was a dead PDF button (onTap did nothing). Now the entry
+                    // point to Call / WhatsApp / Notes / Quote / Details.
+                    child: _labelledAction(
+                        Icons.more_horiz_rounded,
+                        'More',
+                        _kPrimary,
+                        _kPrimaryLight,
+                        () => _showLeadActions(context)),
+                  ),
+                ]),
+              ],
+            ),
           ),
         ]),
       ),
@@ -1262,16 +1298,37 @@ class _LeadCard extends StatelessWidget {
       color: _kBorder,
       margin: const EdgeInsets.symmetric(horizontal: 8));
 
-  Widget _iconBtn(
-      IconData icon, Color color, Color bg, VoidCallback onTap) =>
+  /// Card action with its name under the icon.
+  ///
+  /// Replaces the old bare `_iconBtn` squares — a person-plus, a clock and a
+  /// "…" gave no clue what they did, and the only labelled one was Add Item.
+  Widget _labelledAction(IconData icon, String label, Color color, Color bg,
+          VoidCallback onTap) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 32,
-          height: 32,
-          decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 16),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 17),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }

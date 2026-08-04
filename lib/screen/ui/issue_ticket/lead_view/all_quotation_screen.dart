@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'dart:developer';
 import 'dart:io';
 import 'package:digitalerp/model/getleadentry_response_model.dart';
@@ -76,30 +77,15 @@ class AllQuotationScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              color: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Icon(Icons.arrow_back_ios_new,
-                        color: newTextPrimary, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'All Quotations',
-                      style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: newTextPrimary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // controller.lead is an Rx and may not have resolved yet, so the
+            // subtitle is read defensively rather than unwrapped.
+            Obx(() {
+              final l = controller.lead.value;
+              return LeadAppBar(
+                title: 'All Quotations',
+                subtitle: l?.companyName ?? l?.leadName,
+              );
+            }),
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value) {

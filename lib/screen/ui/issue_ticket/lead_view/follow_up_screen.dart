@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'package:digitalerp/model/getleadentry_response_model.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/material.dart';
@@ -85,27 +86,11 @@ class _FollowUpsScreenState extends State<FollowUpsScreen> {
                 // App bar
                 Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Icon(Icons.arrow_back_ios_new,
-                            color: newTextPrimary, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Follow-ups - ${widget.lead.leadName}',
-                          style: GoogleFonts.poppins(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: newTextPrimary),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  padding: EdgeInsets.zero,
+                  child: LeadAppBar(
+                    title: 'Follow-ups',
+                    subtitle: widget.lead.leadName,
+                    onBack: () => Navigator.pop(context),
                   ),
                 ),
 

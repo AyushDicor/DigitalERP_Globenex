@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'dart:convert';
 import 'dart:developer';
 
@@ -71,28 +72,11 @@ class _LeadRemarksScreenState extends State<LeadRemarksScreen> {
                 // App bar
                 Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Icon(Icons.arrow_back_ios_new,
-                            color: newTextPrimary, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '${widget.type} - ${widget.lead.leadName}',
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: newTextPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
+                  padding: EdgeInsets.zero,
+                  child: LeadAppBar(
+                    title: widget.type,
+                    subtitle: widget.lead.leadName,
+                    onBack: () => Navigator.pop(context),
                   ),
                 ),
 

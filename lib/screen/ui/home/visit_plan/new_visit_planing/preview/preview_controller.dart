@@ -94,8 +94,18 @@ class PreviewController extends AppBaseController {
   }
 
   Future<bool> submitAndSaveVisit() async {
-    String date = formatDate(previewVisitDataList.first.visitdate ?? "", 'dd-MM-yyyy', 'yyyy-MM-dd');
+    // `.first` on an empty list throws StateError, and this line sat OUTSIDE the
+    // try block — so submitting with nothing in the preview crashed the app
+    // instead of showing a message. The Submit button stays enabled on the
+    // empty state, so this was reachable.
+    if (previewVisitDataList.isEmpty) {
+      ShowMessage.showSnackBar(
+          'Nothing to submit', 'Please add at least one customer to the visit plan.');
+      return false;
+    }
     try {
+      String date =
+          formatDate(previewVisitDataList.first.visitdate ?? "", 'dd-MM-yyyy', 'yyyy-MM-dd');
       Map<String, String> body = {};
       body[RequestKeys.compId] = homeController.currentUserData?.compId.toString() ?? '39';
       body[RequestKeys.branchId] = homeController.currentUserData?.branchId.toString() ?? '39';

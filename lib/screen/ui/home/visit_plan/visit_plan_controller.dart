@@ -24,11 +24,50 @@ class VisitPlanController extends AppBaseController {
   String? fromVisitDate, toVisitDate;
   RxList<VisitListData> visitListData = <VisitListData>[].obs;
 
+  // 'All' | 'Pending' | 'Completed' — drives the status tab bar under the app bar.
+  String selectedStatusTab = 'All';
+
   @override
   void onInit() {
     // TODO: implement onInit
     getVisitPlanList();
     super.onInit();
+  }
+
+  // The API returns four visitstatus values: Completed, Pending, Planned and
+  // Closed. Matching only "pending"/"completed" would leave Planned and Closed
+  // out of BOTH tabs, so the two counts wouldn't add up to All. Planned = not
+  // visited yet, Closed = finished — group them accordingly.
+  bool _isPending(VisitListData item) {
+    final s = (item.visitstatus ?? '').toLowerCase();
+    return s.contains('pending') || s.contains('planned');
+  }
+
+  bool _isCompleted(VisitListData item) {
+    final s = (item.visitstatus ?? '').toLowerCase();
+    return s.contains('completed') || s.contains('closed');
+  }
+
+  int get totalVisitCount => visitListData.length;
+
+  int get pendingVisitCount => visitListData.where(_isPending).length;
+
+  int get completedVisitCount => visitListData.where(_isCompleted).length;
+
+  List<VisitListData> get filteredVisitListData {
+    switch (selectedStatusTab) {
+      case 'Pending':
+        return visitListData.where(_isPending).toList();
+      case 'Completed':
+        return visitListData.where(_isCompleted).toList();
+      default:
+        return visitListData;
+    }
+  }
+
+  void setStatusTab(String tab) {
+    selectedStatusTab = tab;
+    update();
   }
 
   void resetFilter() {

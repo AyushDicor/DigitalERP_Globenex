@@ -116,28 +116,36 @@ class VisitPlanDetailView extends StatelessWidget {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: newTextPrimary),
                 ),
                 const SizedBox(height: 14),
+                // Both columns are Expanded — they hold free-text values
+                // (executive name, status) that would otherwise overflow the
+                // Row, the same way the plan and preview cards did.
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _label('Date'),
-                        _value(item.visitdate ?? 'N/A'),
-                        const SizedBox(height: 10),
-                        _label('Status'),
-                        _value(item.visitstatus ?? 'N/A'),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _label('Date'),
+                          _value(item.visitdate ?? 'N/A'),
+                          const SizedBox(height: 10),
+                          _label('Status'),
+                          _value(item.visitstatus ?? 'N/A'),
+                        ],
+                      ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _label('Timing'),
-                        _value(item.visittime ?? 'N/A'),
-                        const SizedBox(height: 10),
-                        _label('Executive'),
-                        _value(controller.argument?.executive ?? 'N/A'),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _label('Timing'),
+                          _value(item.visittime ?? 'N/A'),
+                          const SizedBox(height: 10),
+                          _label('Executive'),
+                          _value(controller.argument?.executive ?? 'N/A'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -197,6 +205,8 @@ class VisitPlanDetailView extends StatelessWidget {
         child: Text(
           text,
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: newTextPrimary),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       );
 

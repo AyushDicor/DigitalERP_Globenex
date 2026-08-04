@@ -498,17 +498,19 @@ class NewVisitPlaningView extends StatelessWidget {
 
   Widget _datePicker(
       NewVisitPlaningController controller, BuildContext context) {
-    int currentYear = int.parse(
-        '${controller.homeController.currentUserData?.yearId?.split('-').first}');
+    // Was: int.parse('${...yearId?.split('-').first}') — that runs during build
+    // and throws FormatException on a null or non-numeric yearId, taking the
+    // whole screen down. The value was dead anyway: AppConst supplies both
+    // picker bounds, so `currentYear` was never actually used.
     final date = controller.defaultDate.value;
 
     return GestureDetector(
       onTap: () async {
         DateTime? pickedDate = await showDatePicker(
           context: context,
-          initialDate: _initialDate(currentYear, date),
-          firstDate: AppConst.calenderFirstDate ?? DateTime.now(),
-          lastDate: AppConst.calenderLastDate ?? _lastDate(currentYear),
+          initialDate: _initialDate(date),
+          firstDate: AppConst.calenderFirstDate,
+          lastDate: AppConst.calenderLastDate,
         );
         if (pickedDate != null) {
           controller.dateTime = pickedDate;
@@ -634,21 +636,27 @@ class NewVisitPlaningView extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: newTextSecondary),
         const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 11,
-                    color: newTextSecondary,
-                    fontWeight: FontWeight.w400)),
-            const SizedBox(height: 1),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: newTextPrimary)),
-          ],
+        // The text column was unbounded, so long customer names (e.g. "M/S SHRI
+        // MAHAVIR IRON AND STEEL PVT. LTD. (UNIT-II)") overflowed the Row.
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: newTextSecondary,
+                      fontWeight: FontWeight.w400)),
+              const SizedBox(height: 1),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: newTextPrimary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
         ),
       ],
     );
@@ -686,13 +694,15 @@ class NewVisitPlaningView extends StatelessWidget {
     );
   }
 
-  DateTime _initialDate(int currentYear, String date) {
-    return date != 'Select Date'
-        ? DateTime.parse(
-        formatDate(date, AppString.ddMMyyyy, AppString.yyyyMMdd))
-        : DateTime.now();
+  DateTime _initialDate(String date) {
+    if (date == 'Select Date' || date.isEmpty) return DateTime.now();
+    // A malformed stored date would otherwise throw straight out of the tap
+    // handler; fall back to today rather than killing the screen.
+    try {
+      return DateTime.parse(
+          formatDate(date, AppString.ddMMyyyy, AppString.yyyyMMdd));
+    } catch (_) {
+      return DateTime.now();
+    }
   }
-
-  DateTime _lastDate(int currentYear) =>
-      DateTime(currentYear + 1, 4);
 }

@@ -189,6 +189,7 @@
 //   }
 // }
 
+import 'package:digitalerp/response/all_visit_data_response.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/visit_plan/visit_plan_controller.dart';
 import 'package:digitalerp/utils/all_screens_dialog_box/visit_plan_flter/visit_plan_filter_view.dart';
@@ -275,25 +276,85 @@ class VisitPlanView extends StatelessWidget {
 
         body: MenuFabBody(
           parentMenuId: 2377,
-          child: controller.isBusy
-              ? showLoader(color: newBlueColor)
-              : controller.visitListData.isEmpty
-                  ? _emptyState()
-                  : ListView.builder(
-                      // ✅ Extra bottom padding so last card clears FAB + bottom nav
-                      padding:
-                          EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 110),
-                      itemCount: controller.visitListData.length,
-                      itemBuilder: (ctx, i) => _visitCard(controller, i),
-                    ),
+          child: Column(
+            children: [
+              _statusTabBar(controller),
+              Expanded(
+                child: controller.isBusy
+                    ? showLoader(color: newBlueColor)
+                    : controller.filteredVisitListData.isEmpty
+                        ? _emptyState(controller.selectedStatusTab)
+                        : ListView.builder(
+                            // ✅ Extra bottom padding so last card clears FAB + bottom nav
+                            padding: EdgeInsets.fromLTRB(
+                                16, 16, 16, bottomInset + 110),
+                            itemCount:
+                                controller.filteredVisitListData.length,
+                            itemBuilder: (ctx, i) => _visitCard(controller,
+                                controller.filteredVisitListData[i]),
+                          ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  //  Empty state 
+  //  Status tab bar (All / Pending / Completed with counts)
 
-  Widget _emptyState() {
+  Widget _statusTabBar(VisitPlanController controller) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+              child:
+                  _statusTabChip(controller, 'All', controller.totalVisitCount)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _statusTabChip(
+                  controller, 'Pending', controller.pendingVisitCount)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _statusTabChip(
+                  controller, 'Completed', controller.completedVisitCount)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusTabChip(
+      VisitPlanController controller, String tab, int count) {
+    final bool selected = controller.selectedStatusTab == tab;
+    return GestureDetector(
+      onTap: () => controller.setStatusTab(tab),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? purpleColor : const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected ? purpleColor : const Color(0xFFE8ECF0)),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$tab ($count)',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : newTextSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  //  Empty state
+
+  Widget _emptyState(String statusTab) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -318,19 +379,20 @@ class VisitPlanView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'No visit plans available.',
-            style: TextStyle(fontSize: 13, color: newTextSecondary),
+          Text(
+            statusTab == 'All'
+                ? 'No visit plans available.'
+                : 'No $statusTab visits available.',
+            style: const TextStyle(fontSize: 13, color: newTextSecondary),
           ),
         ],
       ),
     );
   }
 
-  //  Visit plan card 
+  //  Visit plan card
 
-  Widget _visitCard(VisitPlanController controller, int index) {
-    final item = controller.visitListData[index];
+  Widget _visitCard(VisitPlanController controller, VisitListData item) {
     final status = item.visitstatus ?? '';
     final statusColor = _statusColor(status);
     final statusBg = _statusBgColor(status);
@@ -479,7 +541,9 @@ class VisitPlanView extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: newTextPrimary)),
+                      color: newTextPrimary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ],
           ),
         ),

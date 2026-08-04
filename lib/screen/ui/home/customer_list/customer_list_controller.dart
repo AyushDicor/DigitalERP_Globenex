@@ -77,6 +77,9 @@ class CustomerListController extends AppBaseController {
     // TODO: implement onInit
 
     getDropdownList();
+    // Load the designation master here so it is present in whichever instance
+    // of this controller a screen builds — Add Contacts creates its own.
+    getDesignationDropdownList();
     super.onInit();
   }
 
@@ -199,18 +202,25 @@ class CustomerListController extends AppBaseController {
     update();
   }
 
-  void getDesignationDropdownList(String partyId) async {
-    setBusy(true);
+  /// Loads the designation master.
+  ///
+  /// [partyId] is optional: the endpoint returns the same company-wide list
+  /// regardless of it (verified — identical 21 rows for partyid 0, a real
+  /// party id, and no partyid at all). Making it optional lets onInit() load
+  /// the list, so any screen using this controller has it ready.
+  ///
+  /// Previously this was only ever called from the Contacts detail screen —
+  /// AFTER it had already pushed AddContactsView, and into a DIFFERENT
+  /// controller instance than the one AddContactsView builds. The Add Contacts
+  /// dropdown therefore always had an empty item list and would not open.
+  void getDesignationDropdownList([String partyId = '0']) async {
     try {
       Map<String, String> body = {};
       body[RequestKeys.userId] =
           homeController.currentUserData?.userid.toString() ?? '369622';
-      // body[RequestKeys.userId] = '369622';
       body[RequestKeys.compId] =
           homeController.currentUserData?.compId.toString() ?? '39';
-      // body[RequestKeys.compId] = '39';
       body[RequestKeys.partyId] = partyId;
-      // "partyid": 156795
       var res = await api.getSDesignationDropdown(body);
       if (res.status == 200) {
         designationList = res.data ?? [];
@@ -218,7 +228,10 @@ class CustomerListController extends AppBaseController {
     } catch (e) {
       ShowMessage.showSnackBar('Server Res', '$e');
     } finally {
-      setBusy(false);
+      // Do NOT flip isBusy here — this runs during onInit alongside other
+      // loaders, and clearing the flag early made the screen flash content
+      // before its main list had arrived.
+      update();
     }
   }
 

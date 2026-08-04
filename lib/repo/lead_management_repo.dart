@@ -148,6 +148,40 @@ class LeadManagementRepo {
     }
   }
 
+  /// Lead save that stores the full record — see [MethodName.saveLeadEntryWithStateCity].
+  static Future<ResponseItem> saveLeadEntryWithStateCityMethod(
+      Map<String, dynamic> requestData) async {
+    try {
+      String requestUrl = AppUrls.baseUrl + MethodName.saveLeadEntryWithStateCity;
+
+      ResponseItem result = await BaseApiHelper.postRequest(requestUrl, requestData);
+
+      return result;
+    } catch (e) {
+      return ResponseItem(
+        status: false,
+        message: "saveLeadEntryWithStateCityMethod Repo : An error occurred: ${e.toString()}",
+      );
+    }
+  }
+
+  /// Existing-client prefill. Expects `partyid`.
+  static Future<ResponseItem> leadExistingClientDetailMethod(
+      Map<String, dynamic> requestData) async {
+    try {
+      String requestUrl = AppUrls.baseUrl + MethodName.leadExistingClientDetail;
+
+      ResponseItem result = await BaseApiHelper.postRequest(requestUrl, requestData);
+
+      return result;
+    } catch (e) {
+      return ResponseItem(
+        status: false,
+        message: "leadExistingClientDetailMethod Repo : An error occurred: ${e.toString()}",
+      );
+    }
+  }
+
   static Future<ResponseItem> getLeadEntryMethodFromId(Map<String, dynamic> requestData) async {
     try {
       String requestUrl = AppUrls.baseUrl + MethodName.getLeadDetailFromId;
@@ -185,6 +219,39 @@ class LeadManagementRepo {
       return ResponseItem(
         status: false,
         message: "insertLeadNotesAndFollowUp Repo : An error occurred: ${e.toString()}",
+      );
+    }
+  }
+
+  /// Follow-up Status master. Returns 404 until the backend deploys it — the
+  /// caller treats that as "no options yet" rather than an error.
+  static Future<ResponseItem> followupStatusMethod(Map<String, dynamic> requestData) async {
+    try {
+      String requestUrl = AppUrls.baseUrl + MethodName.followupStatus;
+
+      ResponseItem result = await BaseApiHelper.postRequest(requestUrl, requestData);
+
+      return result;
+    } catch (e) {
+      return ResponseItem(
+        status: false,
+        message: "followupStatusMethod Repo : An error occurred: ${e.toString()}",
+      );
+    }
+  }
+
+  /// Follow-up Purpose master. Same story as [followupStatusMethod].
+  static Future<ResponseItem> followupPurposeMethod(Map<String, dynamic> requestData) async {
+    try {
+      String requestUrl = AppUrls.baseUrl + MethodName.followupPurpose;
+
+      ResponseItem result = await BaseApiHelper.postRequest(requestUrl, requestData);
+
+      return result;
+    } catch (e) {
+      return ResponseItem(
+        status: false,
+        message: "followupPurposeMethod Repo : An error occurred: ${e.toString()}",
       );
     }
   }

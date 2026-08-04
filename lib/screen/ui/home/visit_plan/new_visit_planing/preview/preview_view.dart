@@ -222,8 +222,12 @@ class PreviewView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: SizedBox(
               height: 50,
+              // Disabled while there is nothing to submit — the button used to
+              // stay live over the "No Data Available" state.
               child: ElevatedButton.icon(
-                onPressed: () => controller.tapOnSubmit(),
+                onPressed: controller.previewVisitDataList.isEmpty
+                    ? null
+                    : () => controller.tapOnSubmit(),
                 icon: const Icon(Icons.send_rounded,
                     color: Colors.white, size: 20),
                 label: const Text('Submit',
@@ -233,6 +237,7 @@ class PreviewView extends StatelessWidget {
                         color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: newBlueColor,
+                  disabledBackgroundColor: const Color(0xFFC7CAE8),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18)),
@@ -361,19 +366,24 @@ class PreviewView extends StatelessWidget {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Icon(icon, size: 14, color: newTextSecondary),
       const SizedBox(width: 6),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11,
-                color: newTextSecondary,
-                fontWeight: FontWeight.w400)),
-        const SizedBox(height: 1),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: newTextPrimary)),
-      ]),
+      // Unbounded Column inside a Row — long client names overflowed the card.
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: newTextSecondary,
+                  fontWeight: FontWeight.w400)),
+          const SizedBox(height: 1),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: newTextPrimary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ]),
+      ),
     ]);
   }
 

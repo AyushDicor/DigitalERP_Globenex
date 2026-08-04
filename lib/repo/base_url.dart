@@ -41,7 +41,22 @@ class MethodName {
   static const interestedInApi = "CurrentSoftware/CurrentSoftwaredropdown";
   static const decisionTimelineApi = "DecisionTimeline/DecisionTimelinedropdown";
   static const currentSoftwareApi = "DecisionTimeline/DecisionTimelinedropdown";
+  /// Superseded by [saveLeadEntryWithStateCity] — kept because the ported lead
+  /// edit screen still posts here. The old endpoint silently discards
+  /// state/city/area, designation, priority, lead type and owner name.
   static const saveLeadEntry = "leadentry/saveleadentry";
+
+  /// Lead save/update/read that actually stores the full record.
+  /// Verified 2026-08-04 on a throwaway lead: every field below round-trips —
+  /// countryid, state/city/area, companyid, DesignationId, Priority, leadtype,
+  /// OwnerName. The save mirrors the read key-for-key.
+  static const saveLeadEntryWithStateCity = "leadentrywithstatecity";
+  static const updateLeadEntryWithStateCity = "updateleadentrywithstatecity";
+  static const getLeadDetailWithStateCity = "Leadeditwithstatecity";
+
+  /// Existing-client prefill: takes `partyid` (NOT clientid — that returns
+  /// "Client detail Not Available"), returns party detail + contact list.
+  static const leadExistingClientDetail = "leadexistingclientdetail";
 
   ///
   static const getleadentryApi = "getleadentry/getleadentry";
@@ -61,6 +76,13 @@ class MethodName {
   static const getQuote = "GetQuotation/getleadForQuotation";
   static const getCallLogs = "GetCalllog/GetCalllogslist";
   static const leadSources = "leadsource/leadsourcedropdown";
+
+  /// Follow-up detail masters — being built by the backend team (Aug 2026).
+  /// Until they are deployed both return 404; the loaders below treat that as
+  /// "no options yet" and leave the dropdown disabled rather than erroring.
+  /// If the team lands different names, only these two lines change.
+  static const followupStatus = "FollowupStatus/FollowupStatusdropdown";
+  static const followupPurpose = "FollowupPurpose/FollowupPurposedropdown";
   static const String agentParty = 'agentparty';
 
   /// group and main group

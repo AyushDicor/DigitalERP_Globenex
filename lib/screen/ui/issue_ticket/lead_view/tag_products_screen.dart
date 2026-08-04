@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'dart:convert';
 import 'dart:developer';
 
@@ -73,19 +74,10 @@ class _ItemGridFilterScreenState extends State<ItemGridFilterScreen> {
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F6FA),
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leading: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Icon(Icons.arrow_back_ios_new,
-                  color: newTextPrimary, size: 22),
-            ),
-            title: Text("ERP Items",
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: newTextPrimary)),
+          appBar: LeadAppBar(
+            title: 'ERP Items',
+            subtitle: 'Tag products to this lead',
+            onBack: () => Navigator.pop(context),
           ),
           body: Padding(
             padding: const EdgeInsets.all(12),

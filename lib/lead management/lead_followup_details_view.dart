@@ -645,7 +645,10 @@
 //
 // }
 
+import 'package:digitalerp/utils/lead_app_bar.dart';
 import 'package:digitalerp/lead%20management/lead%20management%20controller/lead_management_controller.dart';
+import 'package:digitalerp/model/followup_option_response_model.dart';
+import 'package:digitalerp/response/executive_list_response.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/approval/approval_filtter/approval_filter_controller.dart';
 import 'package:digitalerp/screen/ui/home/approval/approval_filtter/approval_filtter_responce/documentname_responce.dart';
@@ -672,50 +675,22 @@ const Color _kTextPrimary = Color(0xFF0F172A);
 const Color _kTextSub = Color(0xFF64748B);
 const Color _kTextHint = Color(0xFF94A3B8);
 
-const Color _kGreen = Color(0xFF10B981);
+const Color _kGreen = newGreenColor;
 
 //  Shared helpers 
-Widget _appBar(String title, {VoidCallback? onFilter, VoidCallback? onAdd}) {
-  return Container(
-    color: _kWhite,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    child: Row(children: [
-      GestureDetector(
-        onTap: () => Get.back(),
-        child: const Icon(Icons.arrow_back_ios_new, color: _kTextPrimary, size: 22),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Text(title,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: _kTextPrimary)),
-      ),
-      if (onAdd != null)
-        GestureDetector(
-          onTap: onAdd,
-          child: Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-                color: _kBlue, borderRadius: BorderRadius.circular(18)),
-            child: const Icon(Icons.add, color: _kWhite, size: 22),
-          ),
-        ),
-      if (onAdd != null && onFilter != null) const SizedBox(width: 8),
+/// Delegates to the module-wide [LeadAppBar] so this screen stops rendering a
+/// 20pt title with a bare back arrow while the rest of the module uses a 17pt
+/// title with a boxed chevron.
+Widget _appBar(String title,
+    {String? subtitle, VoidCallback? onFilter, VoidCallback? onAdd}) {
+  return LeadAppBar(
+    title: title,
+    subtitle: subtitle,
+    actions: [
+      if (onAdd != null) leadAppBarAction(Icons.add_rounded, onAdd),
       if (onFilter != null)
-        GestureDetector(
-          onTap: onFilter,
-          child: Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-                color: _kBlueBg, borderRadius: BorderRadius.circular(18)),
-            child: const Icon(Icons.filter_list_sharp, color: _kBlue, size: 20),
-          ),
-        ),
-    ]),
+        leadAppBarAction(Icons.filter_list_rounded, onFilter),
+    ],
   );
 }
 
@@ -786,6 +761,76 @@ Widget _dropdownShell({required String hint, List<DropdownMenuItem>? items}) =>
         ),
       ),
     );
+
+/// A real, working dropdown in the same shell as [_dropdownShell].
+///
+/// [_dropdownShell] hardcodes `items: []` AND `onChanged: null`, so it can
+/// never open — it only looks like a dropdown. This one is backed by data.
+Widget _dataDropdown<T>({
+  required String hint,
+  required T? value,
+  required List<T> items,
+  required String Function(T) itemLabel,
+  required ValueChanged<T?> onChanged,
+  bool isLoading = false,
+  String emptyHint = '',
+}) {
+  final bool disabled = isLoading || items.isEmpty;
+  return _styledDropdown(
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton2<T>(
+        buttonHeight: 50,
+        buttonPadding: const EdgeInsets.symmetric(horizontal: 14),
+        dropdownDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18), color: _kWhite),
+        dropdownMaxHeight: 300,
+        buttonDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: Colors.transparent),
+        isExpanded: true,
+        // Guard against the "exactly one item with value" assertion: if a
+        // stale selection is no longer in the list, fall back to null.
+        value: items.contains(value) ? value : null,
+        hint: Row(
+          children: [
+            if (isLoading) ...[
+              const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                isLoading
+                    ? 'Loading $hint…'
+                    : (items.isEmpty && emptyHint.isNotEmpty
+                        ? emptyHint
+                        : hint),
+                style: const TextStyle(fontSize: 14, color: _kTextHint),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        items: items
+            .map((e) => DropdownMenuItem<T>(
+                  value: e,
+                  child: Text(
+                    itemLabel(e),
+                    style:
+                        const TextStyle(fontSize: 14, color: _kTextPrimary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ))
+            .toList(),
+        onChanged: disabled ? null : onChanged,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+            color: _kTextSub, size: 22),
+      ),
+    ),
+  );
+}
 
 // NOTE: these two used `CircleBorder`, which forces a circular outline while
 // the button still lays out at full row width — so the label rendered outside
@@ -876,14 +921,30 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
                       _datePickerField(context, controller),
                       const SizedBox(height: 14),
 
-                      // Status
+                      // Status — master being built by the backend team; the
+                      // dropdown stays disabled until the endpoint exists.
                       _sectionLabel('Status'),
-                      _dropdownShell(hint: 'Status'),
+                      _dataDropdown<FollowupOption>(
+                        hint: 'Status',
+                        value: controller.selectedStatus,
+                        items: controller.statusOptions,
+                        itemLabel: (e) => e.name,
+                        isLoading: controller.isStatusLoading,
+                        emptyHint: 'Status list not available yet',
+                        onChanged: controller.onFollowupStatusChanged,
+                      ),
                       const SizedBox(height: 14),
 
-                      // Handler Name
+                      // Handler Name — company executive list
                       _sectionLabel('Handler Name'),
-                      _dropdownShell(hint: 'Handler Name'),
+                      _dataDropdown<ExecutiveList>(
+                        hint: 'Handler Name',
+                        value: controller.selectedHandler,
+                        items: controller.executiveOptions,
+                        itemLabel: (e) => e.executivename ?? '',
+                        isLoading: controller.isExecutiveLoading,
+                        onChanged: controller.onHandlerChanged,
+                      ),
                       const SizedBox(height: 14),
 
                       // Remarks
@@ -936,6 +997,7 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
                           controller.followupTimeController.clear();
                           controller.clearSelected();
                           controller.clearSelected2();
+                          controller.clearFollowupDropdowns();
                         })),
                       ]),
                       const SizedBox(height: 24),
@@ -1023,10 +1085,25 @@ class _LeadFollowupDetailsViewState extends State<LeadFollowupDetailsView> {
             hint: 'Follow up Time'),
         const SizedBox(height: 14),
         _sectionLabel('Purpose'),
-        _dropdownShell(hint: 'Purpose'),
+        _dataDropdown<FollowupOption>(
+          hint: 'Purpose',
+          value: controller.selectedPurpose,
+          items: controller.purposeOptions,
+          itemLabel: (e) => e.name,
+          isLoading: controller.isPurposeLoading,
+          emptyHint: 'Purpose list not available yet',
+          onChanged: controller.onFollowupPurposeChanged,
+        ),
         const SizedBox(height: 14),
         _sectionLabel('Executive'),
-        _dropdownShell(hint: 'Executive'),
+        _dataDropdown<ExecutiveList>(
+          hint: 'Executive',
+          value: controller.selectedExecutive,
+          items: controller.executiveOptions,
+          itemLabel: (e) => e.executivename ?? '',
+          isLoading: controller.isExecutiveLoading,
+          onChanged: controller.onExecutiveChanged,
+        ),
         const SizedBox(height: 14),
         _sectionLabel('Remarks'),
         _textField(

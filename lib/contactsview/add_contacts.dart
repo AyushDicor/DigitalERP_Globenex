@@ -753,10 +753,13 @@ class _AddContactsState extends State<AddContactsView> {
               ),
             );
           }).toList(),
-          onChanged: (newValue) => controller.onChangedDesignationValue(
-            controller.designationList
-                .firstWhere((e) => e.designnationid == newValue),
-          ),
+          // firstWhere with no orElse throws StateError when nothing matches.
+          onChanged: (newValue) {
+            final match = controller.designationList
+                .where((e) => e.designnationid == newValue)
+                .firstOrNull;
+            if (match != null) controller.onChangedDesignationValue(match);
+          },
         ),
       ),
     );
