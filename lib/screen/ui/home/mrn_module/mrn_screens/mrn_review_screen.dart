@@ -1,4 +1,5 @@
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -991,7 +992,7 @@ class _ReviewItemRow extends StatelessWidget {
               const SizedBox(width: 5),
               _pill(item.unit, newSurfaceColor, newTextSecondary),
               const SizedBox(width: 5),
-              _pill('Rcvd: ${item.receiveNowQty.toInt()}',
+              _pill('Rcvd: ${qtyText(item.receiveNowQty)}',
                   newGreenLightColor, newGreenColor),
             ]),
           ),
@@ -1015,15 +1016,15 @@ class _ReviewItemRow extends StatelessWidget {
             _sectionLabel('Quantity'),
             const SizedBox(height: 6),
             _fieldGrid([
-              _FieldTile('PO Qty', '${item.poQty.toInt()} ${item.unit}'),
+              _FieldTile('PO Qty', '${qtyText(item.poQty)} ${item.unit}'),
               _FieldTile('Prev Received',
-                  '${item.previouslyReceivedQty.toInt()} ${item.unit}'),
+                  '${qtyText(item.previouslyReceivedQty)} ${item.unit}'),
               _FieldTile(
-                  'Balance', '${item.maxReceivable.toInt()} ${item.unit}',
+                  'Balance', '${qtyText(item.maxReceivable)} ${item.unit}',
                   valueColor: newGreenColor),
               _FieldTile(
                   'Now Receiving',
-                  '${item.receiveNowQty.toInt()} ${item.unit}',
+                  '${qtyText(item.receiveNowQty)} ${item.unit}',
                   valueColor: newBlueColor,
                   bold: true),
             ]),

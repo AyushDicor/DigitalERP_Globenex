@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../utils/app_constant_new.dart';
+import '../../../../../utils/qty_input.dart';
 import '../issue_item_contoller/issue_item_contoller.dart';
 import '../issue_item_widgets.dart';
 
@@ -81,7 +82,7 @@ class IssueItemReviewScreen extends StatelessWidget {
                                           color: newTextPrimary)),
                                   const SizedBox(height: 3),
                                   Text(
-                                    '${item.qty.toStringAsFixed(2)} ${item.unitName}  ·  '
+                                    '${qtyText(item.qty)} ${item.unitName}  ·  '
                                         '₹${item.rate.toStringAsFixed(2)}',
                                     style: const TextStyle(
                                         fontSize: 11,

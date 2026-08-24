@@ -861,6 +861,7 @@ import 'package:digitalerp/stock%20_reconcillation/stock_reconciliation_filter_v
 import 'package:digitalerp/utils/app_assets.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:digitalerp/utils/my_app_bar_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:digitalerp/utils/show_message.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/foundation.dart';
@@ -1342,7 +1343,8 @@ class StockReconciliation extends StatelessWidget {
         onTap: () => ctrl.selection =
             TextSelection(baseOffset: 0, extentOffset: ctrl.text.length),
         controller: ctrl,
-        keyboardType: TextInputType.number,
+        keyboardType: kQtyKeyboard,
+        inputFormatters: kQtyFormatters,
         style: const TextStyle(fontSize: 13, color: _kText),
         decoration: InputDecoration(
           hintText: 'Enter...',

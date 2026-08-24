@@ -1,4 +1,5 @@
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -489,7 +490,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
       bool isExpanded) {
     final state = ctrl.itemStates[idx];
     final receivedQty = state?.receivedQty ?? item.receiveqty;
-    final rejectedQty = (item.actualqty - receivedQty).toInt(); // cast: double→int
+    final rejectedQty = item.actualqty - receivedQty;
     final isSaved = state?.isSaved ?? false;
 
     return GestureDetector(
@@ -555,7 +556,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
     );
   }
 
-  Widget _itemStatusBadge(bool isSaved, int rejectedQty) {
+  Widget _itemStatusBadge(bool isSaved, double rejectedQty) {
     if (isSaved) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -603,7 +604,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
         Text(label,
             style: TextStyle(
                 fontSize: 8, fontWeight: FontWeight.w600, color: fg)),
-        Text('${qty.toInt()}',
+        Text(qtyText(qty),
             style: TextStyle(
                 fontSize: 11, fontWeight: FontWeight.w800, color: fg)),
       ]),
@@ -627,7 +628,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
                   'Item Name', item.itemname, Icons.inventory_outlined)),
           const SizedBox(width: 10),
           _compactReadOnly(
-              'Actual Qty', '${item.actualqty.toInt()}', Icons.straighten_rounded,
+              'Actual Qty', qtyText(item.actualqty), Icons.straighten_rounded,
               width: 90),
         ]),
         const SizedBox(height: 12),
@@ -686,7 +687,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      '${state.rejectedQty}',
+                      qtyText(state.rejectedQty),
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -705,7 +706,7 @@ class _MrnQcScreenState extends State<MrnQcScreen>
             const Icon(Icons.info_outline_rounded,
                 size: 11, color: Color(0xFFDC2626)),
             const SizedBox(width: 4),
-            Text('${state.rejectedQty} item(s) will be rejected',
+            Text('${qtyText(state.rejectedQty)} item(s) will be rejected',
                 style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFFDC2626),

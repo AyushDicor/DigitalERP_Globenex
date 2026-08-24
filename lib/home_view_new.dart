@@ -1264,7 +1264,8 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
         Get.back(); // close sheet
 
         // ✅ Intercept known menu IDs before the child==1 check
-        final route = _getDirectRoute(data.menuid);
+        final route =
+            _getDirectRoute(data.menuid) ?? _getRouteByName(data.menuname);
         if (route != null) {
           Get.toNamed(route);
           return;
@@ -1329,6 +1330,16 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  /// Menus the backend has not assigned a stable id for yet are matched on
+  /// name instead, so the module opens the day the menu is granted rather than
+  /// waiting on a second app release to learn its id.
+  String? _getRouteByName(String? menuName) {
+    final name = (menuName ?? '').trim().toLowerCase();
+    if (name.isEmpty) return null;
+    if (name == 'employee master') return AppRoutes.employeeMaster;
+    return null;
   }
 
   String? _getDirectRoute(int? menuId) {

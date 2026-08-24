@@ -1,5 +1,6 @@
 // Shared widgets used across Grn screens
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -541,7 +542,7 @@ class GrnQtyControl extends StatelessWidget {
         _btn(Icons.remove, onDecrease),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text(qty.toInt().toString(),
+          child: Text(qtyText(qty),
               style: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w800, color: newTextPrimary)),
         ),

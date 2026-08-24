@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../../utils/qty_input.dart';
 import '../indent_controller/indent_controller.dart';
 import '../indent_response/indent_model.dart';
 import '../indent_widgets.dart';
@@ -93,7 +94,7 @@ class IndentItemsScreen extends StatelessWidget {
             const Icon(Icons.summarize_outlined, size: 16, color: indBlueColor),
             const SizedBox(width: 6),
             Text(
-              'Total Qty: ${ctrl.totalQty.toStringAsFixed(0)}',
+              'Total Qty: ${qtyText(ctrl.totalQty)}',
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -345,7 +346,7 @@ class _AddItemFormState extends State<_AddItemForm> {
                   Text(
                     _selectedItem == null
                         ? '—'
-                        : _stockAtSite.toStringAsFixed(0),
+                        : qtyText(_stockAtSite),
                     style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -450,7 +451,7 @@ class _ItemCardState extends State<_ItemCard> {
   void initState() {
     super.initState();
     _qtyCtrl =
-        TextEditingController(text: widget.item.indentQty.toStringAsFixed(0));
+        TextEditingController(text: qtyText(widget.item.indentQty));
     _rateCtrl = TextEditingController(
         text: widget.item.rate > 0 ? widget.item.rate.toStringAsFixed(2) : '');
     _descCtrl = TextEditingController(text: widget.item.itemDescription);
@@ -512,7 +513,7 @@ class _ItemCardState extends State<_ItemCard> {
                         // Qty pill
                         _infoPill(
                           Icons.format_list_numbered_rounded,
-                          'Qty: ${item.indentQty.toStringAsFixed(0)} ${item.unit}',
+                          'Qty: ${qtyText(item.indentQty)} ${item.unit}',
                           indBlueColor,
                           indBlueLightColor,
                         ),
@@ -521,7 +522,7 @@ class _ItemCardState extends State<_ItemCard> {
                         if (item.stockAtSite > 0)
                           _infoPill(
                             Icons.warehouse_outlined,
-                            'Stock: ${item.stockAtSite.toStringAsFixed(0)}',
+                            'Stock: ${qtyText(item.stockAtSite)}',
                             indGreenColor,
                             indGreenLightColor,
                           ),
@@ -529,7 +530,7 @@ class _ItemCardState extends State<_ItemCard> {
                       if (item.rate > 0) ...[
                         const SizedBox(height: 4),
                         Text(
-                          '₹${item.rate.toStringAsFixed(2)} × ${item.indentQty.toStringAsFixed(0)} = ₹${item.amount.toStringAsFixed(2)}',
+                          '₹${item.rate.toStringAsFixed(2)} × ${qtyText(item.indentQty)} = ₹${item.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
                               fontSize: 10, color: indTextSecondary),
                         ),
@@ -598,7 +599,7 @@ class _ItemCardState extends State<_ItemCard> {
                             icon: Icons.remove_rounded,
                             onTap: () {
                               widget.ctrl.decreaseQty(item);
-                              _qtyCtrl.text = item.indentQty.toStringAsFixed(0);
+                              _qtyCtrl.text = qtyText(item.indentQty);
                             },
                           ),
                           const SizedBox(width: 8),
@@ -646,7 +647,7 @@ class _ItemCardState extends State<_ItemCard> {
                             icon: Icons.add_rounded,
                             onTap: () {
                               widget.ctrl.increaseQty(item);
-                              _qtyCtrl.text = item.indentQty.toStringAsFixed(0);
+                              _qtyCtrl.text = qtyText(item.indentQty);
                             },
                           ),
                         ]),

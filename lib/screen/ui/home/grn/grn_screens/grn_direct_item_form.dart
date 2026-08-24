@@ -1,4 +1,5 @@
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -211,6 +212,7 @@ class _GrnDirectItemFormState extends State<GrnDirectItemForm> {
                 label: 'Qty *',
                 controller: _qtyCtrl,
                 hint: '0',
+                decimal: true,
                 hasError: _qty <= 0,
                 onChanged: (_) => setState(() {}),
               ),
@@ -589,7 +591,7 @@ class _DirectItemRow extends StatelessWidget {
             Wrap(spacing: 5, children: [
               _pill(item.itemCode, newSurfaceColor, newTextSecondary),
               _pill(item.unit, newSurfaceColor, newTextSecondary),
-              _pill('Qty: ${item.receiveNowQty.toInt()}', newGreenLightColor,
+              _pill('Qty: ${qtyText(item.receiveNowQty)}', newGreenLightColor,
                   newGreenColor),
               _pill('₹${item.rate.toStringAsFixed(2)}', newBlueLightColor,
                   newBlueColor),

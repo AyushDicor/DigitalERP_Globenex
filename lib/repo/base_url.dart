@@ -85,6 +85,14 @@ class MethodName {
   static const followupPurpose = "FollowupPurpose/FollowupPurposedropdown";
   static const String agentParty = 'agentparty';
 
+  /// Employee Master
+  ///
+  /// NOT LIVE YET — the backend team is building this endpoint (Aug 2026).
+  /// Until it is deployed the save returns 404 and the controller says so
+  /// explicitly. When the team lands a different name, only this line changes.
+  /// Attachments reuse [uploadReimbursementFile], which is a generic file sink.
+  static const saveEmployeeMaster = "employeemaster/saveemployeemaster";
+
   /// group and main group
   ///
   static const mainGroup = "categorywithbranch/getcategorylistwithbranch";

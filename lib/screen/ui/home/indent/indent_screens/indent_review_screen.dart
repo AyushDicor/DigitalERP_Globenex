@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../../utils/qty_input.dart';
 import '../indent_controller/indent_controller.dart';
 import '../indent_response/indent_model.dart';
 import '../indent_widgets.dart';
@@ -91,7 +92,7 @@ class IndentReviewScreen extends StatelessWidget {
                             const Divider(height: 16, color: indBorderColor),
                             // Totals
                             _totalRow(
-                                'Total Qty', ctrl.totalQty.toStringAsFixed(0)),
+                                'Total Qty', qtyText(ctrl.totalQty)),
                             if (ctrl.totalAmount > 0)
                               _totalRow(
                                   'Total Amount', '₹${_inr(ctrl.totalAmount)}'),
@@ -256,7 +257,7 @@ class IndentReviewScreen extends StatelessWidget {
         ),
         SizedBox(
           width: 44,
-          child: Text(item.indentQty.toStringAsFixed(0),
+          child: Text(qtyText(item.indentQty),
               textAlign: TextAlign.right,
               style: const TextStyle(
                   fontSize: 12,

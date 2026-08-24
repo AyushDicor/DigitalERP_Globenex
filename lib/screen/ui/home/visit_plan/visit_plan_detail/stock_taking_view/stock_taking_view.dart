@@ -291,6 +291,7 @@ import 'package:digitalerp/response/subcategory_brand_response.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/home/visit_plan/visit_plan_detail/stock_taking_view/stock_taking_controller.dart';
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -382,10 +383,10 @@ class StockTakingView extends StatelessWidget {
               TextField(
                 controller: controller.quantityController,
                 focusNode: controller.quantityFocus,
-                keyboardType: TextInputType.number,
+                keyboardType: kQtyKeyboard,
                 textInputAction: TextInputAction.done,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                maxLength: 5,
+                inputFormatters: kQtyFormatters,
+                maxLength: 10,
                 style: const TextStyle(fontSize: 14, color: newTextPrimary),
                 decoration: InputDecoration(
                   hintText: 'Enter quantity',

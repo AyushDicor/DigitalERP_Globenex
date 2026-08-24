@@ -1,4 +1,5 @@
 import 'package:digitalerp/utils/app_constant_new.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -2111,7 +2112,7 @@ class _ItemCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       _pill(item.unit, newSurfaceColor, newTextSecondary),
                       const SizedBox(width: 5),
-                      _pill('PO: ${item.poQty.toInt()}', newBlueLightColor,
+                      _pill('PO: ${qtyText(item.poQty)}', newBlueLightColor,
                           newBlueColor),
                     ]),
                     const SizedBox(height: 6),
@@ -2151,7 +2152,7 @@ class _ItemCard extends StatelessWidget {
                   size: 13, color: newRedColor),
               const SizedBox(width: 5),
               Text(
-                'Exceeds PO balance. Max: ${item.maxReceivable.toInt()} ${item.unit}',
+                'Exceeds PO balance. Max: ${qtyText(item.maxReceivable)} ${item.unit}',
                 style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -2234,15 +2235,15 @@ class _ItemCard extends StatelessWidget {
           ),
           child: Row(children: [
             _qtyBlock(
-                'PO Qty', item.poQty.toInt(), newBlueLightColor, newBlueColor),
+                'PO Qty', qtyText(item.poQty), newBlueLightColor, newBlueColor),
             _qDivider(),
-            _qtyBlock('Prev Rcvd', item.previouslyReceivedQty.toInt(),
+            _qtyBlock('Prev Rcvd', qtyText(item.previouslyReceivedQty),
                 newOrangeLightColor, newOrangeColor),
             _qDivider(),
-            _qtyBlock('Balance', item.maxReceivable.toInt(), newGreenLightColor,
+            _qtyBlock('Balance', qtyText(item.maxReceivable), newGreenLightColor,
                 newGreenColor),
             _qDivider(),
-            _qtyBlock('Now Rcvg', item.receiveNowQty.toInt(), newBlueLightColor,
+            _qtyBlock('Now Rcvg', qtyText(item.receiveNowQty), newBlueLightColor,
                 newBlueColor,
                 bold: true),
           ]),
@@ -2322,11 +2323,11 @@ class _ItemCard extends StatelessWidget {
     );
   }
 
-  Widget _qtyBlock(String label, int val, Color bg, Color fg,
+  Widget _qtyBlock(String label, String val, Color bg, Color fg,
       {bool bold = false}) {
     return Expanded(
       child: Column(children: [
-        Text('$val',
+        Text(val,
             style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w800, color: fg)),
         const SizedBox(height: 3),
@@ -2598,8 +2599,7 @@ class _QtyFieldState extends State<_QtyField> {
   @override
   void initState() {
     super.initState();
-    _tc = TextEditingController(
-        text: widget.item.receiveNowQty.toInt().toString());
+    _tc = TextEditingController(text: qtyText(widget.item.receiveNowQty));
   }
 
   @override
@@ -2609,7 +2609,10 @@ class _QtyFieldState extends State<_QtyField> {
   }
 
   void _sync() {
-    final newVal = widget.item.receiveNowQty.toInt().toString();
+    final newVal = qtyText(widget.item.receiveNowQty);
+    // Don't rewrite while the user is mid-decimal ("34." / "34.50") — the text
+    // already means the same number, so overwriting it would eat the ".".
+    if ((double.tryParse(_tc.text) ?? -1) == widget.item.receiveNowQty) return;
     if (_tc.text != newVal) {
       _tc.value = _tc.value.copyWith(
         text: newVal,
@@ -2644,12 +2647,12 @@ class _QtyFieldState extends State<_QtyField> {
           ),
         ),
         SizedBox(
-          width: 40,
+          width: 58,
           child: TextField(
             controller: _tc,
             textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            keyboardType: kQtyKeyboard,
+            inputFormatters: kQtyFormatters,
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,

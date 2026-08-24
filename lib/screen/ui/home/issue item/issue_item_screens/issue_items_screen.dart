@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../../utils/app_constant_new.dart';
+import '../../../../../utils/qty_input.dart';
 import '../../../../../utils/show_message.dart';
 import '../issue_item_contoller/issue_item_contoller.dart';
 import '../issue_item_response/issue_item_model.dart';
@@ -395,14 +396,17 @@ class _IssQtyFieldState extends State<_IssQtyField> {
   @override
   void initState() {
     super.initState();
-    _tc = TextEditingController(text: widget.item.qty.toInt().toString());
+    _tc = TextEditingController(text: qtyText(widget.item.qty));
   }
 
   @override
   void dispose() { _tc.dispose(); super.dispose(); }
 
   void _sync() {
-    final val = widget.item.qty.toInt().toString();
+    final val = qtyText(widget.item.qty);
+    // Leave a mid-decimal entry ("2." / "2.50") alone — same number, and
+    // rewriting it would delete the decimal point as the user types.
+    if ((double.tryParse(_tc.text) ?? -1) == widget.item.qty) return;
     if (_tc.text != val) {
       _tc.value = _tc.value.copyWith(
           text: val,
@@ -431,12 +435,12 @@ class _IssQtyFieldState extends State<_IssQtyField> {
           ),
         ),
         SizedBox(
-          width: 40,
+          width: 58,
           child: TextField(
             controller: _tc,
             textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            keyboardType: kQtyKeyboard,
+            inputFormatters: kQtyFormatters,
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -537,6 +541,7 @@ class _IssueDirectItemFormState extends State<_IssueDirectItemForm> {
               label: 'Qty *',
               controller: _qtyCtrl,
               hint: '0',
+              decimal: true,
               hasError: _qty <= 0,
               onChanged: (_) => setState(() {}),
             ),
@@ -565,7 +570,7 @@ class _IssueDirectItemFormState extends State<_IssueDirectItemForm> {
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${_qty.toInt()} × ₹${_rate.toStringAsFixed(2)}',
+                  Text('${qtyText(_qty)} × ₹${_rate.toStringAsFixed(2)}',
                       style: const TextStyle(
                           fontSize: 12, color: newBlueColor)),
                   Text('= ₹${_amt.toStringAsFixed(2)}',

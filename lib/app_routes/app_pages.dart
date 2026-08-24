@@ -48,6 +48,7 @@ import 'package:digitalerp/screen/ui/home/executive_list/executive_attendance/ex
 import 'package:digitalerp/screen/ui/home/executive_list/executive_attendance/executive_attendance_view.dart';
 import 'package:digitalerp/screen/ui/home/executive_list/executive_list_view.dart';
 import 'package:digitalerp/screen/ui/home/home_view.dart';
+import 'package:digitalerp/screen/ui/home/employee_master/employee_screens/employee_master_screen.dart';
 import 'package:digitalerp/screen/ui/home/indent/indent_screens/indent_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/issue%20item/issue_item_screens/issue_item_list_screen.dart';
 import 'package:digitalerp/screen/ui/home/mis_module/attendance_report/attendance_report_view.dart';
@@ -443,6 +444,10 @@ class AppPages {
       binding: BindingsBuilder(() {
         Get.lazyPut(() => IndentListController());
       }),
+    ),
+    GetPage(
+      name: AppRoutes.employeeMaster,
+      page: () => const EmployeeMasterScreen(),
     ),
     GetPage(
       name: AppRoutes.issueItemList,

@@ -240,6 +240,11 @@ import 'screen/ui/home/home_controller.dart';
 import 'services/api_service/request_keys.dart';
 import 'utils/show_message.dart';
 
+/// Menu id the backend will assign to "Employee Master". Set to -1 until they
+/// publish it, which simply means no menu matches by id; the home grid falls
+/// back to matching the menu by name, so the module still opens.
+const int kEmployeeMasterMenuId = -1;
+
 class HomeViewNewController extends AppBaseController {
   HomeController homeController = Get.find<HomeController>();
   RxInt unApprovalCount = 0.obs;
@@ -398,6 +403,9 @@ class HomeViewNewController extends AppBaseController {
       'Material Received'    : AppAssets.mrnrIcon,
       'Create Indent'        : AppAssets.indentIcon,
       'Item Issue'           : AppAssets.issueItemIcon,
+      // No dedicated employee art in assets/iconsnew — the Executive List glyph
+      // is the closest people icon. Swap when design supplies one.
+      'Employee Master'      : AppAssets.executivenewIcon,
     };
   }
 
@@ -424,6 +432,10 @@ class HomeViewNewController extends AppBaseController {
     if (menuId == 2755) return AppRoutes.materialReceiptScreen;
     if (menuId == 2769) return AppRoutes.indentList;
     if (menuId == 2770) return AppRoutes.issueItemList;
+    // Employee Master has no id from the backend yet. The home grid also
+    // matches this menu by name, so it opens regardless; fill the real id in
+    // here once they publish it.
+    if (menuId == kEmployeeMasterMenuId) return AppRoutes.employeeMaster;
     return AppRoutes.homeNew;
   }
 }

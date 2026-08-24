@@ -1,3 +1,4 @@
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:digitalerp/utils/show_message.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -12,18 +13,17 @@ class QcItemState {
   final TextEditingController receivedCtrl;
   final TextEditingController reasonCtrl;
   double receivedQty;
-  int rejectedQty;
+  double rejectedQty;
   bool isSaved;
 
   QcItemState({
     required double initialReceived,
-    required int actualQty,
+    required double actualQty,
     String initialReason = '',
   })  : receivedQty = initialReceived,
-        rejectedQty = actualQty - initialReceived.toInt(),
+        rejectedQty = actualQty - initialReceived,
         isSaved = false,
-        receivedCtrl =
-        TextEditingController(text: initialReceived.toInt().toString()),
+        receivedCtrl = TextEditingController(text: qtyText(initialReceived)),
         reasonCtrl = TextEditingController(text: initialReason);
 
   void dispose() {
@@ -129,7 +129,7 @@ class MrnQcScreenController extends AppBaseController {
       final item = items[i];
       itemStates[i] = QcItemState(
         initialReceived: item.receiveqty,
-        actualQty: item.actualqty.toInt(),
+        actualQty: item.actualqty,
         initialReason: item.reason,
       );
     }
@@ -148,7 +148,7 @@ class MrnQcScreenController extends AppBaseController {
     final clamped = received.clamp(0.0, item.actualqty) as double;
     final state = itemStates[idx]!;
     state.receivedQty = clamped;
-    state.rejectedQty = item.actualqty.toInt() - clamped.toInt();
+    state.rejectedQty = item.actualqty - clamped;
     update();
   }
 
@@ -161,7 +161,7 @@ class MrnQcScreenController extends AppBaseController {
     final received = double.tryParse(state.receivedCtrl.text) ?? 0;
     if (received > item.actualqty) {
       ShowMessage.showSnackBar(
-          'Invalid', 'Received qty cannot exceed actual qty (${item.actualqty.toInt()})');
+          'Invalid', 'Received qty cannot exceed actual qty (${qtyText(item.actualqty)})');
       return;
     }
     if (state.rejectedQty > 0 && state.reasonCtrl.text.trim().isEmpty) {
@@ -173,7 +173,7 @@ class MrnQcScreenController extends AppBaseController {
     // Update in-memory item
     detail!.qcitems[idx] = item.copyWith(
       receiveqty: received,
-      rejectedqty: state.rejectedQty.toDouble(),
+      rejectedqty: state.rejectedQty,
       reason: state.reasonCtrl.text.trim(),
     );
 

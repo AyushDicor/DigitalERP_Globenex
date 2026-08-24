@@ -99,6 +99,9 @@ class AppRoutes {
   static const indentScreen ='/indent';
   static const indentList   ='/indentList';
 
+  //Employee Master
+  static const employeeMaster ='/employeeMaster';
+
   //Issue Item
   static const issueItem     ='/issueItem';
   static const issueItemList ='/issueItemList';

@@ -381,7 +381,7 @@
 //               const Icon(Icons.inventory_2_outlined,
 //                   size: 12, color: newTextSecondary),
 //               const SizedBox(width: 4),
-//               Text('${item.totalQty.toInt()} items',
+//               Text('${qtyText(item.totalQty)} items',
 //                   style: const TextStyle(
 //                       fontSize: 11, color: newTextSecondary)),
 //               const Spacer(),
@@ -431,6 +431,7 @@
 
 import 'package:digitalerp/utils/app_constant_new.dart';
 import 'package:flutter/foundation.dart';
+import 'package:digitalerp/utils/qty_input.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -587,7 +588,7 @@ class _GrnListScreenState extends State<GrnListScreen> {
   //           '${ctrl.GrnItems.length} Records', newBlueLightColor, newBlueColor),
   //       const SizedBox(width: 8),
   //       _summaryChip(Icons.inventory_2_outlined,
-  //           '${totalQty.toInt()} Items', newGreenLightColor, newGreenColor),
+  //           '${qtyText(totalQty)} Items', newGreenLightColor, newGreenColor),
   //       const SizedBox(width: 8),
   //       _summaryChip(Icons.currency_rupee_rounded,
   //           _inr(totalAmt), newOrangeLightColor, newOrangeColor),
@@ -625,7 +626,7 @@ class _GrnListScreenState extends State<GrnListScreen> {
         _chip(Icons.receipt_long_rounded, '${ctrl.GrnItems.length} Records',
             newBlueLightColor, newBlueColor),
         const SizedBox(width: 8),
-        _chip(Icons.inventory_2_outlined, '${totalQty.toInt()} Items',
+        _chip(Icons.inventory_2_outlined, '${qtyText(totalQty)} Items',
             newGreenLightColor, newGreenColor),
         const SizedBox(width: 8),
         _chip(Icons.currency_rupee_rounded, _inr(totalAmt), newOrangeLightColor,
@@ -901,7 +902,7 @@ class _GrnCard extends StatelessWidget {
                 const Icon(Icons.inventory_2_outlined,
                     size: 12, color: newTextSecondary),
                 const SizedBox(width: 4),
-                Text('${item.totalQty.toInt()} items',
+                Text('${qtyText(item.totalQty)} items',
                     style: const TextStyle(
                         fontSize: 11, color: newTextSecondary)),
                 const Spacer(),
@@ -1562,7 +1563,7 @@ class _GrnTableState extends State<_GrnTable> {
                           decoration: BoxDecoration(
                               color: newGreenLightColor,
                               borderRadius: BorderRadius.circular(6)),
-                          child: Text('${item.totalQty.toInt()}',
+                          child: Text(qtyText(item.totalQty),
                               style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
