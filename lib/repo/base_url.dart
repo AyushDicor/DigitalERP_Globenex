@@ -85,13 +85,20 @@ class MethodName {
   static const followupPurpose = "FollowupPurpose/FollowupPurposedropdown";
   static const String agentParty = 'agentparty';
 
-  /// Employee Master
-  ///
-  /// NOT LIVE YET — the backend team is building this endpoint (Aug 2026).
-  /// Until it is deployed the save returns 404 and the controller says so
-  /// explicitly. When the team lands a different name, only this line changes.
-  /// Attachments reuse [uploadReimbursementFile], which is a generic file sink.
-  static const saveEmployeeMaster = "employeemaster/saveemployeemaster";
+  /// Employee Master — live as of 2026-08-26. Field names were confirmed by
+  /// probing; callers still treat a 404 / non-JSON reply as "not live yet"
+  /// rather than as a failure, so a redeploy gap degrades gracefully.
+  /// AppUrls.baseUrl already ends in /api/, so these are the bare route names.
+  static const saveEmployeeMaster   = "employeeonboarding";
+  static const employeeMasterList   = "employeeonboardinglist";
+  static const employeeMasterDetail = "employeeonboarddetail";
+
+  /// ID-card payload: company name + logo, employee summary, and a ready-made
+  /// `qrdata` string to encode. Keyed on partyid, JSON body.
+  static const employeeIdCard       = "employeeidcard";
+
+  /// Shift list for the "Default" work-hours mode.
+  static const employeeShiftList    = "shifttiming";
 
   /// group and main group
   ///

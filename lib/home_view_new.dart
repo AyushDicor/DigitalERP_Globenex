@@ -1026,7 +1026,13 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
             const SizedBox(height: 14),
             _profileBanner(ctrl),
             const SizedBox(height: 20),
-            _quickLinksButton(ctrl),
+            _quickLinksHeader(),
+            const SizedBox(height: 12),
+
+            /// The module grid is the page. It used to sit behind a card that
+            /// opened it in a modal sheet, which cost a tap on the way in and
+            /// another on every return from a module.
+            Expanded(child: _quickLinksGrid(ctrl)),
           ],
         ),
       ),
@@ -1116,66 +1122,93 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
     );
   }
 
-  Widget _quickLinksButton(HomeViewNewController ctrl) {
+  Widget _quickLinksHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () => _openQuickLinksSheet(ctrl),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4)),
-            ],
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+                color: newBlueLightColor,
+                borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.grid_view_rounded,
+                color: newBlueColor, size: 17),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                    color: newBlueLightColor,
-                    borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.grid_view_rounded,
-                    color: newBlueColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Quick Links',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: newTextPrimary)),
-                    SizedBox(height: 2),
-                    Text('Access all your modules',
-                        style:
-                            TextStyle(fontSize: 12, color: newTextSecondary)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.keyboard_arrow_up_rounded,
-                  color: newTextSecondary, size: 22),
-            ],
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Quick Links',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: newTextPrimary)),
+                SizedBox(height: 2),
+                Text('Access all your modules',
+                    style: TextStyle(fontSize: 12, color: newTextSecondary)),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  void _openQuickLinksSheet(HomeViewNewController ctrl) {
-    showModalBottomSheet(
-      context: Get.context!,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
+
+  Widget _quickLinksGrid(HomeViewNewController ctrl) {
+    if (ctrl.isListLoading) {
+      return const Center(
+          child: CircularProgressIndicator(color: newBlueColor));
+    }
+    if (ctrl.menuListData.isEmpty) {
+      return Center(
+        child: Text('No menu items found',
+            style: TextStyle(color: Colors.grey.shade500)),
+      );
+    }
+    return GridView.builder(
+      /// Bottom padding clears the floating bottom nav bar, which is stacked
+      /// over the page rather than laid out beside it.
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+      itemCount: ctrl.menuListData.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.0,
+      ),
+      itemBuilder: (_, i) => _menuTile(ctrl.menuListData[i], ctrl),
+    );
+  }
+}
+
+/// True while a Quick Links sheet is on screen, so a double tap on More
+/// cannot stack two of them.
+bool _quickLinksSheetOpen = false;
+
+/// Opens the Quick Links module grid as a sheet over whatever page the user is
+/// currently on.
+///
+/// Tapping More in the bottom bar deliberately does not switch tabs — the
+/// sheet floats above the current tab, and dismissing it leaves the user
+/// exactly where they were.
+void showQuickLinksSheet() {
+  if (_quickLinksSheetOpen) return;
+  _quickLinksSheetOpen = true;
+
+  showModalBottomSheet(
+    context: Get.context!,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+
+    /// Rebuilt through a GetBuilder so a sheet opened before the menu list has
+    /// finished loading swaps the spinner for the grid on its own, rather than
+    /// needing to be closed and reopened.
+    builder: (_) => GetBuilder<HomeViewNewController>(
+      builder: (ctrl) => Container(
         height: Get.height * 0.88,
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -1249,107 +1282,129 @@ class _HomeViewNewState extends State<HomeViewNew> with WidgetsBindingObserver {
                             childAspectRatio: 1.0,
                           ),
                           itemBuilder: (_, i) =>
-                              _menuTile(ctrl.menuListData[i], ctrl),
+                              _menuTile(ctrl.menuListData[i], ctrl,
+                                  insideSheet: true),
                         ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  ).whenComplete(() => _quickLinksSheetOpen = false);
+}
 
-  Widget _menuTile(MenuNewData data, HomeViewNewController ctrl) {
-    return GestureDetector(
-      onTap: () {
-        Get.back(); // close sheet
+/// [insideSheet] must be true only when the tile is rendered inside the Quick
+/// Links sheet, where the sheet has to be dismissed before navigating. On a
+/// tile rendered directly on a page, popping would take that page off the
+/// navigator instead.
+Widget _menuTile(MenuNewData data, HomeViewNewController ctrl,
+    {bool insideSheet = false}) {
+  return GestureDetector(
+    onTap: () {
+      if (insideSheet) Get.back();
 
-        // ✅ Intercept known menu IDs before the child==1 check
-        final route =
-            _getDirectRoute(data.menuid) ?? _getRouteByName(data.menuname);
-        if (route != null) {
-          Get.toNamed(route);
-          return;
-        }
+      // ✅ Intercept known menu IDs before the child==1 check
+      final route =
+          _getDirectRoute(data.menuid) ?? _getRouteByName(data.menuname);
+      if (route != null) {
+        Get.toNamed(route);
+        return;
+      }
 
-        if (data.child == 1) {
-          Get.to(() => MenuDefaultScreen(
-            menuID: data.menuid!,
-            title: data.menuname ?? 'Menu',
-          ));
-        } else {
-          Get.toNamed(HomeViewNewController.getRouteNameById(data.menuid));
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: newBorderColor),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                  color: newBlueLightColor,
-                  borderRadius: BorderRadius.circular(10)),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Image.asset(
-                  ctrl.imageList()[data.menuname] ?? '',
-                  errorBuilder: (_, __, ___) => const Icon(
-                      Icons.grid_view_rounded,
-                      color: newBlueColor,
-                      size: 24),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                data.menuname ?? '',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: newTextPrimary),
-              ),
-            ),
-          ],
-        ),
+      if (data.child == 1) {
+        Get.to(() => MenuDefaultScreen(
+          menuID: data.menuid!,
+          title: data.menuname ?? 'Menu',
+        ));
+      } else {
+        Get.toNamed(HomeViewNewController.getRouteNameById(data.menuid));
+      }
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: newBorderColor),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
+        ],
       ),
-    );
-  }
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+                color: newBlueLightColor,
+                borderRadius: BorderRadius.circular(10)),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                ctrl.imageList()[data.menuname] ?? '',
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.grid_view_rounded,
+                    color: newBlueColor,
+                    size: 24),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              data.menuname ?? '',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: newTextPrimary),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
-  /// Menus the backend has not assigned a stable id for yet are matched on
-  /// name instead, so the module opens the day the menu is granted rather than
-  /// waiting on a second app release to learn its id.
-  String? _getRouteByName(String? menuName) {
-    final name = (menuName ?? '').trim().toLowerCase();
-    if (name.isEmpty) return null;
-    if (name == 'employee master') return AppRoutes.employeeMaster;
-    return null;
-  }
+/// Menus the backend has not assigned a stable id for yet are matched on
+/// name instead, so the module opens the day the menu is granted rather than
+/// waiting on a second app release to learn its id.
+///
+/// Matching is deliberately loose — punctuation and spacing are stripped and
+/// several wordings are accepted, because we do not control what the menu
+/// ends up being called ("Employee Master", "Employee onboarding", …). An
+/// exact-string match silently sends the user back to the dashboard, which
+/// reads as a dead tile.
+String? _getRouteByName(String? menuName) {
+  final name = (menuName ?? '')
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  if (name.isEmpty) return null;
 
-  String? _getDirectRoute(int? menuId) {
-    const directRoutes = {
-      2384: AppRoutes.approvalHub,
-      2385: AppRoutes.taskManagement,
-      2754: AppRoutes.mrnScreen,
-      2701: AppRoutes.reimbursement,
-      2586: AppRoutes.paymentRequestListScreen,
-    };
-    return menuId != null ? directRoutes[menuId] : null;
-  }
+  final isEmployee = name.contains('employee') || name.contains('emp ');
+  final isMasterish = name.contains('master') ||
+      name.contains('onboard') ||
+      name.contains('onboarding');
+  if (isEmployee && isMasterish) return AppRoutes.employeeMaster;
+
+  return null;
+}
+
+String? _getDirectRoute(int? menuId) {
+  const directRoutes = {
+    2384: AppRoutes.approvalHub,
+    2385: AppRoutes.taskManagement,
+    2754: AppRoutes.mrnScreen,
+    2701: AppRoutes.reimbursement,
+    2586: AppRoutes.paymentRequestListScreen,
+    2812: AppRoutes.employeeMaster, // "Employee onboarding"
+  };
+  return menuId != null ? directRoutes[menuId] : null;
 }

@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import '../employee_controller/employee_master_controller.dart';
 import '../employee_response/employee_model.dart';
 import '../employee_widgets.dart';
+import 'employee_card_screen.dart';
 
 class EmployeeMasterScreen extends StatelessWidget {
   const EmployeeMasterScreen({super.key});
@@ -25,7 +26,7 @@ class EmployeeMasterScreen extends StatelessWidget {
         body: SafeArea(
           bottom: false,
           child: Column(children: [
-            _appBar(),
+            _appBar(ctrl),
             const Divider(height: 1, color: empBorderColor),
             Expanded(
               child: SingleChildScrollView(
@@ -38,8 +39,10 @@ class EmployeeMasterScreen extends StatelessWidget {
                   MediaQuery.of(context).viewInsets.bottom + 24,
                 ),
                 child: Column(children: [
+                  _scopeDetails(ctrl),
                   _generalDetails(context, ctrl),
-                  _documentDetails(ctrl),
+                  _salaryAndWork(ctrl),
+                  _documentDetails(context, ctrl),
                   _addressDetails(ctrl),
                 ]),
               ),
@@ -52,7 +55,7 @@ class EmployeeMasterScreen extends StatelessWidget {
   }
 
   // ── App bar ────────────────────────────────────────────────────────────────
-  Widget _appBar() {
+  Widget _appBar(EmployeeMasterController ctrl) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(8, 10, 14, 10),
@@ -81,6 +84,54 @@ class EmployeeMasterScreen extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: empTextSecondary)),
           ]),
+        ),
+        // The card normally appears after a successful save. This shows it from
+        // the form as it stands, so the layout can be checked before the save
+        // API is live. Safe to drop once it is.
+        GestureDetector(
+          onTap: () =>
+              Get.to(() => EmployeeCardScreen(data: ctrl.buildCardData())),
+          child: Row(children: const [
+            Icon(Icons.badge_outlined, size: 15, color: empBlueColor),
+            SizedBox(width: 4),
+            Text('Preview',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: empBlueColor)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VENDOR + SITE — the scope the employee record belongs to, chosen first
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _scopeDetails(EmployeeMasterController ctrl) {
+    return EmpCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const EmpSectionHead('Vendor & Site'),
+        EmpDropdown<EmpOption>(
+          label: 'Vendor Name',
+          value: ctrl.selectedVendor,
+          items: ctrl.vendorList,
+          isLoading: ctrl.isLoadingVendor,
+          itemLabel: (o) => o.label,
+          onChanged: ctrl.onVendorChanged,
+          hint: 'Select vendor',
+          emptyNote: 'No vendors returned',
+        ),
+        const SizedBox(height: 10),
+        EmpDropdown<EmpOption>(
+          label: 'Site Name',
+          value: ctrl.selectedSite,
+          items: ctrl.siteList,
+          isLoading: ctrl.isLoadingSite,
+          itemLabel: (o) => o.label,
+          onChanged: ctrl.onSiteChanged,
+          hint: 'Select site',
+          emptyNote: 'No sites returned',
         ),
       ]),
     );
@@ -156,9 +207,16 @@ class EmployeeMasterScreen extends StatelessWidget {
         Row(children: [
           Expanded(
             child: EmpField(
-              label: 'PF No',
+              label: 'PF No (UAN)',
               controller: ctrl.pfNoCtrl,
-              hint: 'PF number',
+              hint: '$kPfNoLength digits',
+              hasError: ctrl.showErrors && ctrl.pfNoInvalid,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(kPfNoLength),
+              ],
+              onChanged: (_) => ctrl.update(),
             ),
           ),
           const SizedBox(width: 10),
@@ -166,7 +224,14 @@ class EmployeeMasterScreen extends StatelessWidget {
             child: EmpField(
               label: 'ESI No',
               controller: ctrl.esiNoCtrl,
-              hint: 'ESI number',
+              hint: '$kEsiNoLength digits',
+              hasError: ctrl.showErrors && ctrl.esiNoInvalid,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(kEsiNoLength),
+              ],
+              onChanged: (_) => ctrl.update(),
             ),
           ),
         ]),
@@ -315,12 +380,138 @@ class EmployeeMasterScreen extends StatelessWidget {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // SALARY & WORK
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _salaryAndWork(EmployeeMasterController ctrl) {
+    return EmpCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const EmpSectionHead('Salary & Work'),
+
+        // Salary Type + Week Off
+        Row(children: [
+          Expanded(
+            child: EmpDropdown<EmpOption>(
+              label: 'Salary Type',
+              value: ctrl.selectedSalaryType,
+              items: ctrl.salaryTypeList,
+              itemLabel: (o) => o.label,
+              onChanged: ctrl.onSalaryTypeChanged,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: EmpDropdown<EmpOption>(
+              label: 'Week Off',
+              value: ctrl.selectedWeekOff,
+              items: ctrl.weekOffList,
+              itemLabel: (o) => o.label,
+              onChanged: ctrl.onWeekOffChanged,
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+
+        // OT Applicable + Work Hours mode
+        Row(children: [
+          Expanded(
+            child: EmpDropdown<EmpOption>(
+              label: 'OT Applicable',
+              value: ctrl.selectedOtApplicable,
+              items: ctrl.otApplicableList,
+              itemLabel: (o) => o.label,
+              onChanged: ctrl.onOtApplicableChanged,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: EmpDropdown<EmpOption>(
+              label: 'Work Hours',
+              value: ctrl.selectedWorkHoursMode,
+              items: ctrl.workHoursModeList,
+              itemLabel: (o) => o.label,
+              onChanged: ctrl.onWorkHoursModeChanged,
+            ),
+          ),
+        ]),
+
+        // Default → pick a shift. Manual → type the hours. Only one shows.
+        if (ctrl.isWorkHoursDefault) ...[
+          const SizedBox(height: 10),
+          EmpDropdown<EmpOption>(
+            label: 'Shift',
+            value: ctrl.selectedShift,
+            items: ctrl.shiftList,
+            isLoading: ctrl.isLoadingShift,
+            required: true,
+            hasError: ctrl.showErrors && ctrl.shiftMissing,
+            itemLabel: (o) => o.label,
+            onChanged: ctrl.onShiftChanged,
+            hint: 'Select shift',
+            emptyNote: 'No shifts returned',
+          ),
+        ],
+        if (ctrl.isWorkHoursManual) ...[
+          const SizedBox(height: 10),
+          EmpField(
+            label: 'Daily Working Hours',
+            controller: ctrl.dailyWorkingHoursCtrl,
+            hint: 'e.g. 9',
+            required: true,
+            hasError: ctrl.showErrors && ctrl.workHoursMissing,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              // Hours can be fractional (7.5), so allow one decimal point.
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              LengthLimitingTextInputFormatter(5),
+            ],
+            onChanged: (_) => ctrl.update(),
+            suffix: const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Text('hrs',
+                  style: TextStyle(fontSize: 12, color: empTextSecondary)),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // DOCUMENT DETAILS
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _documentDetails(EmployeeMasterController ctrl) {
+  Widget _documentDetails(
+      BuildContext context, EmployeeMasterController ctrl) {
     return EmpCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const EmpSectionHead('Document Details'),
+
+        // States the either/or rule up front rather than only failing on Save,
+        // and turns red once a save attempt has hit it.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(children: [
+            Icon(
+                ctrl.showErrors && ctrl.idProofMissing
+                    ? Icons.error_outline_rounded
+                    : Icons.info_outline_rounded,
+                size: 13,
+                color: ctrl.showErrors && ctrl.idProofMissing
+                    ? empRedColor
+                    : empTextSecondary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Upload at least one document — Aadhar card or PAN card',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: ctrl.showErrors && ctrl.idProofMissing
+                        ? empRedColor
+                        : empTextSecondary),
+              ),
+            ),
+          ]),
+        ),
 
         // Aadhar
         EmpField(
@@ -338,7 +529,8 @@ class EmployeeMasterScreen extends StatelessWidget {
           label: 'Aadhar Card Attachment',
           fileName: ctrl.aadharFileName,
           isUploading: ctrl.isUploading(EmpFileSlot.aadhar),
-          onPick: () => ctrl.pickDocument(EmpFileSlot.aadhar),
+          onPick: () =>
+              _documentSourceSheet(context, ctrl, EmpFileSlot.aadhar, 'Aadhar Card'),
           onRemove: () => ctrl.removeFile(EmpFileSlot.aadhar),
         ),
         const SizedBox(height: 14),
@@ -360,10 +552,66 @@ class EmployeeMasterScreen extends StatelessWidget {
           label: 'Pan Card Attachment',
           fileName: ctrl.panFileName,
           isUploading: ctrl.isUploading(EmpFileSlot.pan),
-          onPick: () => ctrl.pickDocument(EmpFileSlot.pan),
+          onPick: () =>
+              _documentSourceSheet(context, ctrl, EmpFileSlot.pan, 'PAN Card'),
           onRemove: () => ctrl.removeFile(EmpFileSlot.pan),
         ),
       ]),
+    );
+  }
+
+  /// Aadhar / PAN can be shot with the camera, taken from the gallery, or
+  /// picked from storage — the card is usually in hand on site, so camera is
+  /// listed first.
+  void _documentSourceSheet(BuildContext context, EmployeeMasterController ctrl,
+      EmpFileSlot slot, String title) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 14),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: empTextPrimary)),
+          const SizedBox(height: 6),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined,
+                color: empBlueColor, size: 20),
+            title: const Text('Take a photo',
+                style: TextStyle(fontSize: 13, color: empTextPrimary)),
+            onTap: () {
+              Navigator.pop(ctx);
+              ctrl.captureDocument(slot, ImageSource.camera);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined,
+                color: empBlueColor, size: 20),
+            title: const Text('Choose from gallery',
+                style: TextStyle(fontSize: 13, color: empTextPrimary)),
+            onTap: () {
+              Navigator.pop(ctx);
+              ctrl.captureDocument(slot, ImageSource.gallery);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_outlined,
+                color: empBlueColor, size: 20),
+            title: const Text('Choose a file (PDF or image)',
+                style: TextStyle(fontSize: 13, color: empTextPrimary)),
+            onTap: () {
+              Navigator.pop(ctx);
+              ctrl.pickDocument(slot);
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
     );
   }
 

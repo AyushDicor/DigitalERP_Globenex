@@ -5,6 +5,7 @@
 // of the app instead of introducing a fourth look.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:barcode/barcode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,6 +20,18 @@ const Color empBorderColor = Color(0xFFE2E6EA);
 const Color empTextPrimary = Color(0xFF1A1D23);
 const Color empTextSecondary = Color(0xFF6B7280);
 const Color empTextHint = Color(0xFFADB5BD);
+
+/// Deep navy used for the ID card's header/footer bands and its headline text.
+/// Darker than empTextPrimary so the card reads as printed stock rather than
+/// as another app screen.
+const Color empCardInk = Color(0xFF1E2235);
+
+/// Organisation name printed across the top of the ID card.
+///
+/// This is the ONE line that legitimately differs between the white-label
+/// builds — set it to the brand this app ships as. Everything else in the
+/// employee_master folder is identical across apps and copied verbatim.
+const String empCardBrand = 'GLOBENEX';
 
 // ── Card wrapper ─────────────────────────────────────────────────────────────
 class EmpCard extends StatelessWidget {
@@ -509,4 +522,69 @@ class EmpPrimaryBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── QR code ──────────────────────────────────────────────────────────────────
+
+/// Paints a QR code with no extra plugin.
+///
+/// The `barcode` package (already in the tree, and what the PDF side uses) does
+/// the encoding and hands back plain rectangles; this just fills them. Using
+/// the same encoder for screen and PDF means the two codes are byte-identical.
+class EmpQrCode extends StatelessWidget {
+  final String data;
+  final double size;
+  final Color color;
+
+  const EmpQrCode({
+    super.key,
+    required this.data,
+    required this.size,
+    this.color = empCardInk,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.trim().isEmpty) return SizedBox(width: size, height: size);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _QrPainter(data: data, color: color)),
+    );
+  }
+}
+
+class _QrPainter extends CustomPainter {
+  final String data;
+  final Color color;
+
+  _QrPainter({required this.data, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    try {
+      final elements =
+          Barcode.qrCode().make(data, width: size.width, height: size.height);
+      for (final e in elements) {
+        if (e is BarcodeBar && e.black) {
+          // +0.5 closes the hairline seams antialiasing leaves between modules,
+          // which otherwise make the code harder for scanners to read.
+          canvas.drawRect(
+            Rect.fromLTWH(e.left, e.top, e.width + 0.5, e.height + 0.5),
+            paint,
+          );
+        }
+      }
+    } catch (_) {
+      // An un-encodable payload should leave a blank square, not crash a card.
+    }
+  }
+
+  @override
+  bool shouldRepaint(_QrPainter old) =>
+      old.data != data || old.color != color;
 }

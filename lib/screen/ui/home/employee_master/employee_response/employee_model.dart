@@ -50,6 +50,12 @@ class EmployeeMasterPayload {
   final int branchId;
   final int userId;
 
+  // Scope — chosen before anything else on the form
+  final String vendorId;
+  final String vendorName;
+  final String siteId;
+  final String siteName;
+
   // General details
   final String employeePhoto; // uploaded file name / url
   final String employeeName;
@@ -64,6 +70,15 @@ class EmployeeMasterPayload {
   final String personalPhoneNo;
   final String dateOfJoining; // dd/MM/yyyy
   final String dateOfBirth; // dd/MM/yyyy
+
+  // Salary + work terms
+  final String salaryType;
+  final String weekOff;
+  final String otApplicable;
+  final String workHoursMode; // Default / Manual
+  final String shiftId;
+  final String shiftName;
+  final String dailyWorkingHours;
 
   // Document details
   final String aadharCardNo;
@@ -83,6 +98,10 @@ class EmployeeMasterPayload {
     required this.compId,
     required this.branchId,
     required this.userId,
+    required this.vendorId,
+    required this.vendorName,
+    required this.siteId,
+    required this.siteName,
     required this.employeePhoto,
     required this.employeeName,
     required this.genderId,
@@ -96,6 +115,13 @@ class EmployeeMasterPayload {
     required this.personalPhoneNo,
     required this.dateOfJoining,
     required this.dateOfBirth,
+    required this.salaryType,
+    required this.weekOff,
+    required this.otApplicable,
+    required this.workHoursMode,
+    required this.shiftId,
+    required this.shiftName,
+    required this.dailyWorkingHours,
     required this.aadharCardNo,
     required this.aadharCardFile,
     required this.panCardNo,
@@ -108,34 +134,53 @@ class EmployeeMasterPayload {
     required this.pincode,
   });
 
+  /// Field names below are the ERP's own, confirmed 2026-08-26 by probing
+  /// api/employeeonboarding and reading back api/employeeonboarddetail. They
+  /// are NOT guesses any more, and several differ from the obvious spelling —
+  /// `name` (not employeename), `mobile`, `joiningdate`, `dob`, `aadharno`,
+  /// `panno`, `address`, `workinghours`. A wrong key here is silently dropped
+  /// by the server, so do not "tidy" these.
+  ///
+  /// The server requires `name`, `stateid`, and at least one of
+  /// `aadharno` / `panno`.
   Map<String, dynamic> toJson() => {
         'compid': compId,
         'branchid': branchId,
         'userid': userId,
 
+        // Scope
+        'vendorid': vendorId,
+        'vendorname': vendorName,
+        'siteid': siteId,
+        'sitename': siteName,
+
         // General
-        'employeephoto': employeePhoto,
-        'employeename': employeeName,
+        'name': employeeName,
         'genderid': genderId,
         'gender': genderName,
         'departmentid': departmentId,
-        'department': departmentName,
-        'pfno': pfNo,
-        'esino': esiNo,
         'designationid': designationId,
         'designation': designationName,
-        'personalphoneno': personalPhoneNo,
-        'dateofjoining': dateOfJoining,
-        'dateofbirth': dateOfBirth,
+        'pfno': pfNo,
+        'esino': esiNo,
+        'mobile': personalPhoneNo,
+        'joiningdate': dateOfJoining,
+        'dob': dateOfBirth,
 
-        // Documents
-        'aadharcardno': aadharCardNo,
-        'aadharcardfile': aadharCardFile,
-        'pancardno': panCardNo,
-        'pancardfile': panCardFile,
+        // Salary + work terms
+        'salarytype': salaryType,
+        'weekoff': weekOff,
+        'otapplicable': otApplicable,
+        'shiftid': shiftId,
+        'workinghours': dailyWorkingHours,
+
+        // Documents — the numbers. The scans themselves go up as multipart
+        // file parts named photo / aadharfile / panfile, not as text.
+        'aadharno': aadharCardNo,
+        'panno': panCardNo,
 
         // Address
-        'fulladdress': fullAddress,
+        'address': fullAddress,
         'stateid': stateId,
         'statename': stateName,
         'cityid': cityId,

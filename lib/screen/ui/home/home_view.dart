@@ -457,7 +457,18 @@ class HomeView extends StatelessWidget {
                               tabs: dynamicTabs,
                               selectedIndex: controller.selectedTabI
                                   .clamp(0, dynamicTabs.length - 1),
-                              onTap: (i) => controller.onItemTapped(i),
+                              onTap: (i) {
+                                // More is an action, not a destination: it
+                                // drops the Quick Links sheet over whatever
+                                // tab you are on, so closing it puts you back
+                                // exactly where you were. Selecting it as a
+                                // tab would navigate away from your work.
+                                if (dynamicTabs[i].label == 'More') {
+                                  showQuickLinksSheet();
+                                  return;
+                                }
+                                controller.onItemTapped(i);
+                              },
                             ),
                     ),
                   ],
