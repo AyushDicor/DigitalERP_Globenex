@@ -34,6 +34,20 @@ enum EmpFileSlot { photo, aadhar, pan }
 const int kPfNoLength = 12;
 const int kEsiNoLength = 17;
 
+/// The save endpoint sits behind classic ASP.NET's default 4 MB request limit
+/// (probed 2026-09-11: a 3 MB body is accepted, 4 MB fails with "Error reading
+/// MIME multipart body part"). Three phone-camera shots blow straight through
+/// that, so images are shrunk on pick and the total is checked before Save.
+const int kServerRequestLimitBytes = 4 * 1024 * 1024;
+
+/// Headroom for the text fields and multipart boundaries.
+const int kAttachmentBudgetBytes = 3500 * 1024;
+
+/// Longest edge for a picked image. An ID scan or a passport photo is
+/// perfectly legible at this size and lands around 200–400 KB, versus
+/// 2–4 MB straight off a modern phone camera.
+const double kAttachmentMaxPx = 1600;
+
 class EmployeeMasterController extends AppBaseController {
   final HomeController _home = Get.find<HomeController>();
 
@@ -498,7 +512,12 @@ class EmployeeMasterController extends AppBaseController {
 
   /// Employee photo — camera or gallery.
   Future<void> pickPhoto(ImageSource source) async {
-    final picked = await _picker.pickImage(source: source, imageQuality: 65);
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 65,
+      maxWidth: kAttachmentMaxPx,
+      maxHeight: kAttachmentMaxPx,
+    );
     if (picked == null) return;
     photoLocalPath = picked.path;
     update();
@@ -509,7 +528,12 @@ class EmployeeMasterController extends AppBaseController {
   /// Aadhar / PAN captured with the camera — the common case in the field,
   /// where the card is in hand and there is no scan sitting on the phone.
   Future<void> captureDocument(EmpFileSlot slot, ImageSource source) async {
-    final picked = await _picker.pickImage(source: source, imageQuality: 70);
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: kAttachmentMaxPx,
+      maxHeight: kAttachmentMaxPx,
+    );
     if (picked == null) return;
     await _upload(slot, picked.path);
   }
@@ -576,6 +600,28 @@ class EmployeeMasterController extends AppBaseController {
         'panfile': panLocalPath,
       }..removeWhere((_, v) => v.isEmpty);
 
+  /// Combined size of every attachment queued for the save.
+  int get attachmentBytes => attachmentParts.values
+      .map((p) => File(p).existsSync() ? File(p).lengthSync() : 0)
+      .fold(0, (a, b) => a + b);
+
+  static String _mb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
+
+  /// The form shows dates as dd/MM/yyyy, but the ERP parses a slashed date as
+  /// MM/dd/yyyy (US order): verified 2026-09-11 — "11/09/2026" was stored as
+  /// 9 November. ISO yyyy-MM-dd cannot be misread, so that is what goes over
+  /// the wire. Anything unparseable is passed through untouched rather than
+  /// silently dropped.
+  static String _toApiDate(String ddMMyyyy) {
+    final s = ddMMyyyy.trim();
+    if (s.isEmpty) return '';
+    try {
+      return DateFormat('yyyy-MM-dd').format(DateFormat('dd/MM/yyyy').parseStrict(s));
+    } catch (_) {
+      return s;
+    }
+  }
+
   File? get photoFile => photoLocalPath.isEmpty ? null : File(photoLocalPath);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -583,6 +629,7 @@ class EmployeeMasterController extends AppBaseController {
   // ═══════════════════════════════════════════════════════════════════════════
   bool get nameMissing => nameCtrl.text.trim().isEmpty;
   bool get stateMissing => selectedState == null;
+  bool get siteMissing => selectedSite == null;
 
   /// Every employee needs at least one identity document on file, but which one
   /// is up to them — an Aadhar upload or a PAN upload satisfies this.
@@ -607,6 +654,7 @@ class EmployeeMasterController extends AppBaseController {
   String? _firstProblem() {
     if (nameMissing) return 'Please enter the employee name';
     if (stateMissing) return 'Please select a state';
+    if (siteMissing) return 'Please select a site';
     if (idProofMissing) {
       return 'Please upload at least one document — Aadhar card or PAN card';
     }
@@ -654,6 +702,18 @@ class EmployeeMasterController extends AppBaseController {
       return;
     }
 
+    // PDFs picked from storage are not resized, so this can still trip even
+    // though camera images are shrunk on pick. Better a clear message here
+    // than the server's "Error reading MIME multipart body part".
+    if (attachmentBytes > kAttachmentBudgetBytes) {
+      ShowMessage.showSnackBar(
+          'Attachments too large',
+          'Photo + Aadhar + PAN come to ${_mb(attachmentBytes)} MB; the server '
+              'accepts about ${_mb(kServerRequestLimitBytes)} MB per save. '
+              'Please retake the larger ones, or use a smaller PDF.');
+      return;
+    }
+
     isSubmitting = true;
     update();
 
@@ -677,8 +737,8 @@ class EmployeeMasterController extends AppBaseController {
         designationId: selectedDesignation?.id ?? '',
         designationName: selectedDesignation?.label ?? '',
         personalPhoneNo: phoneCtrl.text.trim(),
-        dateOfJoining: dojCtrl.text.trim(),
-        dateOfBirth: dobCtrl.text.trim(),
+        dateOfJoining: _toApiDate(dojCtrl.text),
+        dateOfBirth: _toApiDate(dobCtrl.text),
         salaryType: selectedSalaryType?.id ?? '',
         weekOff: selectedWeekOff?.id ?? '',
         otApplicable: selectedOtApplicable?.id ?? '',
@@ -726,6 +786,15 @@ class EmployeeMasterController extends AppBaseController {
       if (EmployeeMasterRepo.isNotDeployed(res)) {
         ShowMessage.showSnackBar('Not available yet',
             'The Employee Master save API is not live yet. The form is ready and will work as soon as the backend deploys it.');
+      } else if ((res.message ?? '').toLowerCase().contains('mime multipart')) {
+        // The server's wording for "your request was over the size limit".
+        // Say that, in words a site supervisor can act on.
+        ShowMessage.showSnackBar(
+            'Attachments too large',
+            'The server could not read the upload — the files are probably '
+                'over its ${_mb(kServerRequestLimitBytes)} MB limit '
+                '(this save was ${_mb(attachmentBytes)} MB). '
+                'Please retake the photos or use smaller files.');
       } else {
         ShowMessage.showSnackBar(
             'Save failed',

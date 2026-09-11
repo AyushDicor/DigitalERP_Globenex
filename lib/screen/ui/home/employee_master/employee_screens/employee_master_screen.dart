@@ -128,6 +128,8 @@ class EmployeeMasterScreen extends StatelessWidget {
           value: ctrl.selectedSite,
           items: ctrl.siteList,
           isLoading: ctrl.isLoadingSite,
+          required: true,
+          hasError: ctrl.showErrors && ctrl.siteMissing,
           itemLabel: (o) => o.label,
           onChanged: ctrl.onSiteChanged,
           hint: 'Select site',
