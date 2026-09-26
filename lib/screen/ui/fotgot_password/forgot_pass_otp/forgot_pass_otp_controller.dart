@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:digitalerp/app_routes/app_routes.dart';
+import 'package:digitalerp/response/forgot_pass_response.dart';
 import 'package:digitalerp/response/login_response.dart';
 import 'package:digitalerp/screen/base/base_controller.dart';
 import 'package:digitalerp/screen/ui/fotgot_password/forgot_password_controller.dart';
@@ -10,7 +11,19 @@ import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
 class ForgotPassOtpController extends AppBaseController {
-  final ForgotPasswordController forgotPasswordController = Get.find<ForgotPasswordController>();
+  /// Values carried over from the Forgot Password screen, captured at creation
+  /// time instead of keeping a `Get.find()` reference: this controller is
+  /// re-created by `GetBuilder(init: ...)` on every rebuild of the view, so a
+  /// hard `Get.find` would throw once that page is disposed.
+  final ForgotPassResData? _forgotData =
+      Get.isRegistered<ForgotPasswordController>()
+          ? Get.find<ForgotPasswordController>().responseData
+          : null;
+
+  String get mobileNo => _forgotData?.mobileNo?.toString() ?? '';
+
+  String get otpHint => _forgotData?.otp?.toString() ?? '';
+
   int secondsRemaining = 59;
   bool enableResend = false;
   Timer? timer;
@@ -40,12 +53,15 @@ class ForgotPassOtpController extends AppBaseController {
   void forgotOtpVerifyAPI() async {
     try {
       Map<String, String> body = {};
-      body[RequestKeys.mobileNo] = forgotPasswordController.responseData?.mobileNo.toString() ?? '';
+      body[RequestKeys.mobileNo] = mobileNo;
       body[RequestKeys.otp] = otpController.value.text;
       var res = await api.forgotOtpVerifyAPI(body);
       if (res.status == 200) {
         responseData = res.data?.userid.toString();
-        Get.offAndToNamed(AppRoutes.resetPassword);
+        // Push instead of `offAndToNamed`: the Reset Password screen reads the
+        // userid from this controller, so this page must stay on the stack.
+        // It also makes Back return here rather than to Forgot Password.
+        Get.toNamed(AppRoutes.resetPassword);
       } else {
         ShowMessage.showSnackBar('Failed Server Res', res.message.toString());
       }

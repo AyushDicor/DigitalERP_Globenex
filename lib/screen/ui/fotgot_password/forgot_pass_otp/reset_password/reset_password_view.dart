@@ -183,8 +183,13 @@ class ResetPasswordView extends StatelessWidget {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).viewPadding.bottom;
 
+    // This build runs again whenever the keyboard opens/closes (it reads
+    // viewInsets), so reuse the registered controller instead of constructing
+    // a throwaway one on every rebuild.
     return GetBuilder<ResetPasswordController>(
-      init: ResetPasswordController(),
+      init: Get.isRegistered<ResetPasswordController>()
+          ? Get.find<ResetPasswordController>()
+          : ResetPasswordController(),
       builder: (controller) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
         child: Scaffold(

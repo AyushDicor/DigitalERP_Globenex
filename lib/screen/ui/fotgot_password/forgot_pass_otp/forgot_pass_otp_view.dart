@@ -199,8 +199,13 @@ class ForgotPassOtpView extends StatelessWidget {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).viewPadding.bottom;
 
+    // This build runs again whenever the keyboard opens/closes (it reads
+    // viewInsets), so reuse the registered controller instead of constructing
+    // a throwaway one on every rebuild.
     return GetBuilder<ForgotPassOtpController>(
-      init: ForgotPassOtpController(),
+      init: Get.isRegistered<ForgotPassOtpController>()
+          ? Get.find<ForgotPassOtpController>()
+          : ForgotPassOtpController(),
       builder: (controller) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
         child: Scaffold(
@@ -282,10 +287,9 @@ class ForgotPassOtpView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            controller.forgotPasswordController.responseData
-                                ?.mobileNo
-                                .toString() ??
-                                '9876543210',
+                            controller.mobileNo.isNotEmpty
+                                ? controller.mobileNo
+                                : '9876543210',
                             style: const TextStyle(
                               color: newTextPrimary,
                               fontSize: 15,
@@ -297,13 +301,10 @@ class ForgotPassOtpView extends StatelessWidget {
                       ),
 
                       // Debug OTP (only shown when available)
-                      if (controller.forgotPasswordController.responseData?.otp
-                          .toString()
-                          .isNotEmpty ==
-                          true) ...[
+                      if (controller.otpHint.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'OTP: ${controller.forgotPasswordController.responseData?.otp}',
+                          'OTP: ${controller.otpHint}',
                           style: const TextStyle(
                             color: Colors.green,
                             fontSize: 13,
